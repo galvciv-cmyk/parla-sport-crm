@@ -1,0 +1,494 @@
+import React, { useState } from 'react';
+import { CalendarPlus, RefreshCw, XCircle, CheckCircle } from 'lucide-react';
+import { useData } from '../../context/DataContext';
+import { getAvailableCoaches, getSpanishDayName } from '../../utils/scheduling';
+import { STATUS_CONFIG } from '../../utils/mockData';
+import Modal from '../common/Modal';
+
+const SessionScheduler = () => {
+  const { players, coaches, sessions, createSession, updateSessionStatus, reassignSession, cancelSession } = useData();
+
+  // Estado del Formulario de Creación
+  const [sessionData, setSessionData] = useState({
+    fecha: new Date().toISOString().split('T')[0],
+    horaInicio: '09:00',
+    horaFin: '10:00',
+    tipo: '1-1',
+    entrenadorId: '',
+    jugadoresIds: [],
+    estado: 'sin_confirmar', // Blanco por defecto
+    notas: ''
+  });
+
+  const [errorMessage, setErrorMessage] = useState('');
+  const [successMessage, setSuccessMessage] = useState('');
+
+  // Reasignación Modal
+  const [reassignModalOpen, setReassignModalOpen] = useState(false);
+  const [selectedSessionToReassign, setSelectedSessionToReassign] = useState(null);
+  const [newCoachId, setNewCoachId] = useState('');
+  const [absenceReason, setAbsenceReason] = useState('');
+
+  // Obtener entrenadores estrictamente disponibles para la fecha/hora seleccionada
+  const availableCoachesForForm = getAvailableCoaches(
+    coaches,
+    sessions,
+    sessionData.fecha,
+    sessionData.horaInicio,
+    sessionData.horaFin
+  );
+
+  // Obtener entrenadores disponibles para la reasignación
+  const availableCoachesForReassign = selectedSessionToReassign
+    ? getAvailableCoaches(
+        coaches,
+        sessions,
+        selectedSessionToReassign.fecha,
+        selectedSessionToReassign.horaInicio,
+        selectedSessionToReassign.horaFin,
+        selectedSessionToReassign.id
+      ).filter(c => c.id !== selectedSessionToReassign.entrenadorId)
+    : [];
+
+  const handlePlayerToggle = (pId) => {
+    const maxAllowed = sessionData.tipo === '1-1' ? 1 : sessionData.tipo === '1-2' ? 2 : 3;
+
+    if (sessionData.jugadoresIds.includes(pId)) {
+      setSessionData(prev => ({
+        ...prev,
+        jugadoresIds: prev.jugadoresIds.filter(id => id !== pId)
+      }));
+    } else {
+      if (sessionData.jugadoresIds.length >= maxAllowed) {
+        alert(`Para el formato ${sessionData.tipo} solo puedes seleccionar máximo ${maxAllowed} jugador(es).`);
+        return;
+      }
+      setSessionData(prev => ({
+        ...prev,
+        jugadoresIds: [...prev.jugadoresIds, pId]
+      }));
+    }
+  };
+
+  const handleCreateSubmit = (e) => {
+    e.preventDefault();
+    setErrorMessage('');
+    setSuccessMessage('');
+
+    const maxNeeded = sessionData.tipo === '1-1' ? 1 : sessionData.tipo === '1-2' ? 2 : 3;
+    if (sessionData.jugadoresIds.length !== maxNeeded) {
+      setErrorMessage(`Para la modalidad ${sessionData.tipo} debes seleccionar exactamente ${maxNeeded} jugador(es).`);
+      return;
+    }
+
+    if (!sessionData.entrenadorId) {
+      setErrorMessage('Debes seleccionar un entrenador disponible del menú.');
+      return;
+    }
+
+    try {
+      createSession(sessionData);
+      setSuccessMessage('¡Sesión agendada exitosamente! Se han enviado las notificaciones.');
+      
+      // Reset
+      setSessionData({
+        fecha: new Date().toISOString().split('T')[0],
+        horaInicio: '09:00',
+        horaFin: '10:00',
+        tipo: '1-1',
+        entrenadorId: '',
+        jugadoresIds: [],
+        estado: 'sin_confirmar',
+        notas: ''
+      });
+    } catch (err) {
+      setErrorMessage(err.message);
+    }
+  };
+
+  const handleOpenReassign = (session) => {
+    setSelectedSessionToReassign(session);
+    setNewCoachId('');
+    setAbsenceReason('Motivo personal / ausente');
+    setReassignModalOpen(true);
+  };
+
+  const handleReassignSubmit = (e) => {
+    e.preventDefault();
+    if (!newCoachId) {
+      alert('Selecciona al nuevo entrenador disponible.');
+      return;
+    }
+
+    try {
+      reassignSession(selectedSessionToReassign.id, newCoachId, absenceReason);
+      setReassignModalOpen(false);
+      alert('¡Sesión reasignada con éxito! Calendario y notificaciones actualizadas.');
+    } catch (err) {
+      alert(err.message);
+    }
+  };
+
+  return (
+    <div className="animate-fade-in" style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
+      
+      {/* Encabezado */}
+      <div>
+        <h2 style={{ fontSize: '1.5rem', fontWeight: 800, color: '#F8FAFC' }}>
+          Gestor y Programación de Sesiones
+        </h2>
+        <p style={{ color: '#94A3B8', fontSize: '0.88rem', marginTop: '4px' }}>
+          Código de colores según el Drive: ⚪ Blanco (Sin confirmar), 🟡 Amarillo (Confirmado), 🟠 Naranja (Realizada), 🟢 Verde (Pagada).
+        </p>
+      </div>
+
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(340px, 1fr))', gap: '24px' }}>
+        
+        {/* Formulario de Creación de Sesión */}
+        <div className="glass-panel" style={{ padding: '24px' }}>
+          <h3 style={{ fontSize: '1.1rem', fontWeight: 700, marginBottom: '16px', color: '#F8FAFC', display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <CalendarPlus size={20} color="#10B981" /> Programar Entrenamiento
+          </h3>
+
+          {errorMessage && (
+            <div style={{ padding: '12px', borderRadius: '10px', background: 'rgba(239, 68, 68, 0.15)', border: '1px solid rgba(239, 68, 68, 0.4)', color: '#F87171', fontSize: '0.85rem', marginBottom: '14px' }}>
+              ⚠️ {errorMessage}
+            </div>
+          )}
+
+          {successMessage && (
+            <div style={{ padding: '12px', borderRadius: '10px', background: 'rgba(16, 185, 129, 0.15)', border: '1px solid rgba(16, 185, 129, 0.4)', color: '#34D399', fontSize: '0.85rem', marginBottom: '14px' }}>
+              ✓ {successMessage}
+            </div>
+          )}
+
+          <form onSubmit={handleCreateSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+            
+            {/* Fecha y Día */}
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
+              <div>
+                <label className="input-label">Fecha de la Sesión</label>
+                <input
+                  type="date"
+                  required
+                  className="input-field"
+                  value={sessionData.fecha}
+                  onChange={(e) => setSessionData({ ...sessionData, fecha: e.target.value, entrenadorId: '' })}
+                />
+              </div>
+
+              <div>
+                <label className="input-label">Día Detectado</label>
+                <input
+                  type="text"
+                  readOnly
+                  className="input-field"
+                  style={{ color: '#10B981', fontWeight: 700 }}
+                  value={getSpanishDayName(sessionData.fecha)}
+                />
+              </div>
+            </div>
+
+            {/* Horario inicio / fin */}
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
+              <div>
+                <label className="input-label">Hora Inicio</label>
+                <input
+                  type="time"
+                  required
+                  className="input-field"
+                  value={sessionData.horaInicio}
+                  onChange={(e) => setSessionData({ ...sessionData, horaInicio: e.target.value, entrenadorId: '' })}
+                />
+              </div>
+
+              <div>
+                <label className="input-label">Hora Fin</label>
+                <input
+                  type="time"
+                  required
+                  className="input-field"
+                  value={sessionData.horaFin}
+                  onChange={(e) => setSessionData({ ...sessionData, horaFin: e.target.value, entrenadorId: '' })}
+                />
+              </div>
+            </div>
+
+            {/* Estado Inicial de la Sesión */}
+            <div>
+              <label className="input-label">Estado Inicial (Código de Colores)</label>
+              <select
+                className="input-field"
+                value={sessionData.estado}
+                onChange={(e) => setSessionData({ ...sessionData, estado: e.target.value })}
+              >
+                <option value="sin_confirmar">⚪ Blanco - Sin Confirmar</option>
+                <option value="confirmada">🟡 Amarillo - Confirmado</option>
+                <option value="realizada">🟠 Naranja - Realizada</option>
+                <option value="pagada">🟢 Verde - Pagada</option>
+              </select>
+            </div>
+
+            {/* Tipo de Formato 1-1, 1-2, 1-3 */}
+            <div>
+              <label className="input-label">Formato de Entrenamiento</label>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '8px' }}>
+                {['1-1', '1-2', '1-3'].map(tipo => (
+                  <button
+                    key={tipo}
+                    type="button"
+                    onClick={() => setSessionData({ ...sessionData, tipo, jugadoresIds: [] })}
+                    style={{
+                      padding: '10px',
+                      borderRadius: '8px',
+                      border: sessionData.tipo === tipo ? '2px solid #10B981' : '1px solid rgba(255,255,255,0.1)',
+                      background: sessionData.tipo === tipo ? 'rgba(16, 185, 129, 0.15)' : 'rgba(15,23,42,0.6)',
+                      color: sessionData.tipo === tipo ? '#34D399' : '#94A3B8',
+                      fontWeight: 700,
+                      cursor: 'pointer'
+                    }}
+                  >
+                    {tipo} Personalizado
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* SELECCIÓN DE JUGADORES */}
+            <div>
+              <label className="input-label">
+                Seleccionar Jugador(es) - Requeridos: {sessionData.tipo === '1-1' ? 1 : sessionData.tipo === '1-2' ? 2 : 3}
+              </label>
+              <div style={{ maxHeight: '160px', overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: '6px', background: 'rgba(15,23,42,0.6)', padding: '10px', borderRadius: '10px' }}>
+                {players.map(p => {
+                  const isSelected = sessionData.jugadoresIds.includes(p.id);
+                  return (
+                    <div
+                      key={p.id}
+                      onClick={() => handlePlayerToggle(p.id)}
+                      style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'space-between',
+                        padding: '8px 12px',
+                        borderRadius: '8px',
+                        background: isSelected ? 'rgba(16, 185, 129, 0.15)' : 'transparent',
+                        border: isSelected ? '1px solid rgba(16, 185, 129, 0.4)' : '1px solid transparent',
+                        cursor: 'pointer'
+                      }}
+                    >
+                      <span style={{ fontSize: '0.85rem', color: isSelected ? '#F8FAFC' : '#CBD5E1', fontWeight: isSelected ? 700 : 400 }}>
+                        ⚽ {p.nombre} ({p.posicion})
+                      </span>
+                      {isSelected && <CheckCircle size={16} color="#10B981" />}
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+
+            {/* SELECCIÓN FILTRADA ESTRICTA DE ENTRENADOR */}
+            <div>
+              <label className="input-label" style={{ color: '#F59E0B' }}>
+                Entrenadores Disponibles (Filtro Anti-Choque)
+              </label>
+              <select
+                required
+                className="input-field"
+                style={{ borderColor: availableCoachesForForm.length > 0 ? '#10B981' : '#EF4444' }}
+                value={sessionData.entrenadorId}
+                onChange={(e) => setSessionData({ ...sessionData, entrenadorId: e.target.value })}
+              >
+                <option value="">
+                  {availableCoachesForForm.length > 0
+                    ? `-- Selecciona entre los ${availableCoachesForForm.length} disponibles --`
+                    : '❌ Ningún entrenador disponible en este bloque'}
+                </option>
+                {availableCoachesForForm.map(c => (
+                  <option key={c.id} value={c.id}>
+                    👤 {c.nombre} ({c.especialidad})
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            <div>
+              <label className="input-label">Notas u Objetivos Técnicos</label>
+              <textarea
+                rows="2"
+                className="input-field"
+                placeholder="Ej. Trabajar recepción orientada y finalización..."
+                value={sessionData.notas}
+                onChange={(e) => setSessionData({ ...sessionData, notas: e.target.value })}
+              />
+            </div>
+
+            <button
+              type="submit"
+              className="btn-primary"
+              disabled={availableCoachesForForm.length === 0}
+              style={{ marginTop: '8px' }}
+            >
+              Confirmar y Programar Sesión
+            </button>
+
+          </form>
+        </div>
+
+        {/* Lista de Sesiones Programadas (con Selector de Estado y Reasignación) */}
+        <div className="glass-panel" style={{ padding: '24px', display: 'flex', flexDirection: 'column' }}>
+          <h3 style={{ fontSize: '1.1rem', fontWeight: 700, marginBottom: '16px', color: '#F8FAFC' }}>
+            Sesiones Agendadas ({sessions.length})
+          </h3>
+
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '14px', overflowY: 'auto', maxHeight: '580px' }}>
+            {sessions.length === 0 ? (
+              <p style={{ color: '#64748B', fontSize: '0.85rem' }}>No hay sesiones agendadas actualmente.</p>
+            ) : (
+              sessions.map(s => {
+                const coachObj = coaches.find(c => c.id === s.entrenadorId);
+                const sessionPlayers = players.filter(p => s.jugadoresIds?.includes(p.id));
+                const statusCfg = STATUS_CONFIG[s.estado] || STATUS_CONFIG.sin_confirmar;
+
+                return (
+                  <div
+                    key={s.id}
+                    style={{
+                      background: statusCfg.bgLight,
+                      border: `1px solid ${statusCfg.colorHex}40`,
+                      borderLeft: `5px solid ${statusCfg.colorHex}`,
+                      borderRadius: '14px',
+                      padding: '16px',
+                      display: 'flex',
+                      flexDirection: 'column',
+                      gap: '10px'
+                    }}
+                  >
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '8px' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                        <span className="badge badge-emerald">{s.tipo}</span>
+                        <span style={{ fontSize: '0.85rem', fontWeight: 700, color: '#F8FAFC' }}>
+                          📅 {s.fecha} ({s.horaInicio} - {s.horaFin})
+                        </span>
+                      </div>
+
+                      {/* Selector directo del estado (Código de Colores) */}
+                      <select
+                        value={s.estado}
+                        onChange={(e) => updateSessionStatus(s.id, e.target.value)}
+                        className={`badge ${statusCfg.badgeClass}`}
+                        style={{ cursor: 'pointer', outline: 'none', padding: '3px 8px' }}
+                      >
+                        <option value="sin_confirmar" style={{ color: '#000' }}>⚪ Sin Confirmar</option>
+                        <option value="confirmada" style={{ color: '#000' }}>🟡 Confirmado</option>
+                        <option value="realizada" style={{ color: '#000' }}>🟠 Realizada</option>
+                        <option value="pagada" style={{ color: '#000' }}>🟢 Pagada</option>
+                        <option value="cancelada" style={{ color: '#000' }}>🔴 Cancelada</option>
+                      </select>
+                    </div>
+
+                    <div style={{ fontSize: '0.85rem', color: '#CBD5E1' }}>
+                      <strong>Entrenador:</strong> {coachObj ? coachObj.nombre : 'No asignado'}
+                    </div>
+
+                    <div style={{ fontSize: '0.82rem', color: '#94A3B8' }}>
+                      <strong>Jugadores ({sessionPlayers.length}):</strong>{' '}
+                      {sessionPlayers.map(p => p.nombre).join(', ')}
+                    </div>
+
+                    {s.notas && (
+                      <div style={{ fontSize: '0.78rem', color: '#64748B', fontStyle: 'italic' }}>
+                        "{s.notas}"
+                      </div>
+                    )}
+
+                    {/* Botones para Reasignar Ausencia / Cancelar */}
+                    {s.estado !== 'cancelada' && (
+                      <div style={{ display: 'flex', gap: '10px', marginTop: '6px' }}>
+                        <button
+                          className="btn-secondary"
+                          style={{ flex: 1, padding: '6px 10px', fontSize: '0.78rem', color: '#F59E0B', borderColor: 'rgba(245, 158, 11, 0.4)' }}
+                          onClick={() => handleOpenReassign(s)}
+                        >
+                          <RefreshCw size={14} /> Reasignar (Ausencia)
+                        </button>
+
+                        <button
+                          className="btn-danger"
+                          style={{ padding: '6px 10px', fontSize: '0.78rem' }}
+                          onClick={() => cancelSession(s.id)}
+                        >
+                          <XCircle size={14} /> Cancelar
+                        </button>
+                      </div>
+                    )}
+                  </div>
+                );
+              })
+            )}
+          </div>
+        </div>
+
+      </div>
+
+      {/* Modal Reasignación de Entrenador por Ausencia */}
+      <Modal
+        isOpen={reassignModalOpen}
+        onClose={() => setReassignModalOpen(false)}
+        title="Reasignar Entrenador por Ausencia"
+      >
+        {selectedSessionToReassign && (
+          <form onSubmit={handleReassignSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+            <div style={{ background: 'rgba(245, 158, 11, 0.1)', padding: '12px', borderRadius: '10px', fontSize: '0.85rem', color: '#FBBF24' }}>
+              ⚠️ Reasignando sesión del <strong>{selectedSessionToReassign.fecha} ({selectedSessionToReassign.horaInicio} - {selectedSessionToReassign.horaFin})</strong>.
+            </div>
+
+            <div>
+              <label className="input-label">Nuevo Entrenador Disponible</label>
+              <select
+                required
+                className="input-field"
+                value={newCoachId}
+                onChange={(e) => setNewCoachId(e.target.value)}
+              >
+                <option value="">-- Selecciona nuevo profesor sin choque --</option>
+                {availableCoachesForReassign.map(c => (
+                  <option key={c.id} value={c.id}>
+                    👤 {c.nombre} ({c.especialidad})
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            <div>
+              <label className="input-label">Motivo de la Reasignación / Ausencia</label>
+              <input
+                type="text"
+                className="input-field"
+                placeholder="Ej. Entrenador indispuesto o ausente..."
+                value={absenceReason}
+                onChange={(e) => setAbsenceReason(e.target.value)}
+              />
+            </div>
+
+            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px', marginTop: '10px' }}>
+              <button type="button" className="btn-secondary" onClick={() => setReassignModalOpen(false)}>
+                Cancelar
+              </button>
+              <button
+                type="submit"
+                className="btn-primary"
+                disabled={availableCoachesForReassign.length === 0}
+              >
+                Confirmar Reasignación y Notificar
+              </button>
+            </div>
+          </form>
+        )}
+      </Modal>
+
+    </div>
+  );
+};
+
+export default SessionScheduler;

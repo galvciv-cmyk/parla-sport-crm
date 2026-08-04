@@ -1,0 +1,31 @@
+version: '3.8'
+
+services:
+  # Servicio 1: Firebase Local Emulator Suite (Totalmente aislado de producción)
+  firebase-emulator:
+    build:
+      context: .
+      dockerfile: Dockerfile.emulator
+    container_name: parla_firebase_emulator
+    ports:
+      - "4000:4000" # Firebase Emulator UI (Panel de Control Visual)
+      - "8080:8080" # Firestore Emulator Port
+      - "9099:9099" # Auth Emulator Port
+    restart: unless-stopped
+
+  # Servicio 2: Aplicación Web Parla Sport CRM (React + Vite)
+  web:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: parla_sport_crm_web
+    ports:
+      - "5173:80"
+    environment:
+      - VITE_FIREBASE_API_KEY=AIzaSyDemoKeyForParlaSportCRM12345
+      - VITE_FIREBASE_PROJECT_ID=parla-sport-crm
+      - VITE_USE_EMULATOR=true
+      - VITE_EMULATOR_HOST=firebase-emulator
+    depends_on:
+      - firebase-emulator
+    restart: unless-stopped

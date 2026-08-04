@@ -1,0 +1,17 @@
+# Dockerfile for Firebase Local Emulator Suite
+FROM node:18-alpine
+
+# Install Java JRE (Required for Firestore Emulator)
+RUN apk add --no-cache openjdk11-jre bash
+
+WORKDIR /app
+
+# Install firebase-tools globally
+RUN npm install -g firebase-tools
+
+COPY firebase.json firestore.rules firestore.indexes.json ./
+
+# Ports exposed: 4000 (UI), 8080 (Firestore), 9099 (Auth)
+EXPOSE 4000 8080 9099
+
+CMD ["firebase", "emulators:start", "--only", "auth,firestore"]
