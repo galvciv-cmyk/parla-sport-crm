@@ -1,5 +1,5 @@
 import React from 'react';
-import { Phone, Award } from 'lucide-react';
+import { Phone, Award, User } from 'lucide-react';
 import { STATUS_CONFIG } from '../../utils/mockData';
 import { useData } from '../../context/DataContext';
 import Modal from '../common/Modal';
@@ -171,11 +171,23 @@ const SessionDetailModal = ({ isOpen, onClose, session, players, coach }) => {
                 }}
               >
                 <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-                  <img
-                    src={player.foto || 'https://images.unsplash.com/photo-1543351611-58f69d7c1781?auto=format&fit=crop&q=80&w=300'}
-                    alt={player.nombre}
-                    style={{ width: '52px', height: '52px', borderRadius: '12px', objectFit: 'cover', border: '2px solid #10B981' }}
-                  />
+                  {player.foto ? (
+                    <img
+                      src={player.foto}
+                      alt={player.nombre}
+                      style={{ width: '52px', height: '52px', borderRadius: '12px', objectFit: 'cover', border: '2px solid #10B981' }}
+                    />
+                  ) : (
+                    <div style={{
+                      width: '52px', height: '52px', borderRadius: '12px',
+                      background: 'rgba(16, 185, 129, 0.15)',
+                      border: '2px solid #10B981',
+                      display: 'flex', alignItems: 'center', justifyContent: 'center',
+                      flexShrink: 0
+                    }}>
+                      <User size={24} color="#34D399" />
+                    </div>
+                  )}
                   <div>
                     <div style={{ fontWeight: 700, fontSize: '0.95rem', color: '#F8FAFC' }}>{player.nombre}</div>
                     <div style={{ fontSize: '0.75rem', color: '#10B981', fontWeight: 600 }}>

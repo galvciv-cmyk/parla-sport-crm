@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { UserPlus, Search, Edit3, Trash2, Eye, ShieldAlert, Award } from 'lucide-react';
+import { UserPlus, Search, Edit3, Trash2, Eye, User } from 'lucide-react';
 import { useData } from '../../context/DataContext';
 import Modal from '../common/Modal';
 
@@ -135,11 +135,23 @@ const PlayerManager = () => {
         {filteredPlayers.map((player) => (
           <div key={player.id} className="glass-card" style={{ padding: '18px', display: 'flex', flexDirection: 'column', gap: '12px' }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: '14px' }}>
-              <img
-                src={player.foto || 'https://images.unsplash.com/photo-1543351611-58f69d7c1781?auto=format&fit=crop&q=80&w=300'}
-                alt={player.nombre}
-                style={{ width: '56px', height: '56px', borderRadius: '14px', objectFit: 'cover', border: '2px solid rgba(16, 185, 129, 0.4)' }}
-              />
+              {player.foto ? (
+                <img
+                  src={player.foto}
+                  alt={player.nombre}
+                  style={{ width: '56px', height: '56px', borderRadius: '14px', objectFit: 'cover', border: '2px solid rgba(16, 185, 129, 0.4)' }}
+                />
+              ) : (
+                <div style={{
+                  width: '56px', height: '56px', borderRadius: '14px',
+                  background: 'rgba(16, 185, 129, 0.12)',
+                  border: '2px solid rgba(16, 185, 129, 0.4)',
+                  display: 'flex', alignItems: 'center', justifyContent: 'center',
+                  flexShrink: 0
+                }}>
+                  <User size={26} color="#34D399" />
+                </div>
+              )}
               <div style={{ flex: 1 }}>
                 <h3 style={{ fontSize: '1rem', fontWeight: 700, color: '#F8FAFC' }}>{player.nombre}</h3>
                 <div style={{ display: 'flex', gap: '6px', marginTop: '4px', flexWrap: 'wrap' }}>
