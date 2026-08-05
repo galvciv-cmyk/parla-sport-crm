@@ -1,13 +1,11 @@
 import React, { useState } from 'react';
 import { KeyRound, Mail, Lock, UserPlus, Plus, Trash2, Clock } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
-import { useData } from '../../context/DataContext';
 
 const DAYS_LIST = ['Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado'];
 
 const LoginScreen = () => {
   const { login, register, masterEmail } = useAuth();
-  const { addCoach } = useData();
 
   const [activeTab, setActiveTab] = useState('login'); // 'login' | 'register'
   const [submitting, setSubmitting] = useState(false);
@@ -91,14 +89,24 @@ const LoginScreen = () => {
     setSubmitting(true);
 
     const isMaster = regData.email.toLowerCase().trim() === masterEmail.toLowerCase();
-    // El Administrador Maestro no tiene "ficha de entrenador"; los demás correos sí.
-    const coachId = isMaster ? null : addCoach(regData).id;
+
+    // Pasar el perfil completo del entrenador a register().
+    // register() guarda la ficha en Firestore coaches/{coachId} DESPUÉS de autenticar.
+    // No llamamos addCoach() aquí porque el usuario aún no está autenticado.
+    const coachProfile = isMaster ? null : {
+      nombre: regData.nombre,
+      email: regData.email,
+      telefono: regData.telefono || '',
+      especialidad: regData.especialidad || '',
+      foto: regData.foto || '',
+      bloquesDisponibilidad: regData.bloquesDisponibilidad || []
+    };
 
     const res = await register({
       email: regData.email,
       password: regData.password,
       nombre: regData.nombre,
-      coachId
+      coachProfile
     });
 
     setSubmitting(false);
