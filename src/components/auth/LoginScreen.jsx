@@ -1,57 +1,110 @@
 import React, { useState } from 'react';
-import { KeyRound, Mail, UserPlus, Sparkles, UserCheck, Shield } from 'lucide-react';
+import { KeyRound, Mail, Lock, UserPlus, Plus, Trash2, Clock } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import { useData } from '../../context/DataContext';
 
+const DAYS_LIST = ['Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado'];
+
 const LoginScreen = () => {
-  const { loginWithEmail, masterEmail } = useAuth();
-  const { coaches, addCoach } = useData();
+  const { login, register, masterEmail } = useAuth();
+  const { addCoach } = useData();
 
   const [activeTab, setActiveTab] = useState('login'); // 'login' | 'register'
-  
+  const [submitting, setSubmitting] = useState(false);
+
   // Login State
   const [emailInput, setEmailInput] = useState('');
+  const [passwordInput, setPasswordInput] = useState('');
   const [errorMsg, setErrorMsg] = useState('');
 
   // Register State
   const [regData, setRegData] = useState({
     nombre: '',
     email: '',
+    password: '',
+    confirmPassword: '',
     telefono: '',
     especialidad: 'Táctica & Fundamentos 1-1',
-    foto: 'https://images.unsplash.com/photo-1560250097-0b93528c311a?auto=format&fit=crop&q=80&w=300'
+    foto: '',
+    bloquesDisponibilidad: [
+      { dia: 'Lunes', horaInicio: '08:00', horaFin: '12:00' },
+      { dia: 'Miércoles', horaInicio: '08:00', horaFin: '12:00' },
+      { dia: 'Viernes', horaInicio: '14:00', horaFin: '18:00' }
+    ]
   });
 
-  const handleLoginSubmit = (e) => {
+  const [newBlock, setNewBlock] = useState({
+    dia: 'Lunes',
+    horaInicio: '08:00',
+    horaFin: '12:00'
+  });
+
+  const handleAddBlock = () => {
+    setRegData(prev => ({
+      ...prev,
+      bloquesDisponibilidad: [...prev.bloquesDisponibilidad, { ...newBlock }]
+    }));
+  };
+
+  const handleRemoveBlock = (index) => {
+    setRegData(prev => ({
+      ...prev,
+      bloquesDisponibilidad: prev.bloquesDisponibilidad.filter((_, i) => i !== index)
+    }));
+  };
+
+  const handleLoginSubmit = async (e) => {
     e.preventDefault();
     setErrorMsg('');
 
-    if (!emailInput) {
-      setErrorMsg('Por favor introduce tu correo electrónico.');
+    if (!emailInput || !passwordInput) {
+      setErrorMsg('Por favor introduce tu correo y contraseña.');
       return;
     }
 
-    const res = loginWithEmail(emailInput, coaches);
+    setSubmitting(true);
+    const res = await login(emailInput, passwordInput);
+    setSubmitting(false);
+
     if (!res.success) {
-      setErrorMsg('Ocurrió un error al ingresar.');
+      setErrorMsg(res.error);
     }
   };
 
-  const handleRegisterSubmit = (e) => {
+  const handleRegisterSubmit = async (e) => {
     e.preventDefault();
     setErrorMsg('');
 
-    if (!regData.nombre || !regData.email) {
-      setErrorMsg('Por favor completa el nombre y correo del entrenador.');
+    if (!regData.nombre || !regData.email || !regData.password) {
+      setErrorMsg('Por favor completa nombre, correo y contraseña.');
+      return;
+    }
+    if (regData.password.length < 6) {
+      setErrorMsg('La contraseña debe tener al menos 6 caracteres.');
+      return;
+    }
+    if (regData.password !== regData.confirmPassword) {
+      setErrorMsg('Las contraseñas no coinciden.');
       return;
     }
 
-    const newCoach = addCoach(regData);
-    loginWithEmail(newCoach.email, [...coaches, newCoach]);
-  };
+    setSubmitting(true);
 
-  const handleQuickDemo = (email) => {
-    loginWithEmail(email, coaches);
+    const isMaster = regData.email.toLowerCase().trim() === masterEmail.toLowerCase();
+    // El Administrador Maestro no tiene "ficha de entrenador"; los demás correos sí.
+    const coachId = isMaster ? null : addCoach(regData).id;
+
+    const res = await register({
+      email: regData.email,
+      password: regData.password,
+      nombre: regData.nombre,
+      coachId
+    });
+
+    setSubmitting(false);
+    if (!res.success) {
+      setErrorMsg(res.error);
+    }
   };
 
   return (
@@ -71,23 +124,21 @@ const LoginScreen = () => {
         className="glass-modal animate-fade-in"
         style={{
           width: '100%',
-          maxWidth: '480px',
+          maxWidth: activeTab === 'register' ? '540px' : '440px',
           padding: '36px 32px',
           display: 'flex',
           flexDirection: 'column',
-          gap: '22px'
+          gap: '22px',
+          transition: 'all 0.3s ease'
         }}
       >
-        {/* Header con Logo Oficial Procesado */}
+        {/* Header con Logo Oficial */}
         <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', textAlign: 'center' }}>
           <img
             src="/logo.png"
             alt="Parla Sport Logo Oficial"
-            style={{ height: '80px', width: 'auto', objectFit: 'contain', marginBottom: '10px' }}
+            style={{ height: '85px', width: 'auto', objectFit: 'contain' }}
           />
-          <p style={{ color: '#94A3B8', fontSize: '0.85rem' }}>
-            Sistema de Gestión Deportiva CRM 1-1, 1-2 y 1-3
-          </p>
         </div>
 
         {/* Pestañas Iniciar Sesión vs Registrar Profesor */}
@@ -137,22 +188,8 @@ const LoginScreen = () => {
           </button>
         </div>
 
-        {/* Alerta explicativa de Correo Maestro vs Entrenador */}
-        <div style={{
-          background: 'rgba(212, 175, 55, 0.1)',
-          border: '1px solid rgba(212, 175, 55, 0.3)',
-          borderRadius: '12px',
-          padding: '12px 14px',
-          fontSize: '0.8rem',
-          color: '#FBBF24',
-          lineHeight: '1.4'
-        }}>
-          🛡️ Correo Maestro Admin: <strong>{masterEmail}</strong> (Panel Admin completo).<br />
-          👤 Cualquier otro correo registrado ingresa al <strong>Panel de Entrenador</strong>.
-        </div>
-
         {errorMsg && (
-          <div style={{ padding: '10px', borderRadius: '8px', background: 'rgba(239, 68, 68, 0.2)', border: '1px solid rgba(239, 68, 68, 0.4)', color: '#F87171', fontSize: '0.82rem' }}>
+          <div style={{ padding: '10px 12px', borderRadius: '8px', background: 'rgba(239, 68, 68, 0.2)', border: '1px solid rgba(239, 68, 68, 0.4)', color: '#F87171', fontSize: '0.82rem' }}>
             ⚠️ {errorMsg}
           </div>
         )}
@@ -167,7 +204,7 @@ const LoginScreen = () => {
                 <input
                   type="email"
                   required
-                  placeholder="ej. admin@parlasport.com o tu correo..."
+                  placeholder="Tu correo electrónico..."
                   className="input-field"
                   style={{ paddingLeft: '38px' }}
                   value={emailInput}
@@ -176,8 +213,24 @@ const LoginScreen = () => {
               </div>
             </div>
 
-            <button type="submit" className="btn-primary" style={{ width: '100%', padding: '12px', marginTop: '4px' }}>
-              <KeyRound size={18} /> Entrar al CRM
+            <div>
+              <label className="input-label">Contraseña</label>
+              <div style={{ position: 'relative' }}>
+                <Lock size={18} style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)', color: '#D4AF37' }} />
+                <input
+                  type="password"
+                  required
+                  placeholder="Tu contraseña..."
+                  className="input-field"
+                  style={{ paddingLeft: '38px' }}
+                  value={passwordInput}
+                  onChange={(e) => setPasswordInput(e.target.value)}
+                />
+              </div>
+            </div>
+
+            <button type="submit" className="btn-primary" style={{ width: '100%', padding: '12px', marginTop: '4px' }} disabled={submitting}>
+              <KeyRound size={18} /> {submitting ? 'Iniciando sesión...' : 'Iniciar Sesión'}
             </button>
           </form>
         )}
@@ -186,7 +239,7 @@ const LoginScreen = () => {
         {activeTab === 'register' && (
           <form onSubmit={handleRegisterSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
             <div>
-              <label className="input-label">Nombre del Profesor</label>
+              <label className="input-label">Nombre Completo del Profesor</label>
               <input
                 type="text"
                 required
@@ -211,7 +264,32 @@ const LoginScreen = () => {
 
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
               <div>
-                <label className="input-label">Teléfono</label>
+                <label className="input-label">Contraseña</label>
+                <input
+                  type="password"
+                  required
+                  placeholder="Mín. 6 caracteres"
+                  className="input-field"
+                  value={regData.password}
+                  onChange={(e) => setRegData({ ...regData, password: e.target.value })}
+                />
+              </div>
+              <div>
+                <label className="input-label">Confirmar Contraseña</label>
+                <input
+                  type="password"
+                  required
+                  placeholder="Repite la contraseña"
+                  className="input-field"
+                  value={regData.confirmPassword}
+                  onChange={(e) => setRegData({ ...regData, confirmPassword: e.target.value })}
+                />
+              </div>
+            </div>
+
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
+              <div>
+                <label className="input-label">Teléfono / WhatsApp</label>
                 <input
                   type="text"
                   placeholder="+58 414 0001122"
@@ -232,67 +310,97 @@ const LoginScreen = () => {
               </div>
             </div>
 
-            <button type="submit" className="btn-primary" style={{ width: '100%', padding: '12px', marginTop: '6px' }}>
-              <UserPlus size={18} /> Registrar e Ingresar
+            {/* Configuración de Disponibilidad durante Registro */}
+            <div style={{
+              background: 'rgba(15, 23, 42, 0.7)',
+              padding: '14px',
+              borderRadius: '12px',
+              border: '1px solid rgba(212, 175, 55, 0.2)',
+              marginTop: '4px'
+            }}>
+              <div style={{ fontSize: '0.82rem', fontWeight: 700, color: '#FBBF24', marginBottom: '10px', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                <Clock size={16} /> Configura tus Días y Horarios Disponibles:
+              </div>
+
+              {/* Selector para añadir bloques */}
+              <div style={{ display: 'flex', gap: '8px', alignItems: 'flex-end', flexWrap: 'wrap' }}>
+                <div style={{ flex: 1, minWidth: '110px' }}>
+                  <label className="input-label" style={{ fontSize: '0.72rem' }}>Día</label>
+                  <select
+                    className="input-field"
+                    style={{ padding: '6px 10px', fontSize: '0.8rem' }}
+                    value={newBlock.dia}
+                    onChange={(e) => setNewBlock({ ...newBlock, dia: e.target.value })}
+                  >
+                    {DAYS_LIST.map(d => <option key={d} value={d}>{d}</option>)}
+                  </select>
+                </div>
+
+                <div style={{ width: '100px' }}>
+                  <label className="input-label" style={{ fontSize: '0.72rem' }}>Hora Inicio</label>
+                  <input
+                    type="time"
+                    className="input-field"
+                    style={{ padding: '6px 8px', fontSize: '0.8rem' }}
+                    value={newBlock.horaInicio}
+                    onChange={(e) => setNewBlock({ ...newBlock, horaInicio: e.target.value })}
+                  />
+                </div>
+
+                <div style={{ width: '100px' }}>
+                  <label className="input-label" style={{ fontSize: '0.72rem' }}>Hora Fin</label>
+                  <input
+                    type="time"
+                    className="input-field"
+                    style={{ padding: '6px 8px', fontSize: '0.8rem' }}
+                    value={newBlock.horaFin}
+                    onChange={(e) => setNewBlock({ ...newBlock, horaFin: e.target.value })}
+                  />
+                </div>
+
+                <button
+                  type="button"
+                  className="btn-secondary"
+                  onClick={handleAddBlock}
+                  style={{ padding: '6px 10px', fontSize: '0.78rem', color: '#10B981', borderColor: 'rgba(16, 185, 129, 0.4)' }}
+                >
+                  <Plus size={14} /> Añadir Horario
+                </button>
+              </div>
+
+              {/* Lista de bloques configurados */}
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px', marginTop: '10px' }}>
+                {regData.bloquesDisponibilidad.map((block, idx) => (
+                  <span key={idx} style={{
+                    background: 'rgba(245, 158, 11, 0.15)',
+                    color: '#FBBF24',
+                    border: '1px solid rgba(245, 158, 11, 0.3)',
+                    padding: '4px 10px',
+                    borderRadius: '8px',
+                    fontSize: '0.75rem',
+                    fontWeight: 600,
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '6px'
+                  }}>
+                    📅 {block.dia}: {block.horaInicio} - {block.horaFin}
+                    <button
+                      type="button"
+                      onClick={() => handleRemoveBlock(idx)}
+                      style={{ background: 'none', border: 'none', color: '#EF4444', cursor: 'pointer', padding: 0, display: 'flex' }}
+                    >
+                      <Trash2 size={13} />
+                    </button>
+                  </span>
+                ))}
+              </div>
+            </div>
+
+            <button type="submit" className="btn-primary" style={{ width: '100%', padding: '12px', marginTop: '6px' }} disabled={submitting}>
+              <UserPlus size={18} /> {submitting ? 'Registrando...' : 'Registrar Profesor e Ingresar'}
             </button>
           </form>
         )}
-
-        {/* ACCESOS DIRECTOS DE PRUEBA RÁPIDA */}
-        <div style={{ borderTop: '1px solid rgba(212, 175, 55, 0.2)', paddingTop: '16px' }}>
-          <div style={{ fontSize: '0.78rem', fontWeight: 700, color: '#94A3B8', marginBottom: '10px', display: 'flex', alignItems: 'center', gap: '6px' }}>
-            <Sparkles size={14} color="#FBBF24" /> Pruebas Rápidas de un Clic:
-          </div>
-
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-            <button
-              onClick={() => handleQuickDemo(masterEmail)}
-              style={{
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'space-between',
-                padding: '10px 14px',
-                borderRadius: '10px',
-                border: '1px solid rgba(245, 158, 11, 0.5)',
-                background: 'rgba(245, 158, 11, 0.15)',
-                color: '#FBBF24',
-                fontWeight: 800,
-                fontSize: '0.82rem',
-                cursor: 'pointer'
-              }}
-            >
-              <span style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                <Shield size={16} /> Entrar como Administrador Maestro
-              </span>
-              <span style={{ fontSize: '0.72rem', opacity: 0.8 }}>({masterEmail})</span>
-            </button>
-
-            {coaches.slice(0, 2).map(c => (
-              <button
-                key={c.id}
-                onClick={() => handleQuickDemo(c.email)}
-                style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'space-between',
-                  padding: '8px 14px',
-                  borderRadius: '10px',
-                  border: '1px solid rgba(59, 130, 246, 0.25)',
-                  background: 'rgba(15, 28, 63, 0.7)',
-                  color: '#94A3B8',
-                  fontSize: '0.8rem',
-                  cursor: 'pointer'
-                }}
-              >
-                <span style={{ display: 'flex', alignItems: 'center', gap: '8px', color: '#F8FAFC' }}>
-                  <UserCheck size={14} color="#3B82F6" /> {c.nombre}
-                </span>
-                <span style={{ fontSize: '0.72rem', color: '#64748B' }}>({c.email})</span>
-              </button>
-            ))}
-          </div>
-        </div>
-
       </div>
     </div>
   );

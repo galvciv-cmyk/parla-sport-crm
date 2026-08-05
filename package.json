@@ -8,7 +8,7 @@
     "build": "vite build",
     "lint": "oxlint",
     "preview": "vite preview",
-    "emulators": "npx firebase-tools emulators:start --only auth,firestore",
+    "emulators": "firebase emulators:start --only auth,firestore",
     "docker:up": "docker compose up -d",
     "docker:down": "docker compose down"
   },
@@ -24,6 +24,7 @@
     "@types/react": "^19.2.17",
     "@types/react-dom": "^19.2.3",
     "@vitejs/plugin-react": "^6.0.4",
+    "firebase-tools": "^13.30.0",
     "oxlint": "^1.75.0",
     "vite": "^8.2.0"
   }

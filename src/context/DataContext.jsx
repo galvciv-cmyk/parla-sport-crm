@@ -1,4 +1,6 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
+import { doc, setDoc, deleteDoc, onSnapshot, collection } from 'firebase/firestore';
+import { db } from '../services/firebase';
 import { INITIAL_PLAYERS, INITIAL_COACHES, INITIAL_SESSIONS } from '../utils/mockData';
 import { hasCoachSessionConflict, hasPlayerSessionConflict, isCoachAvailableBySchedule } from '../utils/scheduling';
 import { useNotifications } from './NotificationContext';
@@ -25,6 +27,42 @@ export const DataProvider = ({ children }) => {
     const saved = localStorage.getItem('parla_sessions');
     return saved ? JSON.parse(saved) : INITIAL_SESSIONS;
   });
+
+  // Limpieza inicial para comenzar todo desde cero (sin datos predeterminados)
+  useEffect(() => {
+    if (!localStorage.getItem('parla_clean_start_v2')) {
+      localStorage.removeItem('parla_players');
+      localStorage.removeItem('parla_coaches');
+      localStorage.removeItem('parla_sessions');
+      localStorage.setItem('parla_clean_start_v2', 'true');
+      setPlayers([]);
+      setCoaches([]);
+      setSessions([]);
+    }
+  }, []);
+
+  // Escuchar entrenadores en tiempo real desde Firestore
+  useEffect(() => {
+    const unsub = onSnapshot(collection(db, 'coaches'), (snapshot) => {
+      const firestoreCoaches = snapshot.docs.map(d => ({ id: d.id, ...d.data() }));
+      if (firestoreCoaches.length > 0) {
+        setCoaches(prev => {
+          const map = new Map();
+          // Cargar primero los de Firestore (fuente principal)
+          firestoreCoaches.forEach(c => map.set(c.id, c));
+          // Conservar los locales si aún no se han sincronizado
+          prev.forEach(c => {
+            if (!map.has(c.id)) map.set(c.id, c);
+          });
+          return Array.from(map.values());
+        });
+      }
+    }, (err) => {
+      console.warn('[DataContext] Error escuchando Firestore coaches:', err);
+    });
+
+    return () => unsub();
+  }, []);
 
   // Persistencia local
   useEffect(() => {
@@ -58,23 +96,43 @@ export const DataProvider = ({ children }) => {
     setPlayers(prev => prev.filter(p => p.id !== id));
   };
 
-  // --- CRUD ENTRENADORES ---
+  // --- CRUD ENTRENADORES CON SINCRO EN FIRESTORE ---
   const addCoach = (coachData) => {
     const newCoach = {
       ...coachData,
-      id: `coach-${Date.now()}`,
+      id: coachData.id || `coach-${Date.now()}`,
+      foto: coachData.foto || '',
       bloquesDisponibilidad: coachData.bloquesDisponibilidad || []
     };
-    setCoaches(prev => [newCoach, ...prev]);
+
+    setCoaches(prev => {
+      const exists = prev.some(c => c.id === newCoach.id || (c.email && c.email.toLowerCase() === newCoach.email?.toLowerCase()));
+      if (exists) {
+        return prev.map(c => (c.id === newCoach.id || (c.email && c.email.toLowerCase() === newCoach.email?.toLowerCase())) ? { ...c, ...newCoach } : c);
+      }
+      return [newCoach, ...prev];
+    });
+
+    // Guardar también en Firestore
+    setDoc(doc(db, 'coaches', newCoach.id), newCoach).catch(err => {
+      console.warn('[DataContext] No se pudo guardar el entrenador en Firestore:', err);
+    });
+
     return newCoach;
   };
 
   const updateCoach = (id, updatedFields) => {
     setCoaches(prev => prev.map(c => c.id === id ? { ...c, ...updatedFields } : c));
+    setDoc(doc(db, 'coaches', id), updatedFields, { merge: true }).catch(err => {
+      console.warn('[DataContext] Error al actualizar entrenador en Firestore:', err);
+    });
   };
 
   const deleteCoach = (id) => {
     setCoaches(prev => prev.filter(c => c.id !== id));
+    deleteDoc(doc(db, 'coaches', id)).catch(err => {
+      console.warn('[DataContext] Error al eliminar entrenador en Firestore:', err);
+    });
   };
 
   // --- GESTIÓN DE SESIONES CON VALIDACIÓN ANTI-CHOQUE ---
@@ -127,55 +185,55 @@ export const DataProvider = ({ children }) => {
     return newSession;
   };
 
-  // CAMBIO DE ESTADO DE SESIÓN (Blanco, Amarillo, Naranja, Verde)
   const updateSessionStatus = (sessionId, newStatus) => {
-    setSessions(prev => prev.map(s => s.id === sessionId ? { ...s, estado: newStatus } : s));
+    setSessions(prev =>
+      prev.map(s => (s.id === sessionId ? { ...s, estado: newStatus } : s))
+    );
   };
 
-  // REASIGNACIÓN POR AUSENCIA
-  const reassignSession = (sessionId, newCoachId, reasonNotes = '') => {
-    const targetSession = sessions.find(s => s.id === sessionId);
-    if (!targetSession) throw new Error('Sesión no encontrada.');
+  const reassignSession = (sessionId, newCoachId, reason = '') => {
+    const session = sessions.find(s => s.id === sessionId);
+    if (!session) throw new Error('Sesión no encontrada.');
 
     const newCoach = coaches.find(c => c.id === newCoachId);
-    if (!newCoach) throw new Error('Nuevo entrenador no válido.');
+    if (!newCoach) throw new Error('Entrenador sustituto no válido.');
 
-    const oldCoach = coaches.find(c => c.id === targetSession.entrenadorId);
-
-    // Validar disponibilidad del nuevo entrenador
-    if (!isCoachAvailableBySchedule(newCoach, targetSession.fecha, targetSession.horaInicio, targetSession.horaFin)) {
-      throw new Error(`El nuevo entrenador ${newCoach.nombre} no tiene bloque de disponibilidad en este horario.`);
+    if (!isCoachAvailableBySchedule(newCoach, session.fecha, session.horaInicio, session.horaFin)) {
+      throw new Error(`El profesor ${newCoach.nombre} no tiene disponibilidad horaria configurada para ese bloque.`);
     }
 
-    // Validar choque del nuevo entrenador
-    if (hasCoachSessionConflict(sessions, newCoachId, targetSession.fecha, targetSession.horaInicio, targetSession.horaFin, sessionId)) {
-      throw new Error(`El nuevo entrenador ${newCoach.nombre} ya tiene una sesión agendada a esa misma hora.`);
+    if (hasCoachSessionConflict(sessions, newCoachId, session.fecha, session.horaInicio, session.horaFin, sessionId)) {
+      throw new Error(`El profesor ${newCoach.nombre} ya tiene otra sesión asignada a esa misma hora.`);
     }
 
-    const updatedSession = {
-      ...targetSession,
-      entrenadorId: newCoachId,
-      notas: reasonNotes ? `${targetSession.notas} (Reasignado por ausencia: ${reasonNotes})` : targetSession.notas
-    };
+    const previousCoach = coaches.find(c => c.id === session.entrenadorId);
+    const previousCoachName = previousCoach ? previousCoach.nombre : 'profesor asignado';
 
-    setSessions(prev => prev.map(s => s.id === sessionId ? updatedSession : s));
+    setSessions(prev =>
+      prev.map(s => {
+        if (s.id === sessionId) {
+          return {
+            ...s,
+            entrenadorId: newCoachId,
+            notasReasignacion: reason
+          };
+        }
+        return s;
+      })
+    );
 
-    // Notificar al nuevo entrenador
-    const assignedPlayers = players.filter(p => targetSession.jugadoresIds.includes(p.id));
+    const assignedPlayers = players.filter(p => session.jugadoresIds?.includes(p.id));
     notifySessionAssignment({
       coach: newCoach,
-      session: updatedSession,
+      session: { ...session, entrenadorId: newCoachId },
       players: assignedPlayers,
       isReassignment: true,
-      previousCoachName: oldCoach ? oldCoach.nombre : 'Entrenador Anterior'
+      previousCoachName
     });
-
-    return updatedSession;
   };
 
-  // CANCELACIÓN DE SESIÓN
   const cancelSession = (sessionId) => {
-    setSessions(prev => prev.map(s => s.id === sessionId ? { ...s, estado: 'cancelada' } : s));
+    updateSessionStatus(sessionId, 'cancelada');
   };
 
   return (

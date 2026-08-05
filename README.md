@@ -52,11 +52,31 @@ cd parla-sport-crm
 npm install
 ```
 
-### 2. Iniciar el Servidor de Desarrollo:
+### 2. Configurar Firebase (obligatorio desde que se activó la autenticación real)
+1. En la [Consola de Firebase](https://console.firebase.google.com), entra a tu proyecto → **Authentication** → **Sign-in method** → habilita el proveedor **Correo electrónico/contraseña**.
+2. Crea un archivo `.env` en la raíz del proyecto (no se sube a git) con tus credenciales reales:
+   ```
+   VITE_FIREBASE_API_KEY=...
+   VITE_FIREBASE_AUTH_DOMAIN=...
+   VITE_FIREBASE_PROJECT_ID=...
+   VITE_FIREBASE_STORAGE_BUCKET=...
+   VITE_FIREBASE_MESSAGING_SENDER_ID=...
+   VITE_FIREBASE_APP_ID=...
+   ```
+   (O usa los emuladores locales, ver sección de Docker más abajo, sin necesidad de un proyecto real).
+
+### 3. Iniciar el Servidor de Desarrollo:
 ```bash
 npm run dev
 ```
 Accede en tu navegador a: `http://localhost:5173/`
+
+### 4. Primer arranque: crear el Administrador Maestro
+La cuenta de administrador ya no viene precargada — se crea una sola vez desde la propia app:
+1. Abre la pestaña **"Registrar Profesor"** en la pantalla de login.
+2. Usa el correo `admin@parlasport.com` (o el que definas como `MASTER_ADMIN_EMAIL` en `src/utils/mockData.js`) y elige una contraseña.
+3. El sistema detecta automáticamente ese correo y le asigna el rol de Administrador Maestro.
+4. Los entrenadores se registran igual, con cualquier otro correo.
 
 ---
 

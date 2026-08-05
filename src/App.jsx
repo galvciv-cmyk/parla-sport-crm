@@ -18,7 +18,7 @@ import AcademyCalendar from './components/coach/AcademyCalendar';
 import { registerServiceWorker } from './services/pwaService';
 
 const MainContent = () => {
-  const { currentUser, role } = useAuth();
+  const { currentUser, role, authLoading } = useAuth();
   const [activeTab, setActiveTab] = useState('dashboard');
 
   // Cambiar pestaña por defecto según el usuario y su rol
@@ -29,6 +29,23 @@ const MainContent = () => {
       setActiveTab('coach-calendar');
     }
   }, [role, currentUser]);
+
+  // Mientras Firebase Auth determina si ya existe una sesión activa
+  if (authLoading) {
+    return (
+      <div style={{
+        minHeight: '100vh',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        backgroundColor: '#060D1E',
+        color: '#94A3B8',
+        fontSize: '0.9rem'
+      }}>
+        Cargando sesión...
+      </div>
+    );
+  }
 
   // Si no se ha iniciado sesión, desplegar la pantalla de inicio / registro
   if (!currentUser) {

@@ -22,8 +22,8 @@ services:
     ports:
       - "5173:80"
     environment:
-      - VITE_FIREBASE_API_KEY=AIzaSyDemoKeyForParlaSportCRM12345
-      - VITE_FIREBASE_PROJECT_ID=parla-sport-crm
+      - VITE_FIREBASE_API_KEY=demo-api-key
+      - VITE_FIREBASE_PROJECT_ID=demo-parla-sport-crm
       - VITE_USE_EMULATOR=true
       - VITE_EMULATOR_HOST=firebase-emulator
     depends_on:

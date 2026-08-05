@@ -35,7 +35,6 @@ export const sendSessionAssignmentEmail = async ({
 
   console.log(`[EmailService] 📧 Intento de envío a: ${coachEmail} | Asunto: ${subject}`);
 
-  // Intento de envío real vía EmailJS si las llaves existen
   if (import.meta.env.VITE_EMAILJS_PUBLIC_KEY) {
     try {
       const templateParams = {
@@ -61,7 +60,39 @@ export const sendSessionAssignmentEmail = async ({
     }
   }
 
-  // Fallback simulado pero totalmente visible para pruebas directas en desarrollo
+  return {
+    success: true,
+    method: 'Simulated Client Dispatch',
+    details: { coachEmail, subject, messageText }
+  };
+};
+
+/**
+ * Envia la notificacion / recordatorio semanal dominical a un entrenador para actualizar su horario
+ */
+export const sendWeeklyAvailabilityReminderEmail = async ({ coachName, coachEmail }) => {
+  const subject = `🗓️ Recordatorio Semanal: Actualiza tus Días y Horarios Disponibles - Parla Sport`;
+  const messageText = `Hola ${coachName},\n\n` +
+    `Recuerda revisar y ajustar tus bloques de disponibilidad de días y horas para la próxima semana en el sistema CRM Parla Sport.\n` +
+    `Mantener tu horario al día permite a la academia programar tus entrenamientos 1-1, 1-2 y 1-3 sin choques.`;
+
+  console.log(`[EmailService] 🗓️ Envió de recordatorio semanal de disponibilidad a: ${coachEmail}`);
+
+  if (import.meta.env.VITE_EMAILJS_PUBLIC_KEY) {
+    try {
+      const templateParams = {
+        to_name: coachName,
+        to_email: coachEmail,
+        subject: subject,
+        message: messageText
+      };
+      await emailjs.send(EMAILJS_SERVICE_ID, EMAILJS_TEMPLATE_ID, templateParams, EMAILJS_PUBLIC_KEY);
+      return { success: true, method: 'EmailJS' };
+    } catch (error) {
+      console.warn('[EmailService] fallo enviando recordatorio semanal vía EmailJS.', error);
+    }
+  }
+
   return {
     success: true,
     method: 'Simulated Client Dispatch',

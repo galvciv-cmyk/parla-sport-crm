@@ -1,0 +1,577 @@
+diff --git a/.firebaserc b/.firebaserc
+new file mode 100644
+index 0000000..a8584fc
+--- /dev/null
++++ b/.firebaserc
+@@ -0,0 +1,5 @@
++{
++  "projects": {
++    "default": "demo-parla-sport-crm"
++  }
++}
+diff --git a/README.md b/README.md
+index ff740c4..87182cc 100644
+--- a/README.md
++++ b/README.md
+@@ -52,12 +52,32 @@ cd parla-sport-crm
+ npm install
+ ```
+ 
+-### 2. Iniciar el Servidor de Desarrollo:
++### 2. Configurar Firebase (obligatorio desde que se activó la autenticación real)
++1. En la [Consola de Firebase](https://console.firebase.google.com), entra a tu proyecto → **Authentication** → **Sign-in method** → habilita el proveedor **Correo electrónico/contraseña**.
++2. Crea un archivo `.env` en la raíz del proyecto (no se sube a git) con tus credenciales reales:
++   ```
++   VITE_FIREBASE_API_KEY=...
++   VITE_FIREBASE_AUTH_DOMAIN=...
++   VITE_FIREBASE_PROJECT_ID=...
++   VITE_FIREBASE_STORAGE_BUCKET=...
++   VITE_FIREBASE_MESSAGING_SENDER_ID=...
++   VITE_FIREBASE_APP_ID=...
++   ```
++   (O usa los emuladores locales, ver sección de Docker más abajo, sin necesidad de un proyecto real).
++
++### 3. Iniciar el Servidor de Desarrollo:
+ ```bash
+ npm run dev
+ ```
+ Accede en tu navegador a: `http://localhost:5173/`
+ 
++### 4. Primer arranque: crear el Administrador Maestro
++La cuenta de administrador ya no viene precargada — se crea una sola vez desde la propia app:
++1. Abre la pestaña **"Registrar Profesor"** en la pantalla de login.
++2. Usa el correo `admin@parlasport.com` (o el que definas como `MASTER_ADMIN_EMAIL` en `src/utils/mockData.js`) y elige una contraseña.
++3. El sistema detecta automáticamente ese correo y le asigna el rol de Administrador Maestro.
++4. Los entrenadores se registran igual, con cualquier otro correo.
++
+ ---
+ 
+ ## 🐳 Despliegue con Docker & Firebase Local Emulators
+diff --git a/docker-compose.yml b/docker-compose.yml
+index 26a4fde..7089388 100644
+--- a/docker-compose.yml
++++ b/docker-compose.yml
+@@ -22,8 +22,8 @@ services:
+     ports:
+       - "5173:80"
+     environment:
+-      - VITE_FIREBASE_API_KEY=AIzaSyDemoKeyForParlaSportCRM12345
+-      - VITE_FIREBASE_PROJECT_ID=parla-sport-crm
++      - VITE_FIREBASE_API_KEY=demo-api-key
++      - VITE_FIREBASE_PROJECT_ID=demo-parla-sport-crm
+       - VITE_USE_EMULATOR=true
+       - VITE_EMULATOR_HOST=firebase-emulator
+     depends_on:
+diff --git a/firestore.rules b/firestore.rules
+index 3949a37..1b744af 100644
+--- a/firestore.rules
++++ b/firestore.rules
+@@ -1,9 +1,23 @@
+ rules_version = '2';
+ service cloud.firestore {
+   match /databases/{database}/documents {
+-    // Permisos completos para entorno local y de desarrollo aislados en el emulador
++
++    // Perfil de usuario: guarda el rol (admin/coach) y el vínculo a su ficha
++    // de entrenador. Cada usuario solo puede leer y crear SU PROPIO documento;
++    // los cambios de rol no se permiten desde el cliente (se hacen a mano
++    // por ahora, hasta que exista un panel de administración de usuarios).
++    match /users/{userId} {
++      allow read: if request.auth != null && request.auth.uid == userId;
++      allow create: if request.auth != null && request.auth.uid == userId;
++      allow update, delete: if false;
++    }
++
++    // TEMPORAL: jugadores, entrenadores y sesiones todavía viven en
++    // localStorage (no en Firestore), así que se deniega todo por defecto.
++    // Esto se reemplaza por reglas basadas en roles en el Paso 3, cuando
++    // migremos esos datos a Firestore.
+     match /{document=**} {
+-      allow read, write: if true;
++      allow read, write: if false;
+     }
+   }
+ }
+diff --git a/src/App.jsx b/src/App.jsx
+index 9fe2baa..6827804 100644
+--- a/src/App.jsx
++++ b/src/App.jsx
+@@ -18,7 +18,7 @@ import AcademyCalendar from './components/coach/AcademyCalendar';
+ import { registerServiceWorker } from './services/pwaService';
+ 
+ const MainContent = () => {
+-  const { currentUser, role } = useAuth();
++  const { currentUser, role, authLoading } = useAuth();
+   const [activeTab, setActiveTab] = useState('dashboard');
+ 
+   // Cambiar pestaña por defecto según el usuario y su rol
+@@ -30,6 +30,23 @@ const MainContent = () => {
+     }
+   }, [role, currentUser]);
+ 
++  // Mientras Firebase Auth determina si ya existe una sesión activa
++  if (authLoading) {
++    return (
++      <div style={{
++        minHeight: '100vh',
++        display: 'flex',
++        alignItems: 'center',
++        justifyContent: 'center',
++        backgroundColor: '#060D1E',
++        color: '#94A3B8',
++        fontSize: '0.9rem'
++      }}>
++        Cargando sesión...
++      </div>
++    );
++  }
++
+   // Si no se ha iniciado sesión, desplegar la pantalla de inicio / registro
+   if (!currentUser) {
+     return <LoginScreen />;
+diff --git a/src/components/auth/LoginScreen.jsx b/src/components/auth/LoginScreen.jsx
+index e08c973..8f556a3 100644
+--- a/src/components/auth/LoginScreen.jsx
++++ b/src/components/auth/LoginScreen.jsx
+@@ -1,57 +1,83 @@
+ import React, { useState } from 'react';
+-import { KeyRound, Mail, UserPlus, Sparkles, UserCheck, Shield } from 'lucide-react';
++import { KeyRound, Mail, Lock, UserPlus, Shield } from 'lucide-react';
+ import { useAuth } from '../../context/AuthContext';
+ import { useData } from '../../context/DataContext';
+ 
+ const LoginScreen = () => {
+-  const { loginWithEmail, masterEmail } = useAuth();
+-  const { coaches, addCoach } = useData();
++  const { login, register, masterEmail } = useAuth();
++  const { addCoach } = useData();
+ 
+   const [activeTab, setActiveTab] = useState('login'); // 'login' | 'register'
+-  
++  const [submitting, setSubmitting] = useState(false);
++
+   // Login State
+   const [emailInput, setEmailInput] = useState('');
++  const [passwordInput, setPasswordInput] = useState('');
+   const [errorMsg, setErrorMsg] = useState('');
+ 
+   // Register State
+   const [regData, setRegData] = useState({
+     nombre: '',
+     email: '',
++    password: '',
++    confirmPassword: '',
+     telefono: '',
+     especialidad: 'Táctica & Fundamentos 1-1',
+     foto: 'https://images.unsplash.com/photo-1560250097-0b93528c311a?auto=format&fit=crop&q=80&w=300'
+   });
+ 
+-  const handleLoginSubmit = (e) => {
++  const handleLoginSubmit = async (e) => {
+     e.preventDefault();
+     setErrorMsg('');
+ 
+-    if (!emailInput) {
+-      setErrorMsg('Por favor introduce tu correo electrónico.');
++    if (!emailInput || !passwordInput) {
++      setErrorMsg('Por favor introduce tu correo y contraseña.');
+       return;
+     }
+ 
+-    const res = loginWithEmail(emailInput, coaches);
++    setSubmitting(true);
++    const res = await login(emailInput, passwordInput);
++    setSubmitting(false);
++
+     if (!res.success) {
+-      setErrorMsg('Ocurrió un error al ingresar.');
++      setErrorMsg(res.error);
+     }
+   };
+ 
+-  const handleRegisterSubmit = (e) => {
++  const handleRegisterSubmit = async (e) => {
+     e.preventDefault();
+     setErrorMsg('');
+ 
+-    if (!regData.nombre || !regData.email) {
+-      setErrorMsg('Por favor completa el nombre y correo del entrenador.');
++    if (!regData.nombre || !regData.email || !regData.password) {
++      setErrorMsg('Por favor completa nombre, correo y contraseña.');
++      return;
++    }
++    if (regData.password.length < 6) {
++      setErrorMsg('La contraseña debe tener al menos 6 caracteres.');
++      return;
++    }
++    if (regData.password !== regData.confirmPassword) {
++      setErrorMsg('Las contraseñas no coinciden.');
+       return;
+     }
+ 
+-    const newCoach = addCoach(regData);
+-    loginWithEmail(newCoach.email, [...coaches, newCoach]);
+-  };
++    setSubmitting(true);
++
++    const isMaster = regData.email.toLowerCase().trim() === masterEmail.toLowerCase();
++    // El Administrador Maestro no tiene "ficha de entrenador"; los demás correos sí.
++    const coachId = isMaster ? null : addCoach(regData).id;
++
++    const res = await register({
++      email: regData.email,
++      password: regData.password,
++      nombre: regData.nombre,
++      coachId
++    });
+ 
+-  const handleQuickDemo = (email) => {
+-    loginWithEmail(email, coaches);
++    setSubmitting(false);
++    if (!res.success) {
++      setErrorMsg(res.error);
++    }
+   };
+ 
+   return (
+@@ -176,8 +202,24 @@ const LoginScreen = () => {
+               </div>
+             </div>
+ 
+-            <button type="submit" className="btn-primary" style={{ width: '100%', padding: '12px', marginTop: '4px' }}>
+-              <KeyRound size={18} /> Entrar al CRM
++            <div>
++              <label className="input-label">Contraseña</label>
++              <div style={{ position: 'relative' }}>
++                <Lock size={18} style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)', color: '#D4AF37' }} />
++                <input
++                  type="password"
++                  required
++                  placeholder="Tu contraseña"
++                  className="input-field"
++                  style={{ paddingLeft: '38px' }}
++                  value={passwordInput}
++                  onChange={(e) => setPasswordInput(e.target.value)}
++                />
++              </div>
++            </div>
++
++            <button type="submit" className="btn-primary" style={{ width: '100%', padding: '12px', marginTop: '4px' }} disabled={submitting}>
++              <KeyRound size={18} /> {submitting ? 'Entrando...' : 'Entrar al CRM'}
+             </button>
+           </form>
+         )}
+@@ -209,6 +251,31 @@ const LoginScreen = () => {
+               />
+             </div>
+ 
++            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
++              <div>
++                <label className="input-label">Contraseña</label>
++                <input
++                  type="password"
++                  required
++                  placeholder="Mín. 6 caracteres"
++                  className="input-field"
++                  value={regData.password}
++                  onChange={(e) => setRegData({ ...regData, password: e.target.value })}
++                />
++              </div>
++              <div>
++                <label className="input-label">Confirmar Contraseña</label>
++                <input
++                  type="password"
++                  required
++                  placeholder="Repite la contraseña"
++                  className="input-field"
++                  value={regData.confirmPassword}
++                  onChange={(e) => setRegData({ ...regData, confirmPassword: e.target.value })}
++                />
++              </div>
++            </div>
++
+             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
+               <div>
+                 <label className="input-label">Teléfono</label>
+@@ -232,67 +299,24 @@ const LoginScreen = () => {
+               </div>
+             </div>
+ 
+-            <button type="submit" className="btn-primary" style={{ width: '100%', padding: '12px', marginTop: '6px' }}>
+-              <UserPlus size={18} /> Registrar e Ingresar
++            <div style={{
++              background: 'rgba(59, 130, 246, 0.08)',
++              border: '1px solid rgba(59, 130, 246, 0.25)',
++              borderRadius: '10px',
++              padding: '10px 12px',
++              fontSize: '0.75rem',
++              color: '#94A3B8',
++              lineHeight: '1.4'
++            }}>
++              <Shield size={12} style={{ display: 'inline', marginRight: '4px' }} />
++              ¿Primera vez configurando el sistema? Regístrate aquí usando el correo <strong>{masterEmail}</strong> para crear la cuenta de Administrador Maestro.
++            </div>
++
++            <button type="submit" className="btn-primary" style={{ width: '100%', padding: '12px', marginTop: '6px' }} disabled={submitting}>
++              <UserPlus size={18} /> {submitting ? 'Registrando...' : 'Registrar e Ingresar'}
+             </button>
+           </form>
+         )}
+-
+-        {/* ACCESOS DIRECTOS DE PRUEBA RÁPIDA */}
+-        <div style={{ borderTop: '1px solid rgba(212, 175, 55, 0.2)', paddingTop: '16px' }}>
+-          <div style={{ fontSize: '0.78rem', fontWeight: 700, color: '#94A3B8', marginBottom: '10px', display: 'flex', alignItems: 'center', gap: '6px' }}>
+-            <Sparkles size={14} color="#FBBF24" /> Pruebas Rápidas de un Clic:
+-          </div>
+-
+-          <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+-            <button
+-              onClick={() => handleQuickDemo(masterEmail)}
+-              style={{
+-                display: 'flex',
+-                alignItems: 'center',
+-                justifyContent: 'space-between',
+-                padding: '10px 14px',
+-                borderRadius: '10px',
+-                border: '1px solid rgba(245, 158, 11, 0.5)',
+-                background: 'rgba(245, 158, 11, 0.15)',
+-                color: '#FBBF24',
+-                fontWeight: 800,
+-                fontSize: '0.82rem',
+-                cursor: 'pointer'
+-              }}
+-            >
+-              <span style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+-                <Shield size={16} /> Entrar como Administrador Maestro
+-              </span>
+-              <span style={{ fontSize: '0.72rem', opacity: 0.8 }}>({masterEmail})</span>
+-            </button>
+-
+-            {coaches.slice(0, 2).map(c => (
+-              <button
+-                key={c.id}
+-                onClick={() => handleQuickDemo(c.email)}
+-                style={{
+-                  display: 'flex',
+-                  alignItems: 'center',
+-                  justifyContent: 'space-between',
+-                  padding: '8px 14px',
+-                  borderRadius: '10px',
+-                  border: '1px solid rgba(59, 130, 246, 0.25)',
+-                  background: 'rgba(15, 28, 63, 0.7)',
+-                  color: '#94A3B8',
+-                  fontSize: '0.8rem',
+-                  cursor: 'pointer'
+-                }}
+-              >
+-                <span style={{ display: 'flex', alignItems: 'center', gap: '8px', color: '#F8FAFC' }}>
+-                  <UserCheck size={14} color="#3B82F6" /> {c.nombre}
+-                </span>
+-                <span style={{ fontSize: '0.72rem', color: '#64748B' }}>({c.email})</span>
+-              </button>
+-            ))}
+-          </div>
+-        </div>
+-
+       </div>
+     </div>
+   );
+diff --git a/src/context/AuthContext.jsx b/src/context/AuthContext.jsx
+index 85c56ef..7c57659 100644
+--- a/src/context/AuthContext.jsx
++++ b/src/context/AuthContext.jsx
+@@ -1,69 +1,125 @@
+ import React, { createContext, useContext, useState, useEffect } from 'react';
+-import { MASTER_ADMIN_EMAIL, INITIAL_COACHES } from '../utils/mockData';
++import {
++  signInWithEmailAndPassword,
++  createUserWithEmailAndPassword,
++  onAuthStateChanged,
++  signOut
++} from 'firebase/auth';
++import { doc, getDoc, setDoc } from 'firebase/firestore';
++import { auth, db } from '../services/firebase';
++import { MASTER_ADMIN_EMAIL } from '../utils/mockData';
+ 
+ const AuthContext = createContext();
+ 
++// Traduce los códigos de error de Firebase Auth a mensajes legibles en español
++const translateAuthError = (code) => {
++  switch (code) {
++    case 'auth/invalid-email':
++      return 'El correo electrónico no es válido.';
++    case 'auth/user-not-found':
++    case 'auth/invalid-credential':
++    case 'auth/wrong-password':
++      return 'Correo o contraseña incorrectos.';
++    case 'auth/email-already-in-use':
++      return 'Ya existe una cuenta registrada con ese correo.';
++    case 'auth/weak-password':
++      return 'La contraseña debe tener al menos 6 caracteres.';
++    case 'auth/too-many-requests':
++      return 'Demasiados intentos. Espera un momento antes de volver a intentar.';
++    default:
++      return 'Ocurrió un error al procesar la solicitud. Inténtalo de nuevo.';
++  }
++};
++
+ export const AuthProvider = ({ children }) => {
+-  // Usuario logueado (por defecto inicia nulo si no hay sesión guardada para mostrar la pantalla de inicio)
+-  const [currentUser, setCurrentUser] = useState(() => {
+-    const saved = localStorage.getItem('parla_current_user');
+-    return saved ? JSON.parse(saved) : null;
+-  });
++  const [currentUser, setCurrentUser] = useState(null);
++  // Mientras Firebase determina si ya hay una sesión activa (evita parpadeo al Login)
++  const [authLoading, setAuthLoading] = useState(true);
+ 
+-  // Determinar si es Administrador Maestro o Entrenador por el correo
+-  const isMasterAdmin = currentUser?.email?.toLowerCase().trim() === MASTER_ADMIN_EMAIL.toLowerCase();
+-  const role = isMasterAdmin ? 'admin' : (currentUser ? 'coach' : null);
++  useEffect(() => {
++    const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
++      if (!firebaseUser) {
++        setCurrentUser(null);
++        setAuthLoading(false);
++        return;
++      }
+ 
+-  // ID del profesor asociado
+-  const activeCoachId = currentUser?.coachId || INITIAL_COACHES[0].id;
++      try {
++        // IMPORTANTE: el rol (admin/coach) NUNCA se decide en el cliente.
++        // Se lee del documento 'users/{uid}' creado en Firestore al registrarse.
++        const userDocSnap = await getDoc(doc(db, 'users', firebaseUser.uid));
+ 
+-  useEffect(() => {
+-    if (currentUser) {
+-      localStorage.setItem('parla_current_user', JSON.stringify(currentUser));
+-    } else {
+-      localStorage.removeItem('parla_current_user');
+-    }
+-  }, [currentUser]);
++        if (!userDocSnap.exists()) {
++          // Cuenta de Auth sin perfil asociado en Firestore: no debería ocurrir
++          // en uso normal, se cierra sesión por seguridad.
++          console.warn('[Auth] Usuario autenticado sin perfil en Firestore. Cerrando sesión.');
++          await signOut(auth);
++          setCurrentUser(null);
++        } else {
++          const profile = userDocSnap.data();
++          setCurrentUser({
++            uid: firebaseUser.uid,
++            email: firebaseUser.email,
++            nombre: profile.nombre,
++            role: profile.role,
++            coachId: profile.coachId || null
++          });
++        }
++      } catch (err) {
++        console.error('[Auth] Error cargando el perfil del usuario:', err);
++        setCurrentUser(null);
++      } finally {
++        setAuthLoading(false);
++      }
++    });
+ 
+-  const loginWithEmail = (email, coaches = []) => {
+-    const cleanEmail = email.toLowerCase().trim();
++    return unsubscribe;
++  }, []);
+ 
+-    if (cleanEmail === MASTER_ADMIN_EMAIL.toLowerCase()) {
+-      const adminUser = {
+-        email: MASTER_ADMIN_EMAIL,
+-        nombre: 'Administrador Maestro',
+-        role: 'admin'
+-      };
+-      setCurrentUser(adminUser);
+-      return { success: true, role: 'admin' };
++  const login = async (email, password) => {
++    try {
++      await signInWithEmailAndPassword(auth, email.toLowerCase().trim(), password);
++      return { success: true };
++    } catch (err) {
++      return { success: false, error: translateAuthError(err.code) };
+     }
++  };
+ 
+-    // Buscar si el correo pertenece a uno de los profesores registrados
+-    const matchedCoach = coaches.find(c => c.email.toLowerCase().trim() === cleanEmail);
++  // Registra un nuevo entrenador, o al Administrador Maestro la primera vez
++  // (se detecta automáticamente por el correo, igual que antes, pero ahora
++  // queda respaldado por una contraseña real en Firebase Auth).
++  const register = async ({ email, password, nombre, coachId = null }) => {
++    const cleanEmail = email.toLowerCase().trim();
++    const role = cleanEmail === MASTER_ADMIN_EMAIL.toLowerCase() ? 'admin' : 'coach';
+ 
+-    const coachUser = {
+-      email: cleanEmail,
+-      nombre: matchedCoach ? matchedCoach.nombre : `Prof. (${cleanEmail.split('@')[0]})`,
+-      coachId: matchedCoach ? matchedCoach.id : (coaches[0]?.id || 'coach-1'),
+-      role: 'coach'
+-    };
++    try {
++      const credential = await createUserWithEmailAndPassword(auth, cleanEmail, password);
+ 
+-    setCurrentUser(coachUser);
+-    return { success: true, role: 'coach', coach: matchedCoach };
+-  };
++      await setDoc(doc(db, 'users', credential.user.uid), {
++        email: cleanEmail,
++        nombre,
++        role,
++        coachId
++      });
+ 
+-  const logout = () => {
+-    setCurrentUser(null);
++      return { success: true, role };
++    } catch (err) {
++      return { success: false, error: translateAuthError(err.code) };
++    }
+   };
+ 
++  const logout = () => signOut(auth);
++
+   return (
+     <AuthContext.Provider value={{
+       currentUser,
+-      role,
+-      activeCoachId,
+-      isAdmin: role === 'admin',
+-      isCoach: role === 'coach',
+-      loginWithEmail,
++      authLoading,
++      role: currentUser?.role || null,
++      activeCoachId: currentUser?.coachId || null,
++      isAdmin: currentUser?.role === 'admin',
++      isCoach: currentUser?.role === 'coach',
++      login,
++      register,
+       logout,
+       masterEmail: MASTER_ADMIN_EMAIL
+     }}>
+diff --git a/src/services/firebase.js b/src/services/firebase.js
+index e3d5a25..7638f37 100644
+--- a/src/services/firebase.js
++++ b/src/services/firebase.js
+@@ -4,12 +4,12 @@ import { getAuth, connectAuthEmulator } from 'firebase/auth';
+ import { getFirestore, connectFirestoreEmulator } from 'firebase/firestore';
+ 
+ const firebaseConfig = {
+-  apiKey: import.meta.env.VITE_FIREBASE_API_KEY || "AIzaSyDemoKeyForParlaSportCRM12345",
+-  authDomain: import.meta.env.VITE_FIREBASE_AUTH_DOMAIN || "parla-sport-crm.firebaseapp.com",
+-  projectId: import.meta.env.VITE_FIREBASE_PROJECT_ID || "parla-sport-crm",
+-  storageBucket: import.meta.env.VITE_FIREBASE_STORAGE_BUCKET || "parla-sport-crm.appspot.com",
+-  messagingSenderId: import.meta.env.VITE_FIREBASE_MESSAGING_SENDER_ID || "123456789012",
+-  appId: import.meta.env.VITE_FIREBASE_APP_ID || "1:123456789012:web:abcdef1234567890"
++  apiKey: import.meta.env.VITE_FIREBASE_API_KEY || "demo-api-key",
++  authDomain: import.meta.env.VITE_FIREBASE_AUTH_DOMAIN || "demo-parla-sport-crm.firebaseapp.com",
++  projectId: import.meta.env.VITE_FIREBASE_PROJECT_ID || "demo-parla-sport-crm",
++  storageBucket: import.meta.env.VITE_FIREBASE_STORAGE_BUCKET || "demo-parla-sport-crm.appspot.com",
++  messagingSenderId: import.meta.env.VITE_FIREBASE_MESSAGING_SENDER_ID || "000000000000",
++  appId: import.meta.env.VITE_FIREBASE_APP_ID || "1:000000000000:web:0000000000000000000000"
+ };
+ 
+ export const isFirebaseConfigured = Boolean(

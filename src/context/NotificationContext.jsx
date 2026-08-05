@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
-import { sendSessionAssignmentEmail } from '../services/emailService';
+import { sendSessionAssignmentEmail, sendWeeklyAvailabilityReminderEmail } from '../services/emailService';
 import { triggerLocalPushNotification } from '../services/pwaService';
 
 const NotificationContext = createContext();
@@ -11,7 +11,7 @@ export const NotificationProvider = ({ children }) => {
       {
         id: 'notif-init-1',
         title: 'Bienvenido a Parla Sport CRM',
-        message: 'Sistema listo para gestionar 1-1, 1-2, 1-3, ausencias y notificaciones.',
+        message: 'Sistema listo para gestionar 1-1, 1-2, 1-3, ausencias y notificaciones de disponibilidad.',
         recipientCoachId: 'coach-1',
         timestamp: new Date().toISOString(),
         read: false,
@@ -24,7 +24,7 @@ export const NotificationProvider = ({ children }) => {
     localStorage.setItem('parla_notifications', JSON.stringify(notifications));
   }, [notifications]);
 
-  // Agregar notificacion In-App, Email y Push
+  // Notificación de Asignación / Reasignación de Sesión (In-App, Email y Push)
   const notifySessionAssignment = async ({
     coach,
     session,
@@ -56,7 +56,7 @@ export const NotificationProvider = ({ children }) => {
 
     setNotifications(prev => [newNotif, ...prev]);
 
-    // 2. Email Notification (EmailJS / Resend)
+    // 2. Email Notification
     await sendSessionAssignmentEmail({
       coachName: coach.nombre,
       coachEmail: coach.email,
@@ -70,6 +70,33 @@ export const NotificationProvider = ({ children }) => {
     });
 
     // 3. PWA Push Notification
+    triggerLocalPushNotification(title, message);
+  };
+
+  // Recordatorio semanal de disponibilidad dominical para un entrenador
+  const sendWeeklyAvailabilityReminder = async (coach) => {
+    if (!coach) return;
+
+    const title = '🗓️ Recordatorio Semanal: Disponibilidad Horaria';
+    const message = `Hola ${coach.nombre}, recuerda revisar y actualizar tus días y bloques de horarios disponibles para la próxima semana.`;
+
+    const newNotif = {
+      id: `notif-weekly-${Date.now()}`,
+      title,
+      message,
+      recipientCoachId: coach.id,
+      timestamp: new Date().toISOString(),
+      read: false,
+      type: 'info'
+    };
+
+    setNotifications(prev => [newNotif, ...prev]);
+
+    await sendWeeklyAvailabilityReminderEmail({
+      coachName: coach.nombre,
+      coachEmail: coach.email
+    });
+
     triggerLocalPushNotification(title, message);
   };
 
@@ -98,6 +125,7 @@ export const NotificationProvider = ({ children }) => {
     <NotificationContext.Provider value={{
       notifications,
       notifySessionAssignment,
+      sendWeeklyAvailabilityReminder,
       markAsRead,
       markAllAsRead,
       clearNotifications

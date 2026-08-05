@@ -1,12 +1,12 @@
 import React, { useState } from 'react';
-import { CalendarPlus, RefreshCw, XCircle, CheckCircle } from 'lucide-react';
+import { CalendarPlus, RefreshCw, CheckCircle } from 'lucide-react';
 import { useData } from '../../context/DataContext';
 import { getAvailableCoaches, getSpanishDayName } from '../../utils/scheduling';
 import { STATUS_CONFIG } from '../../utils/mockData';
 import Modal from '../common/Modal';
 
 const SessionScheduler = () => {
-  const { players, coaches, sessions, createSession, updateSessionStatus, reassignSession, cancelSession } = useData();
+  const { players, coaches, sessions, createSession, updateSessionStatus, reassignSession } = useData();
 
   // Estado del Formulario de Creación
   const [sessionData, setSessionData] = useState({
@@ -402,7 +402,7 @@ const SessionScheduler = () => {
                       </div>
                     )}
 
-                    {/* Botones para Reasignar Ausencia / Cancelar */}
+                    {/* Acción de Reasignación en caso de Ausencia del Entrenador */}
                     {s.estado !== 'cancelada' && (
                       <div style={{ display: 'flex', gap: '10px', marginTop: '6px' }}>
                         <button
@@ -410,15 +410,7 @@ const SessionScheduler = () => {
                           style={{ flex: 1, padding: '6px 10px', fontSize: '0.78rem', color: '#F59E0B', borderColor: 'rgba(245, 158, 11, 0.4)' }}
                           onClick={() => handleOpenReassign(s)}
                         >
-                          <RefreshCw size={14} /> Reasignar (Ausencia)
-                        </button>
-
-                        <button
-                          className="btn-danger"
-                          style={{ padding: '6px 10px', fontSize: '0.78rem' }}
-                          onClick={() => cancelSession(s.id)}
-                        >
-                          <XCircle size={14} /> Cancelar
+                          <RefreshCw size={14} /> Reasignar Entrenador por Ausencia
                         </button>
                       </div>
                     )}

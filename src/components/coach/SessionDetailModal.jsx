@@ -55,12 +55,12 @@ const SessionDetailModal = ({ isOpen, onClose, session, players, coach }) => {
           </span>
         </div>
 
-        {/* CAMBIAR ESTADO RÁPIDO */}
+        {/* CAMBIAR ESTADO UNIFICADO */}
         <div style={{ background: 'rgba(15, 23, 42, 0.7)', padding: '14px', borderRadius: '12px', border: '1px solid rgba(255, 255, 255, 0.08)' }}>
           <span style={{ fontSize: '0.8rem', fontWeight: 700, color: '#94A3B8', display: 'block', marginBottom: '8px' }}>
             Actualizar Estado de la Sesión (Código de Colores de la Academia):
           </span>
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(130px, 1fr))', gap: '8px' }}>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(110px, 1fr))', gap: '8px' }}>
             
             <button
               onClick={() => handleStatusChange('sin_confirmar')}
@@ -124,6 +124,22 @@ const SessionDetailModal = ({ isOpen, onClose, session, players, coach }) => {
               }}
             >
               🟢 Pagada
+            </button>
+
+            <button
+              onClick={() => handleStatusChange('cancelada')}
+              style={{
+                padding: '8px 10px',
+                borderRadius: '8px',
+                border: session.estado === 'cancelada' ? '2px solid #F87171' : '1px solid rgba(239,68,68,0.3)',
+                background: session.estado === 'cancelada' ? 'rgba(239,68,68,0.25)' : 'rgba(15,23,42,0.8)',
+                color: '#F87171',
+                fontWeight: 700,
+                fontSize: '0.78rem',
+                cursor: 'pointer'
+              }}
+            >
+              🔴 Cancelada
             </button>
           </div>
         </div>
