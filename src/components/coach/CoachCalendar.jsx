@@ -14,8 +14,19 @@ const CoachCalendar = () => {
   const { coaches, sessions, players, updateCoach } = useData();
 
   // Buscar el entrenador por ID activo o por email del usuario en sesión
-  const activeCoach = coaches.find(c => c.id === activeCoachId || c.email?.toLowerCase() === currentUser?.email?.toLowerCase()) || coaches[0];
-  const coachSessions = sessions.filter(s => s.entrenadorId === activeCoach?.id && s.estado !== 'cancelada');
+  const activeCoach = coaches.find(c =>
+    c.id === activeCoachId ||
+    (c.email && currentUser?.email && c.email.toLowerCase() === currentUser.email.toLowerCase())
+  );
+
+  const coachSessions = sessions.filter(s =>
+    activeCoach &&
+    (
+      s.entrenadorId === activeCoach.id ||
+      (activeCoach.email && s.entrenadorEmail && s.entrenadorEmail.toLowerCase() === activeCoach.email.toLowerCase())
+    ) &&
+    s.estado !== 'cancelada'
+  );
 
   const [selectedSession, setSelectedSession] = useState(null);
   const [isAvailabilityModalOpen, setIsAvailabilityModalOpen] = useState(false);

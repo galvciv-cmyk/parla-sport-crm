@@ -85,6 +85,27 @@ export const DataProvider = ({ children }) => {
     return () => unsub();
   }, []);
 
+  // Escuchar sesiones en tiempo real desde Firestore
+  useEffect(() => {
+    const unsub = onSnapshot(collection(db, 'sessions'), (snapshot) => {
+      const firestoreSessions = snapshot.docs.map(d => ({ id: d.id, ...d.data() }));
+      if (firestoreSessions.length > 0) {
+        setSessions(prev => {
+          const map = new Map();
+          firestoreSessions.forEach(s => map.set(s.id, s));
+          prev.forEach(s => {
+            if (!map.has(s.id)) map.set(s.id, s);
+          });
+          return Array.from(map.values());
+        });
+      }
+    }, (err) => {
+      console.warn('[DataContext] Error escuchando Firestore sessions:', err);
+    });
+
+    return () => unsub();
+  }, []);
+
   // Persistencia local
   useEffect(() => {
     localStorage.setItem('parla_players', JSON.stringify(players));
@@ -166,7 +187,7 @@ export const DataProvider = ({ children }) => {
     });
   };
 
-  // --- GESTIÓN DE SESIONES CON VALIDACIÓN ANTI-CHOQUE ---
+  // --- GESTIÓN DE SESIONES CON VALIDACIÓN ANTI-CHOQUE Y SINCRO FIRESTORE ---
   const createSession = ({ fecha, horaInicio, horaFin, tipo, entrenadorId, jugadoresIds, notas, estado = 'sin_confirmar' }) => {
     const coach = coaches.find(c => c.id === entrenadorId);
     if (!coach) {
@@ -197,12 +218,18 @@ export const DataProvider = ({ children }) => {
       horaFin,
       tipo,
       entrenadorId,
+      entrenadorEmail: coach.email || '',
       jugadoresIds,
       estado, // sin_confirmar, confirmada, realizada, pagada
       notas: notas || ''
     };
 
     setSessions(prev => [newSession, ...prev]);
+
+    // Guardar en Firestore para sincronización inmediata entre dispositivos
+    setDoc(doc(db, 'sessions', newSession.id), newSession).catch(err => {
+      console.warn('[DataContext] Error al guardar sesión en Firestore:', err);
+    });
 
     // Disparar Notificaciones
     const assignedPlayers = players.filter(p => jugadoresIds.includes(p.id));
@@ -220,6 +247,9 @@ export const DataProvider = ({ children }) => {
     setSessions(prev =>
       prev.map(s => (s.id === sessionId ? { ...s, estado: newStatus } : s))
     );
+    setDoc(doc(db, 'sessions', sessionId), { estado: newStatus }, { merge: true }).catch(err => {
+      console.warn('[DataContext] Error al actualizar estado de sesión en Firestore:', err);
+    });
   };
 
   const reassignSession = (sessionId, newCoachId, reason = '') => {
@@ -246,12 +276,21 @@ export const DataProvider = ({ children }) => {
           return {
             ...s,
             entrenadorId: newCoachId,
+            entrenadorEmail: newCoach.email || '',
             notasReasignacion: reason
           };
         }
         return s;
       })
     );
+
+    setDoc(doc(db, 'sessions', sessionId), {
+      entrenadorId: newCoachId,
+      entrenadorEmail: newCoach.email || '',
+      notasReasignacion: reason
+    }, { merge: true }).catch(err => {
+      console.warn('[DataContext] Error al reasignar sesión en Firestore:', err);
+    });
 
     const assignedPlayers = players.filter(p => session.jugadoresIds?.includes(p.id));
     notifySessionAssignment({
