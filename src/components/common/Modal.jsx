@@ -1,5 +1,4 @@
 import React, { useEffect } from 'react';
-import { X } from 'lucide-react';
 
 const Modal = ({ isOpen, onClose, title, children, widthPx = '740px', topOffset = '130px' }) => {
   useEffect(() => {
@@ -21,14 +20,14 @@ const Modal = ({ isOpen, onClose, title, children, widthPx = '740px', topOffset 
     <div
       style={{
         position: 'fixed',
-        top: `${topOffsetNum}px`, // Despliega el modal por debajo de los botones de acción / encabezado
+        top: `${topOffsetNum}px`,
         left: 0,
         right: 0,
         bottom: 0,
         zIndex: 900,
         display: 'flex',
         alignItems: 'flex-start',
-        justifyContent: 'center',
+        justify: 'center',
         padding: '12px 16px 20px min(240px, 15vw)',
         backgroundColor: 'rgba(6, 13, 30, 0.88)',
         backdropFilter: 'blur(16px)',
@@ -39,7 +38,7 @@ const Modal = ({ isOpen, onClose, title, children, widthPx = '740px', topOffset 
         if (e.target === e.currentTarget) onClose();
       }}
     >
-      {/* Contenedor Modal que se despliega estrictamente por debajo de los botones superiores */}
+      {/* Contenedor Modal */}
       <div
         style={{
           width: '100%',
@@ -73,27 +72,6 @@ const Modal = ({ isOpen, onClose, title, children, widthPx = '740px', topOffset 
           <h3 style={{ fontSize: '1.2rem', fontWeight: 800, color: '#F8FAFC', margin: 0 }}>
             {title}
           </h3>
-          <button
-            onClick={onClose}
-            style={{
-              background: 'rgba(212, 175, 55, 0.15)',
-              border: '1px solid rgba(212, 175, 55, 0.5)',
-              color: '#FBBF24',
-              cursor: 'pointer',
-              padding: '6px 14px',
-              borderRadius: '8px',
-              display: 'flex',
-              alignItems: 'center',
-              gap: '6px',
-              fontSize: '0.85rem',
-              fontWeight: 700,
-              transition: 'all 0.2s'
-            }}
-            onMouseOver={(e) => (e.currentTarget.style.background = 'rgba(212, 175, 55, 0.3)')}
-            onMouseOut={(e) => (e.currentTarget.style.background = 'rgba(212, 175, 55, 0.15)')}
-          >
-            <X size={18} /> Cerrar
-          </button>
         </div>
 
         {/* Cuerpo del Modal con desplazamiento vertical independiente */}

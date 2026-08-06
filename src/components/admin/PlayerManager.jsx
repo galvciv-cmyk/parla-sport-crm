@@ -17,7 +17,8 @@ const PlayerManager = () => {
   // Formulario
   const [formData, setFormData] = useState({
     nombre: '',
-    edad: 10,
+    fechaNacimiento: '',
+    edad: 0,
     posicion: 'Mediocampista',
     piernaHabil: 'Derecha',
     contactoTutor: '',
@@ -25,10 +26,33 @@ const PlayerManager = () => {
     observacionesTecnicas: ''
   });
 
+  const calculateAge = (birthDateStr) => {
+    if (!birthDateStr) return 0;
+    const today = new Date();
+    const birthDate = new Date(birthDateStr + 'T00:00:00');
+    if (isNaN(birthDate.getTime())) return 0;
+    let age = today.getFullYear() - birthDate.getFullYear();
+    const monthDiff = today.getMonth() - birthDate.getMonth();
+    if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < birthDate.getDate())) {
+      age--;
+    }
+    return age >= 0 ? age : 0;
+  };
+
+  const handleBirthDateChange = (dateStr) => {
+    const calculatedAge = calculateAge(dateStr);
+    setFormData(prev => ({
+      ...prev,
+      fechaNacimiento: dateStr,
+      edad: calculatedAge
+    }));
+  };
+
   const handleOpenAdd = () => {
     setFormData({
       nombre: '',
-      edad: 10,
+      fechaNacimiento: '',
+      edad: 0,
       posicion: 'Mediocampista',
       piernaHabil: 'Derecha',
       contactoTutor: '',
@@ -41,7 +65,13 @@ const PlayerManager = () => {
 
   const handleOpenDetail = (player, editMode = false) => {
     setSelectedPlayer(player);
-    setFormData({ ...player });
+    const birthDate = player.fechaNacimiento || '';
+    const age = birthDate ? calculateAge(birthDate) : (player.edad || 0);
+    setFormData({
+      ...player,
+      fechaNacimiento: birthDate,
+      edad: age
+    });
     setIsEditing(editMode);
     setIsDetailModalOpen(true);
   };
@@ -170,6 +200,7 @@ const PlayerManager = () => {
             </div>
 
             <div style={{ fontSize: '0.82rem', color: '#CBD5E1', background: 'rgba(15, 23, 42, 0.6)', padding: '10px', borderRadius: '8px' }}>
+              {player.fechaNacimiento && <div style={{ marginBottom: '2px' }}><strong>F. Nacimiento:</strong> {player.fechaNacimiento}</div>}
               <div><strong>Pierna Hábil:</strong> {player.piernaHabil}</div>
               <div style={{ color: '#94A3B8', marginTop: '2px' }}><strong>Tutor:</strong> {player.contactoTutor || 'No registrado'}</div>
             </div>
@@ -223,7 +254,8 @@ const PlayerManager = () => {
       >
         <form onSubmit={handleSave} style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
           
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '14px' }}>
+          {/* Nombre, Fecha de Nacimiento y Edad Automática */}
+          <div style={{ display: 'grid', gridTemplateColumns: '1.2fr 1fr 0.8fr', gap: '14px' }}>
             <div>
               <label className="input-label">Nombre del Jugador</label>
               <input
@@ -237,16 +269,24 @@ const PlayerManager = () => {
             </div>
 
             <div>
-              <label className="input-label">Edad (Años)</label>
+              <label className="input-label">Fecha de Nacimiento</label>
               <input
-                type="number"
-                min="4"
-                max="20"
-                required
+                type="date"
                 disabled={!isAddModalOpen && !isEditing}
                 className="input-field"
-                value={formData.edad}
-                onChange={(e) => setFormData({ ...formData, edad: parseInt(e.target.value) || 0 })}
+                value={formData.fechaNacimiento || ''}
+                onChange={(e) => handleBirthDateChange(e.target.value)}
+              />
+            </div>
+
+            <div>
+              <label className="input-label">Edad (Auto)</label>
+              <input
+                type="text"
+                readOnly
+                className="input-field"
+                style={{ color: '#10B981', fontWeight: 700 }}
+                value={formData.edad > 0 ? `${formData.edad} Años` : 'Por calcular'}
               />
             </div>
           </div>
