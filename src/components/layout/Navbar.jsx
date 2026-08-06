@@ -23,7 +23,7 @@ const Navbar = () => {
     <header style={{
       position: 'sticky',
       top: 0,
-      zIndex: 40,
+      zIndex: 1000,
       backgroundColor: 'rgba(6, 13, 30, 0.92)',
       backdropFilter: 'blur(20px)',
       WebkitBackdropFilter: 'blur(20px)',

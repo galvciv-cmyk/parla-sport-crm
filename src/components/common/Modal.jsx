@@ -19,12 +19,15 @@ const Modal = ({ isOpen, onClose, title, children, widthPx = '740px' }) => {
     <div
       style={{
         position: 'fixed',
-        inset: 0,
-        zIndex: 9999,
+        top: '76px', // Inicia exactamente debajo del Navbar/Header
+        left: 0,
+        right: 0,
+        bottom: 0,
+        zIndex: 900, // Por debajo del zIndex del Navbar (1000)
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'center',
-        padding: '20px 16px 20px min(240px, 15vw)',
+        padding: '16px 16px 16px min(240px, 15vw)',
         backgroundColor: 'rgba(6, 13, 30, 0.92)',
         backdropFilter: 'blur(16px)',
         WebkitBackdropFilter: 'blur(16px)'
@@ -34,12 +37,12 @@ const Modal = ({ isOpen, onClose, title, children, widthPx = '740px' }) => {
         if (e.target === e.currentTarget) onClose();
       }}
     >
-      {/* Contenedor Modal Centrado en el Área Útil de la Página */}
+      {/* Contenedor Modal que queda estrictamente por debajo del Header */}
       <div
         style={{
           width: '100%',
           maxWidth: widthPx,
-          maxHeight: '86vh',
+          maxHeight: 'calc(100vh - 108px)',
           backgroundColor: '#0A1633',
           border: '2px solid #D4AF37',
           borderRadius: '18px',
@@ -51,7 +54,7 @@ const Modal = ({ isOpen, onClose, title, children, widthPx = '740px' }) => {
         }}
         onClick={(e) => e.stopPropagation()}
       >
-        {/* Encabezado Fijo */}
+        {/* Encabezado Fijo del Modal */}
         <div
           style={{
             padding: '18px 24px',
@@ -91,7 +94,7 @@ const Modal = ({ isOpen, onClose, title, children, widthPx = '740px' }) => {
           </button>
         </div>
 
-        {/* Cuerpo del Modal con desplazamiento vertical suelto */}
+        {/* Cuerpo del Modal con desplazamiento vertical independiente */}
         <div
           style={{
             padding: '24px',
