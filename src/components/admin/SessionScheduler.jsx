@@ -212,62 +212,42 @@ const SessionScheduler = () => {
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
               <div>
                 <label className="input-label" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                  <span>Hora Inicio (12h)</span>
+                  <span>Hora Inicio</span>
                   <span style={{ color: '#10B981', fontWeight: 700, fontSize: '0.75rem' }}>
                     {formatTo12Hour(sessionData.horaInicio)}
                   </span>
                 </label>
-                <div style={{ display: 'flex', gap: '6px' }}>
-                  <select
-                    className="input-field"
-                    value={sessionData.horaInicio}
-                    onChange={(e) => handleHoraInicioChange(e.target.value)}
-                    style={{ flex: 1 }}
-                  >
-                    {timeOptions.map(opt => (
-                      <option key={opt.value} value={opt.value}>
-                        {opt.label}
-                      </option>
-                    ))}
-                  </select>
-                  <input
-                    type="time"
-                    className="input-field"
-                    style={{ width: '95px', padding: '8px' }}
-                    value={sessionData.horaInicio}
-                    onChange={(e) => handleHoraInicioChange(e.target.value)}
-                  />
-                </div>
+                <select
+                  className="input-field"
+                  value={sessionData.horaInicio}
+                  onChange={(e) => handleHoraInicioChange(e.target.value)}
+                >
+                  {timeOptions.map(opt => (
+                    <option key={opt.value} value={opt.value}>
+                      {opt.label}
+                    </option>
+                  ))}
+                </select>
               </div>
 
               <div>
                 <label className="input-label" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                  <span>Hora Fin (Manual/Auto 1h)</span>
+                  <span>Hora Fin (Auto +1h)</span>
                   <span style={{ color: '#10B981', fontWeight: 700, fontSize: '0.75rem' }}>
                     {formatTo12Hour(sessionData.horaFin)}
                   </span>
                 </label>
-                <div style={{ display: 'flex', gap: '6px' }}>
-                  <select
-                    className="input-field"
-                    value={sessionData.horaFin}
-                    onChange={(e) => handleHoraFinChange(e.target.value)}
-                    style={{ flex: 1 }}
-                  >
-                    {timeOptions.map(opt => (
-                      <option key={opt.value} value={opt.value}>
-                        {opt.label}
-                      </option>
-                    ))}
-                  </select>
-                  <input
-                    type="time"
-                    className="input-field"
-                    style={{ width: '95px', padding: '8px' }}
-                    value={sessionData.horaFin}
-                    onChange={(e) => handleHoraFinChange(e.target.value)}
-                  />
-                </div>
+                <select
+                  className="input-field"
+                  value={sessionData.horaFin}
+                  onChange={(e) => handleHoraFinChange(e.target.value)}
+                >
+                  {timeOptions.map(opt => (
+                    <option key={opt.value} value={opt.value}>
+                      {opt.label}
+                    </option>
+                  ))}
+                </select>
               </div>
             </div>
 
