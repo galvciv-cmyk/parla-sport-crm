@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { CalendarPlus, RefreshCw, CheckCircle } from 'lucide-react';
 import { useData } from '../../context/DataContext';
-import { getAvailableCoaches, getSpanishDayName } from '../../utils/scheduling';
+import { getAvailableCoaches, getSpanishDayName, formatTo12Hour, addOneHour, generateTimeOptions } from '../../utils/scheduling';
 import { STATUS_CONFIG } from '../../utils/mockData';
 import Modal from '../common/Modal';
 
@@ -22,6 +22,25 @@ const SessionScheduler = () => {
 
   const [errorMessage, setErrorMessage] = useState('');
   const [successMessage, setSuccessMessage] = useState('');
+  const timeOptions = generateTimeOptions(15);
+
+  const handleHoraInicioChange = (newHoraInicio) => {
+    const newHoraFin = addOneHour(newHoraInicio);
+    setSessionData(prev => ({
+      ...prev,
+      horaInicio: newHoraInicio,
+      horaFin: newHoraFin,
+      entrenadorId: ''
+    }));
+  };
+
+  const handleHoraFinChange = (newHoraFin) => {
+    setSessionData(prev => ({
+      ...prev,
+      horaFin: newHoraFin,
+      entrenadorId: ''
+    }));
+  };
 
   // Reasignación Modal
   const [reassignModalOpen, setReassignModalOpen] = useState(false);
@@ -102,56 +121,56 @@ const SessionScheduler = () => {
         notas: ''
       });
     } catch (err) {
-      setErrorMessage(err.message);
+      setErrorMessage(err.message || 'Error al agendar la sesión.');
     }
   };
 
-  const handleOpenReassign = (session) => {
-    setSelectedSessionToReassign(session);
+  const handleOpenReassign = (sessionObj) => {
+    setSelectedSessionToReassign(sessionObj);
     setNewCoachId('');
-    setAbsenceReason('Motivo personal / ausente');
+    setAbsenceReason('');
     setReassignModalOpen(true);
   };
 
   const handleReassignSubmit = (e) => {
     e.preventDefault();
-    if (!newCoachId) {
-      alert('Selecciona al nuevo entrenador disponible.');
-      return;
-    }
+    if (!newCoachId) return;
 
     try {
       reassignSession(selectedSessionToReassign.id, newCoachId, absenceReason);
       setReassignModalOpen(false);
-      alert('¡Sesión reasignada con éxito! Calendario y notificaciones actualizadas.');
+      alert('Entrenador reasignado exitosamente. Se ha notificado al nuevo entrenador.');
     } catch (err) {
-      alert(err.message);
+      alert(err.message || 'Error al reasignar entrenador.');
     }
   };
 
   return (
-    <div className="animate-fade-in" style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
+    <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
       
-      {/* Encabezado */}
-      <div>
-        <h2 style={{ fontSize: '1.5rem', fontWeight: 800, color: '#F8FAFC' }}>
-          Gestor y Programación de Sesiones
-        </h2>
-        <p style={{ color: '#94A3B8', fontSize: '0.88rem', marginTop: '4px' }}>
-          Código de colores según el Drive: ⚪ Blanco (Sin confirmar), 🟡 Amarillo (Confirmado), 🟠 Naranja (Realizada), 🟢 Verde (Pagada).
-        </p>
+      {/* Header */}
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '12px' }}>
+        <div>
+          <h2 style={{ fontSize: '1.4rem', fontWeight: 800, color: '#F8FAFC', display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <CalendarPlus size={26} color="#10B981" /> Agendamiento de Sesiones (Anti-Conflicto)
+          </h2>
+          <p style={{ fontSize: '0.85rem', color: '#94A3B8', marginTop: '2px' }}>
+            Agenda entrenamientos con verificación de disponibilidad de profesores y prevención de duplicados.
+          </p>
+        </div>
       </div>
 
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(340px, 1fr))', gap: '24px' }}>
+      {/* Grid Principal: Formulario + Sesiones Existentes */}
+      <div style={{ display: 'grid', gridTemplateColumns: 'minmax(320px, 1fr) 1.2fr', gap: '24px' }}>
         
-        {/* Formulario de Creación de Sesión */}
-        <div className="glass-panel" style={{ padding: '24px' }}>
-          <h3 style={{ fontSize: '1.1rem', fontWeight: 700, marginBottom: '16px', color: '#F8FAFC', display: 'flex', alignItems: 'center', gap: '8px' }}>
-            <CalendarPlus size={20} color="#10B981" /> Programar Entrenamiento
+        {/* FORMULARIO DE AGENDAMIENTO */}
+        <div className="glass-card" style={{ padding: '20px' }}>
+          <h3 style={{ fontSize: '1.1rem', fontWeight: 700, color: '#F8FAFC', marginBottom: '16px', borderBottom: '1px solid rgba(255,255,255,0.1)', paddingBottom: '8px' }}>
+            Nueva Sesión
           </h3>
 
           {errorMessage && (
-            <div style={{ padding: '12px', borderRadius: '10px', background: 'rgba(239, 68, 68, 0.15)', border: '1px solid rgba(239, 68, 68, 0.4)', color: '#F87171', fontSize: '0.85rem', marginBottom: '14px' }}>
+            <div style={{ padding: '12px', borderRadius: '10px', background: 'rgba(239, 68, 68, 0.15)', border: '1px solid rgba(239, 68, 68, 0.4)', color: '#FCA5A5', fontSize: '0.85rem', marginBottom: '14px' }}>
               ⚠️ {errorMessage}
             </div>
           )}
@@ -189,28 +208,66 @@ const SessionScheduler = () => {
               </div>
             </div>
 
-            {/* Horario inicio / fin */}
+            {/* Horario inicio / fin en formato 12h (AM/PM) */}
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
               <div>
-                <label className="input-label">Hora Inicio</label>
-                <input
-                  type="time"
-                  required
-                  className="input-field"
-                  value={sessionData.horaInicio}
-                  onChange={(e) => setSessionData({ ...sessionData, horaInicio: e.target.value, entrenadorId: '' })}
-                />
+                <label className="input-label" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <span>Hora Inicio (12h)</span>
+                  <span style={{ color: '#10B981', fontWeight: 700, fontSize: '0.75rem' }}>
+                    {formatTo12Hour(sessionData.horaInicio)}
+                  </span>
+                </label>
+                <div style={{ display: 'flex', gap: '6px' }}>
+                  <select
+                    className="input-field"
+                    value={sessionData.horaInicio}
+                    onChange={(e) => handleHoraInicioChange(e.target.value)}
+                    style={{ flex: 1 }}
+                  >
+                    {timeOptions.map(opt => (
+                      <option key={opt.value} value={opt.value}>
+                        {opt.label}
+                      </option>
+                    ))}
+                  </select>
+                  <input
+                    type="time"
+                    className="input-field"
+                    style={{ width: '95px', padding: '8px' }}
+                    value={sessionData.horaInicio}
+                    onChange={(e) => handleHoraInicioChange(e.target.value)}
+                  />
+                </div>
               </div>
 
               <div>
-                <label className="input-label">Hora Fin</label>
-                <input
-                  type="time"
-                  required
-                  className="input-field"
-                  value={sessionData.horaFin}
-                  onChange={(e) => setSessionData({ ...sessionData, horaFin: e.target.value, entrenadorId: '' })}
-                />
+                <label className="input-label" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <span>Hora Fin (Manual/Auto 1h)</span>
+                  <span style={{ color: '#10B981', fontWeight: 700, fontSize: '0.75rem' }}>
+                    {formatTo12Hour(sessionData.horaFin)}
+                  </span>
+                </label>
+                <div style={{ display: 'flex', gap: '6px' }}>
+                  <select
+                    className="input-field"
+                    value={sessionData.horaFin}
+                    onChange={(e) => handleHoraFinChange(e.target.value)}
+                    style={{ flex: 1 }}
+                  >
+                    {timeOptions.map(opt => (
+                      <option key={opt.value} value={opt.value}>
+                        {opt.label}
+                      </option>
+                    ))}
+                  </select>
+                  <input
+                    type="time"
+                    className="input-field"
+                    style={{ width: '95px', padding: '8px' }}
+                    value={sessionData.horaFin}
+                    onChange={(e) => handleHoraFinChange(e.target.value)}
+                  />
+                </div>
               </div>
             </div>
 
@@ -368,7 +425,7 @@ const SessionScheduler = () => {
                       <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                         <span className="badge badge-emerald">{s.tipo}</span>
                         <span style={{ fontSize: '0.85rem', fontWeight: 700, color: '#F8FAFC' }}>
-                          📅 {s.fecha} ({s.horaInicio} - {s.horaFin})
+                          📅 {s.fecha} ({formatTo12Hour(s.horaInicio)} - {formatTo12Hour(s.horaFin)})
                         </span>
                       </div>
 
@@ -432,7 +489,7 @@ const SessionScheduler = () => {
         {selectedSessionToReassign && (
           <form onSubmit={handleReassignSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
             <div style={{ background: 'rgba(245, 158, 11, 0.1)', padding: '12px', borderRadius: '10px', fontSize: '0.85rem', color: '#FBBF24' }}>
-              ⚠️ Reasignando sesión del <strong>{selectedSessionToReassign.fecha} ({selectedSessionToReassign.horaInicio} - {selectedSessionToReassign.horaFin})</strong>.
+              ⚠️ Reasignando sesión del <strong>{selectedSessionToReassign.fecha} ({formatTo12Hour(selectedSessionToReassign.horaInicio)} - {formatTo12Hour(selectedSessionToReassign.horaFin)})</strong>.
             </div>
 
             <div>

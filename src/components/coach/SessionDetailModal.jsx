@@ -2,6 +2,7 @@ import React from 'react';
 import { Phone, Award, User } from 'lucide-react';
 import { STATUS_CONFIG } from '../../utils/mockData';
 import { useData } from '../../context/DataContext';
+import { formatTo12Hour } from '../../utils/scheduling';
 import Modal from '../common/Modal';
 
 const SessionDetailModal = ({ isOpen, onClose, session, players, coach }) => {
@@ -39,7 +40,7 @@ const SessionDetailModal = ({ isOpen, onClose, session, players, coach }) => {
           <div>
             <div style={{ fontSize: '0.8rem', color: '#94A3B8' }}>Horario Programado:</div>
             <div style={{ fontSize: '1.15rem', fontWeight: 800, color: '#F8FAFC' }}>
-              ⏰ {session.horaInicio} a {session.horaFin}
+              ⏰ {formatTo12Hour(session.horaInicio)} a {formatTo12Hour(session.horaFin)}
             </div>
           </div>
 

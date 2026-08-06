@@ -1,6 +1,7 @@
 import React from 'react';
 import { Calendar as CalendarIcon, Clock, UserCheck, Shield } from 'lucide-react';
 import { useData } from '../../context/DataContext';
+import { formatTo12Hour } from '../../utils/scheduling';
 
 const AcademyCalendar = () => {
   const { sessions, coaches, players } = useData();
@@ -11,11 +12,11 @@ const AcademyCalendar = () => {
       
       {/* Encabezado */}
       <div>
-        <h2 style={{ fontSize: '1.5rem', fontWeight: 800, color: '#F8FAFC', display: 'flex', alignItems: 'center', gap: '10px' }}>
-          <Shield size={24} color="#10B981" /> Vista General de la Academia (Solo Lectura)
+        <h2 style={{ fontSize: '1.4rem', fontWeight: 800, color: '#F8FAFC', display: 'flex', alignItems: 'center', gap: '8px' }}>
+          <Shield size={26} color="#10B981" /> Calendario General de la Academia
         </h2>
-        <p style={{ color: '#94A3B8', fontSize: '0.88rem', marginTop: '4px' }}>
-          Consulta general de ocupación de canchas y entrenamientos programados para toda la academia Parla Sport.
+        <p style={{ color: '#94A3B8', fontSize: '0.85rem', marginTop: '2px' }}>
+          Vista global de todas las clases y sesiones programadas en Parla Sport CRM.
         </p>
       </div>
 
@@ -49,7 +50,7 @@ const AcademyCalendar = () => {
                     <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
                       <span className="badge badge-emerald">{session.tipo}</span>
                       <span style={{ fontSize: '0.95rem', fontWeight: 700, color: '#F8FAFC' }}>
-                        📅 {session.fecha} | ⏰ {session.horaInicio} - {session.horaFin}
+                        📅 {session.fecha} | ⏰ {formatTo12Hour(session.horaInicio)} - {formatTo12Hour(session.horaFin)}
                       </span>
                     </div>
 

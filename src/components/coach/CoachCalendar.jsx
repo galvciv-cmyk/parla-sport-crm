@@ -3,6 +3,7 @@ import { Calendar as CalendarIcon, Clock, Eye, Sparkles, Settings, Plus, Trash2,
 import { useAuth } from '../../context/AuthContext';
 import { useData } from '../../context/DataContext';
 import { STATUS_CONFIG } from '../../utils/mockData';
+import { formatTo12Hour } from '../../utils/scheduling';
 import SessionDetailModal from './SessionDetailModal';
 import Modal from '../common/Modal';
 
@@ -199,7 +200,7 @@ const CoachCalendar = () => {
 
                 <div>
                   <div style={{ fontSize: '1.1rem', fontWeight: 800, color: '#F8FAFC', display: 'flex', alignItems: 'center', gap: '8px' }}>
-                    <Clock size={18} color={statusCfg.colorHex} /> {session.horaInicio} - {session.horaFin}
+                    <Clock size={18} color={statusCfg.colorHex} /> {formatTo12Hour(session.horaInicio)} - {formatTo12Hour(session.horaFin)}
                   </div>
                   <div style={{ fontSize: '0.82rem', color: '#94A3B8', marginTop: '2px' }}>
                     📅 {session.fecha}

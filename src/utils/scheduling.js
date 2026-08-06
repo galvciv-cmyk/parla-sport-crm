@@ -21,6 +21,52 @@ export const timeToMinutes = (timeStr) => {
 };
 
 /**
+ * Convierte una hora 'HH:MM' (24 hrs) a formato 12 horas con AM/PM (ej: '09:00' -> '9:00 AM', '14:30' -> '2:30 PM')
+ */
+export const formatTo12Hour = (timeStr) => {
+  if (!timeStr || typeof timeStr !== 'string') return '';
+  const parts = timeStr.split(':');
+  if (parts.length < 2) return timeStr;
+  const h = parseInt(parts[0], 10);
+  const m = parts[1];
+  if (isNaN(h)) return timeStr;
+  const period = h >= 12 ? 'PM' : 'AM';
+  const hour12 = h % 12 === 0 ? 12 : h % 12;
+  return `${hour12}:${m} ${period}`;
+};
+
+/**
+ * Dada una hora 'HH:MM', devuelve la hora correspondiente a 1 hora después en formato 'HH:MM'
+ */
+export const addOneHour = (timeStr) => {
+  if (!timeStr || typeof timeStr !== 'string') return '10:00';
+  const parts = timeStr.split(':');
+  if (parts.length < 2) return '10:00';
+  let h = parseInt(parts[0], 10);
+  let m = parts[1];
+  if (isNaN(h)) return '10:00';
+  h = (h + 1) % 24;
+  const pad = (n) => String(n).padStart(2, '0');
+  return `${pad(h)}:${m}`;
+};
+
+/**
+ * Genera lista de opciones de hora con su equivalente en 12h AM/PM
+ */
+export const generateTimeOptions = (intervalMinutes = 15) => {
+  const options = [];
+  for (let h = 6; h <= 23; h++) {
+    for (let m = 0; m < 60; m += intervalMinutes) {
+      const pad = (n) => String(n).padStart(2, '0');
+      const time24 = `${pad(h)}:${pad(m)}`;
+      const label12 = formatTo12Hour(time24);
+      options.push({ value: time24, label: label12 });
+    }
+  }
+  return options;
+};
+
+/**
  * Revisa si un horario (startTime - endTime) solapa con otro bloque de tiempo
  */
 export const isTimeOverlapping = (startA, endA, startB, endB) => {
