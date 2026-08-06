@@ -295,27 +295,15 @@ const LoginScreen = () => {
               </div>
             </div>
 
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
-              <div>
-                <label className="input-label">Teléfono / WhatsApp</label>
-                <input
-                  type="text"
-                  placeholder="+58 414 0001122"
-                  className="input-field"
-                  value={regData.telefono}
-                  onChange={(e) => setRegData({ ...regData, telefono: e.target.value })}
-                />
-              </div>
-              <div>
-                <label className="input-label">Especialidad</label>
-                <input
-                  type="text"
-                  placeholder="Técnica 1-1"
-                  className="input-field"
-                  value={regData.especialidad}
-                  onChange={(e) => setRegData({ ...regData, especialidad: e.target.value })}
-                />
-              </div>
+            <div>
+              <label className="input-label">Teléfono / WhatsApp (Opcional)</label>
+              <input
+                type="text"
+                placeholder="+58 414 0001122"
+                className="input-field"
+                value={regData.telefono}
+                onChange={(e) => setRegData({ ...regData, telefono: e.target.value })}
+              />
             </div>
 
             {/* Configuración de Disponibilidad durante Registro */}

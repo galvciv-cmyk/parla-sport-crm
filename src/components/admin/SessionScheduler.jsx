@@ -343,7 +343,7 @@ const SessionScheduler = () => {
                 </option>
                 {availableCoachesForForm.map(c => (
                   <option key={c.id} value={c.id}>
-                    👤 {c.nombre} ({c.especialidad})
+                    👤 {c.nombre}{c.especialidad ? ` (${c.especialidad})` : ''}
                   </option>
                 ))}
               </select>
