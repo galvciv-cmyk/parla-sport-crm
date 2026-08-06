@@ -62,101 +62,134 @@ const SessionDetailModal = ({ isOpen, onClose, session, players, coach }) => {
           </span>
         </div>
 
-        {/* CAMBIAR ESTADO UNIFICADO */}
-        <div style={{ background: 'rgba(15, 23, 42, 0.7)', padding: '14px', borderRadius: '12px', border: '1px solid rgba(255, 255, 255, 0.08)' }}>
-          <span style={{ fontSize: '0.8rem', fontWeight: 700, color: '#94A3B8', display: 'block', marginBottom: '8px' }}>
-            Actualizar Estado de la Sesión ({isAdmin ? 'Perfil Administrador' : 'Perfil Entrenador'}):
+        {/* CONTROLES DE ESTADO POR ROL ESTRICTO */}
+        <div style={{ background: 'rgba(15, 23, 42, 0.7)', padding: '16px', borderRadius: '12px', border: '1px solid rgba(255, 255, 255, 0.08)' }}>
+          <span style={{ fontSize: '0.8rem', fontWeight: 700, color: '#94A3B8', display: 'block', marginBottom: '10px' }}>
+            Acciones de Estado ({isAdmin ? 'Perfil Administrador' : 'Perfil Entrenador'}):
           </span>
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(130px, 1fr))', gap: '8px' }}>
-            
-            <button
-              onClick={() => handleStatusChange('sin_confirmar')}
-              style={{
-                padding: '8px 10px',
-                borderRadius: '8px',
-                border: session.estado === 'sin_confirmar' ? '2px solid #FFF' : '1px solid rgba(255,255,255,0.2)',
-                background: session.estado === 'sin_confirmar' ? 'rgba(255,255,255,0.2)' : 'rgba(15,23,42,0.8)',
-                color: '#FFF',
-                fontWeight: 700,
-                fontSize: '0.78rem',
-                cursor: 'pointer'
-              }}
-            >
-              ⚪ Sin Confirmar
-            </button>
 
-            <button
-              onClick={() => handleStatusChange('confirmada')}
-              style={{
-                padding: '8px 10px',
-                borderRadius: '8px',
-                border: session.estado === 'confirmada' ? '2px solid #FBBF24' : '1px solid rgba(245,158,11,0.3)',
-                background: session.estado === 'confirmada' ? 'rgba(245,158,11,0.25)' : 'rgba(15,23,42,0.8)',
-                color: '#FBBF24',
-                fontWeight: 700,
-                fontSize: '0.78rem',
-                cursor: 'pointer'
-              }}
-            >
-              🟡 Confirmada
-            </button>
+          {!isAdmin ? (
+            /* Vista y Acción Exclusiva del Entrenador */
+            <div>
+              {session.estado === 'realizada' ? (
+                <div style={{
+                  background: 'rgba(16, 185, 129, 0.15)',
+                  border: '1px solid rgba(16, 185, 129, 0.4)',
+                  padding: '12px 16px',
+                  borderRadius: '10px',
+                  color: '#34D399',
+                  fontWeight: 700,
+                  fontSize: '0.9rem',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '8px'
+                }}>
+                  ✅ Has marcado este entrenamiento como Finalizado / Realizado. Pendiente por cierre administrativo.
+                </div>
+              ) : session.estado === 'pagada' ? (
+                <div style={{
+                  background: 'rgba(16, 185, 129, 0.15)',
+                  border: '1px solid rgba(16, 185, 129, 0.4)',
+                  padding: '12px 16px',
+                  borderRadius: '10px',
+                  color: '#34D399',
+                  fontWeight: 700,
+                  fontSize: '0.9rem'
+                }}>
+                  🟢 Clase Finalizada y Pagada.
+                </div>
+              ) : (
+                <button
+                  type="button"
+                  onClick={() => handleStatusChange('realizada')}
+                  style={{
+                    width: '100%',
+                    padding: '12px 18px',
+                    borderRadius: '10px',
+                    border: 'none',
+                    background: 'linear-gradient(135deg, #FB923C 0%, #EA580C 100%)',
+                    color: '#FFFFFF',
+                    fontWeight: 800,
+                    fontSize: '0.95rem',
+                    cursor: 'pointer',
+                    boxShadow: '0 4px 15px rgba(249, 115, 22, 0.35)'
+                  }}
+                >
+                  🟠 Marcar Clase como Finalizada / Realizada
+                </button>
+              )}
+            </div>
+          ) : (
+            /* Vista y Acciones Exclusivas del Administrador */
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(130px, 1fr))', gap: '8px' }}>
+              <button
+                onClick={() => handleStatusChange('sin_confirmar')}
+                style={{
+                  padding: '8px 10px',
+                  borderRadius: '8px',
+                  border: session.estado === 'sin_confirmar' ? '2px solid #FFF' : '1px solid rgba(255,255,255,0.2)',
+                  background: session.estado === 'sin_confirmar' ? 'rgba(255,255,255,0.2)' : 'rgba(15,23,42,0.8)',
+                  color: '#FFF',
+                  fontWeight: 700,
+                  fontSize: '0.78rem',
+                  cursor: 'pointer'
+                }}
+              >
+                ⚪ Sin Confirmar
+              </button>
 
-            {/* Solo el Entrenador puede marcar como Realizada / Finalizada */}
-            <button
-              onClick={() => handleStatusChange('realizada')}
-              disabled={isAdmin}
-              title={isAdmin ? 'Solo el entrenador puede marcar la sesión como realizada' : 'Finalizar sesión de entrenamiento'}
-              style={{
-                padding: '8px 10px',
-                borderRadius: '8px',
-                border: session.estado === 'realizada' ? '2px solid #FB923C' : '1px solid rgba(249,115,22,0.3)',
-                background: session.estado === 'realizada' ? 'rgba(249,115,22,0.25)' : 'rgba(15,23,42,0.8)',
-                color: '#FB923C',
-                fontWeight: 700,
-                fontSize: '0.78rem',
-                cursor: isAdmin ? 'not-allowed' : 'pointer',
-                opacity: isAdmin ? 0.6 : 1
-              }}
-            >
-              🟠 Realizada {isAdmin ? '(Solo Entrenador)' : ''}
-            </button>
+              <button
+                onClick={() => handleStatusChange('confirmada')}
+                style={{
+                  padding: '8px 10px',
+                  borderRadius: '8px',
+                  border: session.estado === 'confirmada' ? '2px solid #FBBF24' : '1px solid rgba(245,158,11,0.3)',
+                  background: session.estado === 'confirmada' ? 'rgba(245,158,11,0.25)' : 'rgba(15,23,42,0.8)',
+                  color: '#FBBF24',
+                  fontWeight: 700,
+                  fontSize: '0.78rem',
+                  cursor: 'pointer'
+                }}
+              >
+                🟡 Confirmada
+              </button>
 
-            {/* El Admin solo puede marcar como Pagada si el entrenador ya la marcó como Realizada */}
-            <button
-              onClick={() => handleStatusChange('pagada')}
-              disabled={!isAdmin || session.estado !== 'realizada'}
-              title={!isAdmin ? 'Solo el administrador registra el pago' : (session.estado !== 'realizada' ? 'Requiere que el entrenador finalice la clase' : 'Registrar Pago')}
-              style={{
-                padding: '8px 10px',
-                borderRadius: '8px',
-                border: session.estado === 'pagada' ? '2px solid #34D399' : '1px solid rgba(16,185,129,0.3)',
-                background: session.estado === 'pagada' ? 'rgba(16,185,129,0.25)' : 'rgba(15,23,42,0.8)',
-                color: '#34D399',
-                fontWeight: 700,
-                fontSize: '0.78rem',
-                cursor: (!isAdmin || session.estado !== 'realizada') ? 'not-allowed' : 'pointer',
-                opacity: (!isAdmin || session.estado !== 'realizada') ? 0.5 : 1
-              }}
-            >
-              🟢 Pagada {session.estado !== 'realizada' ? '(Requiere realizada)' : ''}
-            </button>
+              <button
+                onClick={() => handleStatusChange('pagada')}
+                disabled={session.estado !== 'realizada'}
+                title={session.estado !== 'realizada' ? 'El entrenador debe marcar la sesión como realizada antes de ser pagada' : 'Registrar Pago de la Clase'}
+                style={{
+                  padding: '8px 10px',
+                  borderRadius: '8px',
+                  border: session.estado === 'pagada' ? '2px solid #34D399' : '1px solid rgba(16,185,129,0.3)',
+                  background: session.estado === 'pagada' ? 'rgba(16,185,129,0.25)' : 'rgba(15,23,42,0.8)',
+                  color: '#34D399',
+                  fontWeight: 700,
+                  fontSize: '0.78rem',
+                  cursor: session.estado !== 'realizada' ? 'not-allowed' : 'pointer',
+                  opacity: session.estado !== 'realizada' ? 0.45 : 1
+                }}
+              >
+                🟢 Pagada {session.estado !== 'realizada' ? '(Requiere realizada)' : ''}
+              </button>
 
-            <button
-              onClick={() => handleStatusChange('cancelada')}
-              style={{
-                padding: '8px 10px',
-                borderRadius: '8px',
-                border: session.estado === 'cancelada' ? '2px solid #F87171' : '1px solid rgba(239,68,68,0.3)',
-                background: session.estado === 'cancelada' ? 'rgba(239,68,68,0.25)' : 'rgba(15,23,42,0.8)',
-                color: '#F87171',
-                fontWeight: 700,
-                fontSize: '0.78rem',
-                cursor: 'pointer'
-              }}
-            >
-              🔴 Cancelada
-            </button>
-          </div>
+              <button
+                onClick={() => handleStatusChange('cancelada')}
+                style={{
+                  padding: '8px 10px',
+                  borderRadius: '8px',
+                  border: session.estado === 'cancelada' ? '2px solid #F87171' : '1px solid rgba(239,68,68,0.3)',
+                  background: session.estado === 'cancelada' ? 'rgba(239,68,68,0.25)' : 'rgba(15,23,42,0.8)',
+                  color: '#F87171',
+                  fontWeight: 700,
+                  fontSize: '0.78rem',
+                  cursor: 'pointer'
+                }}
+              >
+                🔴 Cancelada
+              </button>
+            </div>
+          )}
         </div>
 
         {session.notas && (
