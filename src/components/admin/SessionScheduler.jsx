@@ -89,7 +89,7 @@ const SessionScheduler = () => {
     }
   };
 
-  const handleCreateSubmit = (e) => {
+  const handleCreateSubmit = async (e) => {
     e.preventDefault();
     setErrorMessage('');
     setSuccessMessage('');
@@ -106,7 +106,7 @@ const SessionScheduler = () => {
     }
 
     try {
-      createSession(sessionData);
+      await createSession(sessionData);
       setSuccessMessage('¡Sesión agendada exitosamente! Se han enviado las notificaciones.');
       
       // Reset
@@ -132,12 +132,12 @@ const SessionScheduler = () => {
     setReassignModalOpen(true);
   };
 
-  const handleReassignSubmit = (e) => {
+  const handleReassignSubmit = async (e) => {
     e.preventDefault();
     if (!newCoachId) return;
 
     try {
-      reassignSession(selectedSessionToReassign.id, newCoachId, absenceReason);
+      await reassignSession(selectedSessionToReassign.id, newCoachId, absenceReason);
       setReassignModalOpen(false);
       alert('Entrenador reasignado exitosamente. Se ha notificado al nuevo entrenador.');
     } catch (err) {

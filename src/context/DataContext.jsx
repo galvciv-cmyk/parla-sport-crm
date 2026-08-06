@@ -147,46 +147,50 @@ export const DataProvider = ({ children }) => {
   };
 
   // --- CRUD ENTRENADORES CON SINCRO EN FIRESTORE ---
-  const addCoach = (coachData) => {
-    const newCoach = {
-      ...coachData,
+  const addCoach = async (coachData) => {
+    const cleanCoach = {
       id: coachData.id || `coach-${Date.now()}`,
+      nombre: coachData.nombre || '',
+      email: (coachData.email || '').trim().toLowerCase(),
+      telefono: coachData.telefono || '',
+      especialidad: coachData.especialidad || '',
       foto: coachData.foto || '',
-      bloquesDisponibilidad: coachData.bloquesDisponibilidad || []
+      bloquesDisponibilidad: coachData.bloquesDisponibilidad || [],
+      fechaRegistro: coachData.fechaRegistro || new Date().toISOString().split('T')[0]
     };
 
     setCoaches(prev => {
-      const exists = prev.some(c => c.id === newCoach.id || (c.email && c.email.toLowerCase() === newCoach.email?.toLowerCase()));
+      const exists = prev.some(c => c.id === cleanCoach.id || (c.email && c.email.toLowerCase() === cleanCoach.email));
       if (exists) {
-        return prev.map(c => (c.id === newCoach.id || (c.email && c.email.toLowerCase() === newCoach.email?.toLowerCase())) ? { ...c, ...newCoach } : c);
+        return prev.map(c => (c.id === cleanCoach.id || (c.email && c.email.toLowerCase() === cleanCoach.email)) ? { ...c, ...cleanCoach } : c);
       }
-      return [newCoach, ...prev];
+      return [cleanCoach, ...prev];
     });
 
     // Guardar también en Firestore
-    setDoc(doc(db, 'coaches', newCoach.id), newCoach).catch(err => {
+    await setDoc(doc(db, 'coaches', cleanCoach.id), cleanCoach).catch(err => {
       console.warn('[DataContext] No se pudo guardar el entrenador en Firestore:', err);
     });
 
-    return newCoach;
+    return cleanCoach;
   };
 
-  const updateCoach = (id, updatedFields) => {
+  const updateCoach = async (id, updatedFields) => {
     setCoaches(prev => prev.map(c => c.id === id ? { ...c, ...updatedFields } : c));
-    setDoc(doc(db, 'coaches', id), updatedFields, { merge: true }).catch(err => {
+    await setDoc(doc(db, 'coaches', id), updatedFields, { merge: true }).catch(err => {
       console.warn('[DataContext] Error al actualizar entrenador en Firestore:', err);
     });
   };
 
-  const deleteCoach = (id) => {
+  const deleteCoach = async (id) => {
     setCoaches(prev => prev.filter(c => c.id !== id));
-    deleteDoc(doc(db, 'coaches', id)).catch(err => {
+    await deleteDoc(doc(db, 'coaches', id)).catch(err => {
       console.warn('[DataContext] Error al eliminar entrenador en Firestore:', err);
     });
   };
 
   // --- GESTIÓN DE SESIONES CON VALIDACIÓN ANTI-CHOQUE Y SINCRO FIRESTORE ---
-  const createSession = ({ fecha, horaInicio, horaFin, tipo, entrenadorId, jugadoresIds, notas, estado = 'sin_confirmar' }) => {
+  const createSession = async ({ fecha, horaInicio, horaFin, tipo, entrenadorId, jugadoresIds, notas, estado = 'sin_confirmar' }) => {
     const coach = coaches.find(c => c.id === entrenadorId);
     if (!coach) {
       throw new Error('Debes seleccionar un entrenador válido.');
@@ -209,36 +213,35 @@ export const DataProvider = ({ children }) => {
       throw new Error(`El jugador ${p ? p.nombre : 'seleccionado'} ya tiene una sesión a esa hora.`);
     }
 
-    const newSession = {
+    const cleanSession = {
       id: `sesion-${Date.now()}`,
-      fecha,
-      horaInicio,
-      horaFin,
-      tipo,
-      entrenadorId,
-      entrenadorEmail: coach.email || '',
-      jugadoresIds,
-      estado, // sin_confirmar, confirmada, realizada, pagada
+      fecha: fecha || '',
+      horaInicio: horaInicio || '',
+      horaFin: horaFin || '',
+      tipo: tipo || '1-1',
+      entrenadorId: entrenadorId || '',
+      entrenadorEmail: (coach.email || '').trim().toLowerCase(),
+      entrenadorNombre: coach.nombre || '',
+      jugadoresIds: Array.isArray(jugadoresIds) ? jugadoresIds : [],
+      estado: estado || 'sin_confirmar',
       notas: notas || ''
     };
 
-    setSessions(prev => [newSession, ...prev]);
+    // Guardar primero en Firestore para garantizar sincronización entre dispositivos
+    await setDoc(doc(db, 'sessions', cleanSession.id), cleanSession);
 
-    // Guardar en Firestore para sincronización inmediata entre dispositivos
-    setDoc(doc(db, 'sessions', newSession.id), newSession).catch(err => {
-      console.warn('[DataContext] Error al guardar sesión en Firestore:', err);
-    });
+    setSessions(prev => [cleanSession, ...prev.filter(s => s.id !== cleanSession.id)]);
 
     // Disparar Notificaciones
-    const assignedPlayers = players.filter(p => jugadoresIds.includes(p.id));
+    const assignedPlayers = players.filter(p => cleanSession.jugadoresIds.includes(p.id));
     notifySessionAssignment({
       coach,
-      session: newSession,
+      session: cleanSession,
       players: assignedPlayers,
       isReassignment: false
     });
 
-    return newSession;
+    return cleanSession;
   };
 
   const updateSessionStatus = (sessionId, newStatus) => {
