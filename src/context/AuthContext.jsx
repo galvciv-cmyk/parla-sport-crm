@@ -71,27 +71,49 @@ export const AuthProvider = ({ children }) => {
         console.error('[Auth] Error leyendo documento Firestore users:', err);
       }
 
+      const generatedCoachId = isMaster ? null : (profile?.coachId || `coach-${firebaseUser.uid}`);
+
       // Auto-reparación: si existe en Auth pero sin documento en Firestore
       if (!profile) {
         profile = {
           email: cleanEmail,
           nombre: isMaster ? 'Administrador Maestro' : (firebaseUser.displayName || 'Profesor / Entrenador'),
           role: defaultRole,
-          coachId: null
+          coachId: generatedCoachId
         };
         try {
           await setDoc(doc(db, 'users', firebaseUser.uid), profile);
+          if (!isMaster) {
+            await setDoc(doc(db, 'coaches', generatedCoachId), {
+              id: generatedCoachId,
+              nombre: profile.nombre,
+              email: cleanEmail,
+              telefono: '',
+              especialidad: 'Entrenador General',
+              foto: '',
+              bloquesDisponibilidad: [],
+              fechaRegistro: new Date().toISOString().split('T')[0]
+            }, { merge: true });
+          }
         } catch (setErr) {
           console.warn('[Auth] No se pudo escribir perfil en Firestore:', setErr);
         }
+      } else if (!isMaster && !profile.coachId) {
+        profile.coachId = generatedCoachId;
+        setDoc(doc(db, 'users', firebaseUser.uid), { coachId: generatedCoachId }, { merge: true }).catch(() => {});
+        setDoc(doc(db, 'coaches', generatedCoachId), {
+          id: generatedCoachId,
+          nombre: profile.nombre || 'Entrenador',
+          email: cleanEmail
+        }, { merge: true }).catch(() => {});
       }
 
       setCurrentUser({
         uid: firebaseUser.uid,
-        email: firebaseUser.email,
+        email: cleanEmail,
         nombre: profile.nombre || (isMaster ? 'Administrador Maestro' : 'Entrenador'),
         role: profile.role || defaultRole,
-        coachId: profile.coachId || null
+        coachId: isMaster ? null : (profile.coachId || generatedCoachId)
       });
 
       setAuthLoading(false);

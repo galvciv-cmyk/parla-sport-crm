@@ -89,16 +89,14 @@ export const DataProvider = ({ children }) => {
   useEffect(() => {
     const unsub = onSnapshot(collection(db, 'sessions'), (snapshot) => {
       const firestoreSessions = snapshot.docs.map(d => ({ id: d.id, ...d.data() }));
-      if (firestoreSessions.length > 0) {
-        setSessions(prev => {
-          const map = new Map();
-          firestoreSessions.forEach(s => map.set(s.id, s));
-          prev.forEach(s => {
-            if (!map.has(s.id)) map.set(s.id, s);
-          });
-          return Array.from(map.values());
+      setSessions(prev => {
+        const map = new Map();
+        firestoreSessions.forEach(s => map.set(s.id, s));
+        prev.forEach(s => {
+          if (!map.has(s.id)) map.set(s.id, s);
         });
-      }
+        return Array.from(map.values());
+      });
     }, (err) => {
       console.warn('[DataContext] Error escuchando Firestore sessions:', err);
     });

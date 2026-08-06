@@ -82,8 +82,11 @@ export const isTimeOverlapping = (startA, endA, startB, endB) => {
  * Comprueba si un entrenador tiene disponibilidad registrada para un día y bloque de horas específico
  */
 export const isCoachAvailableBySchedule = (coach, dateStr, startTime, endTime) => {
-  if (!coach || !coach.bloquesDisponibilidad || coach.bloquesDisponibilidad.length === 0) {
-    return false;
+  if (!coach) return false;
+
+  // Si el entrenador aún no ha configurado bloques de disponibilidad específicos, está disponible por defecto
+  if (!coach.bloquesDisponibilidad || coach.bloquesDisponibilidad.length === 0) {
+    return true;
   }
 
   const dayName = getSpanishDayName(dateStr);
