@@ -14,27 +14,44 @@ const CoachCalendar = () => {
   const { coaches, sessions, players, updateCoach } = useData();
 
   const coachEmail = (currentUser?.email || '').trim().toLowerCase();
+  const userUid = currentUser?.uid || '';
+  const userCoachId = activeCoachId || (userUid ? `coach-${userUid}` : '');
 
-  // Buscar el entrenador por ID activo o por email del usuario en sesión
+  // Buscar la ficha del entrenador en la colección global
   const activeCoach = coaches.find(c =>
-    (c.id && activeCoachId && c.id === activeCoachId) ||
+    (c.id && userCoachId && c.id === userCoachId) ||
+    (c.id && userUid && (c.id === userUid || c.id.includes(userUid))) ||
     (c.email && coachEmail && c.email.trim().toLowerCase() === coachEmail)
   );
 
-  // Algoritmo de filtrado de 3 capas para asegurar que el entrenador siempre vea sus sesiones
+  const coachName = (activeCoach?.nombre || currentUser?.nombre || '').trim().toLowerCase();
+
+  // Algoritmo de filtrado de 4 capas para garantizar la máxima coincidencia
   const coachSessions = sessions.filter(s => {
     if (s.estado === 'cancelada') return false;
 
-    // Capa 1: Coincidencia por ID del entrenador activo
-    if (activeCoach?.id && s.entrenadorId === activeCoach.id) return true;
-    if (activeCoachId && s.entrenadorId === activeCoachId) return true;
+    // Capa 1: Coincidencia por ID de entrenador
+    if (s.entrenadorId) {
+      if (activeCoach?.id && s.entrenadorId === activeCoach.id) return true;
+      if (userCoachId && s.entrenadorId === userCoachId) return true;
+      if (userUid && (s.entrenadorId === userUid || s.entrenadorId.includes(userUid))) return true;
+    }
 
-    // Capa 2: Coincidencia directa por email registrado en el documento de la sesión
-    if (coachEmail && s.entrenadorEmail && s.entrenadorEmail.trim().toLowerCase() === coachEmail) return true;
+    // Capa 2: Coincidencia por Email registrado en el documento de la sesión o del usuario
+    if (coachEmail) {
+      if (s.entrenadorEmail && s.entrenadorEmail.trim().toLowerCase() === coachEmail) return true;
+      if (activeCoach?.email && s.entrenadorEmail && s.entrenadorEmail.trim().toLowerCase() === activeCoach.email.trim().toLowerCase()) return true;
+    }
 
-    // Capa 3: Coincidencia mediante búsqueda inversa del entrenador asignado a la sesión
+    // Capa 3: Coincidencia por Nombre de Entrenador (s.entrenadorNombre)
+    if (coachName && s.entrenadorNombre && s.entrenadorNombre.trim().toLowerCase() === coachName) return true;
+
+    // Capa 4: Coincidencia mediante búsqueda cruzada en la lista global de entrenadores
     const sessionCoach = coaches.find(c => c.id === s.entrenadorId);
-    if (sessionCoach && sessionCoach.email && sessionCoach.email.trim().toLowerCase() === coachEmail) return true;
+    if (sessionCoach) {
+      if (sessionCoach.email && coachEmail && sessionCoach.email.trim().toLowerCase() === coachEmail) return true;
+      if (sessionCoach.nombre && coachName && sessionCoach.nombre.trim().toLowerCase() === coachName) return true;
+    }
 
     return false;
   });
