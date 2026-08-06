@@ -13,20 +13,31 @@ const CoachCalendar = () => {
   const { activeCoachId, currentUser } = useAuth();
   const { coaches, sessions, players, updateCoach } = useData();
 
+  const coachEmail = (currentUser?.email || '').trim().toLowerCase();
+
   // Buscar el entrenador por ID activo o por email del usuario en sesión
   const activeCoach = coaches.find(c =>
-    c.id === activeCoachId ||
-    (c.email && currentUser?.email && c.email.toLowerCase() === currentUser.email.toLowerCase())
+    (c.id && activeCoachId && c.id === activeCoachId) ||
+    (c.email && coachEmail && c.email.trim().toLowerCase() === coachEmail)
   );
 
-  const coachSessions = sessions.filter(s =>
-    activeCoach &&
-    (
-      s.entrenadorId === activeCoach.id ||
-      (activeCoach.email && s.entrenadorEmail && s.entrenadorEmail.toLowerCase() === activeCoach.email.toLowerCase())
-    ) &&
-    s.estado !== 'cancelada'
-  );
+  // Algoritmo de filtrado de 3 capas para asegurar que el entrenador siempre vea sus sesiones
+  const coachSessions = sessions.filter(s => {
+    if (s.estado === 'cancelada') return false;
+
+    // Capa 1: Coincidencia por ID del entrenador activo
+    if (activeCoach?.id && s.entrenadorId === activeCoach.id) return true;
+    if (activeCoachId && s.entrenadorId === activeCoachId) return true;
+
+    // Capa 2: Coincidencia directa por email registrado en el documento de la sesión
+    if (coachEmail && s.entrenadorEmail && s.entrenadorEmail.trim().toLowerCase() === coachEmail) return true;
+
+    // Capa 3: Coincidencia mediante búsqueda inversa del entrenador asignado a la sesión
+    const sessionCoach = coaches.find(c => c.id === s.entrenadorId);
+    if (sessionCoach && sessionCoach.email && sessionCoach.email.trim().toLowerCase() === coachEmail) return true;
+
+    return false;
+  });
 
   const [selectedSession, setSelectedSession] = useState(null);
   const [isAvailabilityModalOpen, setIsAvailabilityModalOpen] = useState(false);
