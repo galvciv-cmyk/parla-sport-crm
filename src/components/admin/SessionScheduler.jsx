@@ -1,12 +1,12 @@
 import React, { useState } from 'react';
-import { CalendarPlus, RefreshCw, CheckCircle } from 'lucide-react';
+import { CalendarPlus, RefreshCw, CheckCircle, Trash2 } from 'lucide-react';
 import { useData } from '../../context/DataContext';
 import { getAvailableCoaches, getSpanishDayName, formatTo12Hour, addOneHour, generateTimeOptions } from '../../utils/scheduling';
 import { STATUS_CONFIG } from '../../utils/mockData';
 import Modal from '../common/Modal';
 
 const SessionScheduler = () => {
-  const { players, coaches, sessions, createSession, updateSessionStatus, reassignSession } = useData();
+  const { players, coaches, sessions, createSession, updateSessionStatus, deleteSession, reassignSession } = useData();
 
   // Estado del Formulario de Creación
   const [sessionData, setSessionData] = useState({
@@ -409,17 +409,31 @@ const SessionScheduler = () => {
                         </span>
                       </div>
 
-                      {/* Selector directo del estado (Código de Colores) */}
+                      {/* Selector directo del estado (Código de Colores y Reglas de Rol) */}
                       <select
                         value={s.estado}
-                        onChange={(e) => updateSessionStatus(s.id, e.target.value)}
+                        onChange={async (e) => {
+                          try {
+                            await updateSessionStatus(s.id, e.target.value, 'admin');
+                          } catch (err) {
+                            alert(err.message || 'Error al actualizar el estado.');
+                          }
+                        }}
                         className={`badge ${statusCfg.badgeClass}`}
                         style={{ cursor: 'pointer', outline: 'none', padding: '3px 8px' }}
                       >
                         <option value="sin_confirmar" style={{ color: '#000' }}>⚪ Sin Confirmar</option>
-                        <option value="confirmada" style={{ color: '#000' }}>🟡 Confirmado</option>
-                        <option value="realizada" style={{ color: '#000' }}>🟠 Realizada</option>
-                        <option value="pagada" style={{ color: '#000' }}>🟢 Pagada</option>
+                        <option value="confirmada" style={{ color: '#000' }}>🟡 Confirmada</option>
+                        {s.estado === 'realizada' && (
+                          <option value="realizada" style={{ color: '#000' }}>🟠 Realizada (Por Entrenador)</option>
+                        )}
+                        <option
+                          value="pagada"
+                          disabled={s.estado !== 'realizada'}
+                          style={{ color: s.estado === 'realizada' ? '#000' : '#888' }}
+                        >
+                          🟢 Pagada {s.estado !== 'realizada' ? '(Requiere estar realizada por el entrenador)' : ''}
+                        </option>
                         <option value="cancelada" style={{ color: '#000' }}>🔴 Cancelada</option>
                       </select>
                     </div>
@@ -439,18 +453,35 @@ const SessionScheduler = () => {
                       </div>
                     )}
 
-                    {/* Acción de Reasignación en caso de Ausencia del Entrenador */}
-                    {s.estado !== 'cancelada' && (
-                      <div style={{ display: 'flex', gap: '10px', marginTop: '6px' }}>
+                    {/* Acciones de Admin: Reasignación y Eliminar Sesión */}
+                    <div style={{ display: 'flex', gap: '10px', marginTop: '6px', flexWrap: 'wrap' }}>
+                      {s.estado !== 'cancelada' && (
                         <button
                           className="btn-secondary"
                           style={{ flex: 1, padding: '6px 10px', fontSize: '0.78rem', color: '#F59E0B', borderColor: 'rgba(245, 158, 11, 0.4)' }}
                           onClick={() => handleOpenReassign(s)}
                         >
-                          <RefreshCw size={14} /> Reasignar Entrenador por Ausencia
+                          <RefreshCw size={14} /> Reasignar Entrenador
                         </button>
-                      </div>
-                    )}
+                      )}
+
+                      <button
+                        className="btn-danger"
+                        style={{ padding: '6px 12px', fontSize: '0.78rem' }}
+                        onClick={async () => {
+                          if (window.confirm(`¿Estás seguro de eliminar esta sesión permanentemente?`)) {
+                            try {
+                              await deleteSession(s.id);
+                            } catch (err) {
+                              alert(err.message || 'Error al eliminar sesión.');
+                            }
+                          }
+                        }}
+                        title="Eliminar esta sesión de la base de datos"
+                      >
+                        <Trash2 size={14} /> Eliminar
+                      </button>
+                    </div>
                   </div>
                 );
               })

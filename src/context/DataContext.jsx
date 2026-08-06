@@ -244,12 +244,31 @@ export const DataProvider = ({ children }) => {
     return cleanSession;
   };
 
-  const updateSessionStatus = (sessionId, newStatus) => {
+  const updateSessionStatus = async (sessionId, newStatus, userRole = 'admin') => {
+    const session = sessions.find(s => s.id === sessionId);
+
+    // Regla 1: El Administrador no puede marcar la sesión como realizada (eso es exclusivo del Entrenador)
+    if (newStatus === 'realizada' && userRole === 'admin') {
+      throw new Error('Solo el entrenador asignado puede marcar la sesión como realizada / finalizada.');
+    }
+
+    // Regla 2: El Administrador no puede marcar como pagada si el entrenador NO la ha marcado previamente como realizada
+    if (newStatus === 'pagada' && session?.estado !== 'realizada') {
+      throw new Error('No puedes marcar la sesión como pagada hasta que el entrenador la haya marcado como realizada / finalizada.');
+    }
+
     setSessions(prev =>
       prev.map(s => (s.id === sessionId ? { ...s, estado: newStatus } : s))
     );
-    setDoc(doc(db, 'sessions', sessionId), { estado: newStatus }, { merge: true }).catch(err => {
+    await setDoc(doc(db, 'sessions', sessionId), { estado: newStatus }, { merge: true }).catch(err => {
       console.warn('[DataContext] Error al actualizar estado de sesión en Firestore:', err);
+    });
+  };
+
+  const deleteSession = async (sessionId) => {
+    setSessions(prev => prev.filter(s => s.id !== sessionId));
+    await deleteDoc(doc(db, 'sessions', sessionId)).catch(err => {
+      console.warn('[DataContext] Error al eliminar sesión en Firestore:', err);
     });
   };
 
@@ -320,6 +339,7 @@ export const DataProvider = ({ children }) => {
       deleteCoach,
       createSession,
       updateSessionStatus,
+      deleteSession,
       reassignSession,
       cancelSession
     }}>

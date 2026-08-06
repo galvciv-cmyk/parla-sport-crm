@@ -2,17 +2,23 @@ import React from 'react';
 import { Phone, Award, User } from 'lucide-react';
 import { STATUS_CONFIG } from '../../utils/mockData';
 import { useData } from '../../context/DataContext';
+import { useAuth } from '../../context/AuthContext';
 import { formatTo12Hour } from '../../utils/scheduling';
 import Modal from '../common/Modal';
 
 const SessionDetailModal = ({ isOpen, onClose, session, players, coach }) => {
   const { updateSessionStatus } = useData();
+  const { role, isAdmin } = useAuth();
   if (!session) return null;
 
   const currentStatusCfg = STATUS_CONFIG[session.estado] || STATUS_CONFIG.sin_confirmar;
 
-  const handleStatusChange = (newStatus) => {
-    updateSessionStatus(session.id, newStatus);
+  const handleStatusChange = async (newStatus) => {
+    try {
+      await updateSessionStatus(session.id, newStatus, role || 'coach');
+    } catch (err) {
+      alert(err.message || 'Error al actualizar el estado.');
+    }
   };
 
   return (
@@ -59,9 +65,9 @@ const SessionDetailModal = ({ isOpen, onClose, session, players, coach }) => {
         {/* CAMBIAR ESTADO UNIFICADO */}
         <div style={{ background: 'rgba(15, 23, 42, 0.7)', padding: '14px', borderRadius: '12px', border: '1px solid rgba(255, 255, 255, 0.08)' }}>
           <span style={{ fontSize: '0.8rem', fontWeight: 700, color: '#94A3B8', display: 'block', marginBottom: '8px' }}>
-            Actualizar Estado de la Sesión (Código de Colores de la Academia):
+            Actualizar Estado de la Sesión ({isAdmin ? 'Perfil Administrador' : 'Perfil Entrenador'}):
           </span>
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(110px, 1fr))', gap: '8px' }}>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(130px, 1fr))', gap: '8px' }}>
             
             <button
               onClick={() => handleStatusChange('sin_confirmar')}
@@ -92,11 +98,14 @@ const SessionDetailModal = ({ isOpen, onClose, session, players, coach }) => {
                 cursor: 'pointer'
               }}
             >
-              🟡 Confirmado
+              🟡 Confirmada
             </button>
 
+            {/* Solo el Entrenador puede marcar como Realizada / Finalizada */}
             <button
               onClick={() => handleStatusChange('realizada')}
+              disabled={isAdmin}
+              title={isAdmin ? 'Solo el entrenador puede marcar la sesión como realizada' : 'Finalizar sesión de entrenamiento'}
               style={{
                 padding: '8px 10px',
                 borderRadius: '8px',
@@ -105,14 +114,18 @@ const SessionDetailModal = ({ isOpen, onClose, session, players, coach }) => {
                 color: '#FB923C',
                 fontWeight: 700,
                 fontSize: '0.78rem',
-                cursor: 'pointer'
+                cursor: isAdmin ? 'not-allowed' : 'pointer',
+                opacity: isAdmin ? 0.6 : 1
               }}
             >
-              🟠 Realizada
+              🟠 Realizada {isAdmin ? '(Solo Entrenador)' : ''}
             </button>
 
+            {/* El Admin solo puede marcar como Pagada si el entrenador ya la marcó como Realizada */}
             <button
               onClick={() => handleStatusChange('pagada')}
+              disabled={!isAdmin || session.estado !== 'realizada'}
+              title={!isAdmin ? 'Solo el administrador registra el pago' : (session.estado !== 'realizada' ? 'Requiere que el entrenador finalice la clase' : 'Registrar Pago')}
               style={{
                 padding: '8px 10px',
                 borderRadius: '8px',
@@ -121,10 +134,11 @@ const SessionDetailModal = ({ isOpen, onClose, session, players, coach }) => {
                 color: '#34D399',
                 fontWeight: 700,
                 fontSize: '0.78rem',
-                cursor: 'pointer'
+                cursor: (!isAdmin || session.estado !== 'realizada') ? 'not-allowed' : 'pointer',
+                opacity: (!isAdmin || session.estado !== 'realizada') ? 0.5 : 1
               }}
             >
-              🟢 Pagada
+              🟢 Pagada {session.estado !== 'realizada' ? '(Requiere realizada)' : ''}
             </button>
 
             <button
