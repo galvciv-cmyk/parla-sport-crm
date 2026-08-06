@@ -1,7 +1,7 @@
 import React, { useEffect } from 'react';
 import { X } from 'lucide-react';
 
-const Modal = ({ isOpen, onClose, title, children, widthPx = '740px' }) => {
+const Modal = ({ isOpen, onClose, title, children, widthPx = '740px', topOffset = '130px' }) => {
   useEffect(() => {
     if (isOpen) {
       document.body.style.overflow = 'hidden';
@@ -15,20 +15,22 @@ const Modal = ({ isOpen, onClose, title, children, widthPx = '740px' }) => {
 
   if (!isOpen) return null;
 
+  const topOffsetNum = parseInt(topOffset, 10) || 130;
+
   return (
     <div
       style={{
         position: 'fixed',
-        top: '76px', // Inicia exactamente debajo del Navbar/Header
+        top: `${topOffsetNum}px`, // Despliega el modal por debajo de los botones de acción / encabezado
         left: 0,
         right: 0,
         bottom: 0,
-        zIndex: 900, // Por debajo del zIndex del Navbar (1000)
+        zIndex: 900,
         display: 'flex',
-        alignItems: 'center',
+        alignItems: 'flex-start',
         justifyContent: 'center',
-        padding: '16px 16px 16px min(240px, 15vw)',
-        backgroundColor: 'rgba(6, 13, 30, 0.92)',
+        padding: '12px 16px 20px min(240px, 15vw)',
+        backgroundColor: 'rgba(6, 13, 30, 0.88)',
         backdropFilter: 'blur(16px)',
         WebkitBackdropFilter: 'blur(16px)'
       }}
@@ -37,12 +39,12 @@ const Modal = ({ isOpen, onClose, title, children, widthPx = '740px' }) => {
         if (e.target === e.currentTarget) onClose();
       }}
     >
-      {/* Contenedor Modal que queda estrictamente por debajo del Header */}
+      {/* Contenedor Modal que se despliega estrictamente por debajo de los botones superiores */}
       <div
         style={{
           width: '100%',
           maxWidth: widthPx,
-          maxHeight: 'calc(100vh - 108px)',
+          maxHeight: `calc(100vh - ${topOffsetNum + 35}px)`,
           backgroundColor: '#0A1633',
           border: '2px solid #D4AF37',
           borderRadius: '18px',
@@ -57,7 +59,7 @@ const Modal = ({ isOpen, onClose, title, children, widthPx = '740px' }) => {
         {/* Encabezado Fijo del Modal */}
         <div
           style={{
-            padding: '18px 24px',
+            padding: '16px 22px',
             borderBottom: '1px solid rgba(212, 175, 55, 0.3)',
             display: 'flex',
             alignItems: 'center',
@@ -68,7 +70,7 @@ const Modal = ({ isOpen, onClose, title, children, widthPx = '740px' }) => {
             flexShrink: 0
           }}
         >
-          <h3 style={{ fontSize: '1.25rem', fontWeight: 800, color: '#F8FAFC', margin: 0 }}>
+          <h3 style={{ fontSize: '1.2rem', fontWeight: 800, color: '#F8FAFC', margin: 0 }}>
             {title}
           </h3>
           <button
@@ -97,7 +99,7 @@ const Modal = ({ isOpen, onClose, title, children, widthPx = '740px' }) => {
         {/* Cuerpo del Modal con desplazamiento vertical independiente */}
         <div
           style={{
-            padding: '24px',
+            padding: '20px 24px',
             display: 'flex',
             flexDirection: 'column',
             gap: '16px',
