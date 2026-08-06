@@ -16,47 +16,55 @@ const Modal = ({ isOpen, onClose, title, children, widthPx = '740px' }) => {
   if (!isOpen) return null;
 
   return (
-    <div style={{
-      position: 'fixed',
-      inset: 0,
-      zIndex: 9999,
-      display: 'flex',
-      alignItems: 'flex-start', // Permite que el modal crezca libremente hacia abajo
-      justifyContent: 'center',
-      padding: '100px 16px 60px 16px', // Espaciado superior e inferior holgado
-      backgroundColor: 'rgba(6, 13, 30, 0.92)',
-      backdropFilter: 'blur(16px)',
-      WebkitBackdropFilter: 'blur(16px)',
-      overflowY: 'auto' // Todo el fondo se desplaza fluidamente sin encajonar el contenido
-    }} className="animate-fade-in">
-      
-      {/* Contenedor SIN ninguna restricción de altura (height: auto) */}
-      <div style={{
-        width: '100%',
-        maxWidth: widthPx,
-        height: 'auto', // 100% Libre de restricción de altura máxima
-        backgroundColor: '#0A1633',
-        border: '2px solid #D4AF37',
-        borderRadius: '18px',
-        boxShadow: '0 0 50px rgba(212, 175, 55, 0.35), 0 25px 60px rgba(0, 0, 0, 0.95)',
+    <div
+      style={{
+        position: 'fixed',
+        inset: 0,
+        zIndex: 9999,
         display: 'flex',
-        flexDirection: 'column',
-        position: 'relative',
-        marginBottom: '40px'
-      }}>
-        
-        {/* Encabezado Fijo */}
-        <div style={{
-          padding: '18px 24px',
-          borderBottom: '1px solid rgba(212, 175, 55, 0.3)',
+        alignItems: 'center',
+        justifyContent: 'center',
+        padding: '20px 16px',
+        backgroundColor: 'rgba(6, 13, 30, 0.92)',
+        backdropFilter: 'blur(16px)',
+        WebkitBackdropFilter: 'blur(16px)'
+      }}
+      className="animate-fade-in"
+      onClick={(e) => {
+        if (e.target === e.currentTarget) onClose();
+      }}
+    >
+      {/* Contenedor Modal con Altura Máxima y Scroll Interno Fluido */}
+      <div
+        style={{
+          width: '100%',
+          maxWidth: widthPx,
+          maxHeight: '88vh',
+          backgroundColor: '#0A1633',
+          border: '2px solid #D4AF37',
+          borderRadius: '18px',
+          boxShadow: '0 0 50px rgba(212, 175, 55, 0.35), 0 25px 60px rgba(0, 0, 0, 0.95)',
           display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'space-between',
-          background: 'rgba(15, 28, 63, 0.95)',
-          borderTopLeftRadius: '16px',
-          borderTopRightRadius: '16px',
-          flexShrink: 0
-        }}>
+          flexDirection: 'column',
+          position: 'relative',
+          overflow: 'hidden'
+        }}
+        onClick={(e) => e.stopPropagation()}
+      >
+        {/* Encabezado Fijo */}
+        <div
+          style={{
+            padding: '18px 24px',
+            borderBottom: '1px solid rgba(212, 175, 55, 0.3)',
+            display: 'flex',
+            alignItems: 'center',
+            justify: 'space-between',
+            background: 'rgba(15, 28, 63, 0.95)',
+            borderTopLeftRadius: '16px',
+            borderTopRightRadius: '16px',
+            flexShrink: 0
+          }}
+        >
           <h3 style={{ fontSize: '1.25rem', fontWeight: 800, color: '#F8FAFC', margin: 0 }}>
             {title}
           </h3>
@@ -76,23 +84,26 @@ const Modal = ({ isOpen, onClose, title, children, widthPx = '740px' }) => {
               fontWeight: 700,
               transition: 'all 0.2s'
             }}
-            onMouseOver={(e) => e.currentTarget.style.background = 'rgba(212, 175, 55, 0.3)'}
-            onMouseOut={(e) => e.currentTarget.style.background = 'rgba(212, 175, 55, 0.15)'}
+            onMouseOver={(e) => (e.currentTarget.style.background = 'rgba(212, 175, 55, 0.3)')}
+            onMouseOut={(e) => (e.currentTarget.style.background = 'rgba(212, 175, 55, 0.15)')}
           >
             <X size={18} /> Cerrar
           </button>
         </div>
 
-        {/* Cuerpo del Modal desplegado al 100% */}
-        <div style={{
-          padding: '24px',
-          display: 'flex',
-          flexDirection: 'column',
-          gap: '16px'
-        }}>
+        {/* Cuerpo del Modal con desplazamiento vertical suelto */}
+        <div
+          style={{
+            padding: '24px',
+            display: 'flex',
+            flexDirection: 'column',
+            gap: '16px',
+            overflowY: 'auto',
+            flex: 1
+          }}
+        >
           {children}
         </div>
-
       </div>
     </div>
   );
