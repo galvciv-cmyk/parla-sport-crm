@@ -242,28 +242,58 @@ h1, h2, h3, h4, h5, h6 {
   background: rgba(239, 68, 68, 0.35);
 }
 
-/* Form Inputs */
+/* Form Inputs & Date/Time Selectors Unificados */
+input[type="date"],
+input[type="time"],
+select,
 .input-field {
   width: 100%;
-  background: rgba(6, 13, 30, 0.85);
-  border: 1px solid var(--border-color);
+  background: rgba(10, 22, 51, 0.95);
+  border: 1px solid rgba(212, 175, 55, 0.35);
   border-radius: var(--radius-sm);
   padding: 10px 14px;
-  color: var(--text-main);
+  color: #F8FAFC;
   font-family: var(--font-body);
-  font-size: 0.95rem;
+  font-size: 0.92rem;
   outline: none;
-  transition: border-color 0.2s ease, box-shadow 0.2s ease;
+  color-scheme: dark; /* Despliega el popup del calendario en modo oscuro elegante */
+  transition: border-color 0.2s ease, box-shadow 0.2s ease, background 0.2s ease;
 }
 
+input[type="date"]:focus,
+input[type="time"]:focus,
+select:focus,
 .input-field:focus {
   border-color: var(--gold-main);
-  box-shadow: 0 0 0 3px rgba(245, 158, 11, 0.2);
+  box-shadow: 0 0 0 3px rgba(245, 158, 11, 0.25), 0 0 15px rgba(212, 175, 55, 0.2);
+  background: rgba(15, 28, 63, 0.98);
+}
+
+/* Íconos de Calendario y Reloj con Tono Dorado */
+input[type="date"]::-webkit-calendar-picker-indicator,
+input[type="time"]::-webkit-calendar-picker-indicator {
+  cursor: pointer;
+  filter: invert(0.8) sepia(100%) saturate(1000%) hue-rotate(5deg);
+  opacity: 0.9;
+  transition: transform 0.15s ease;
+}
+
+input[type="date"]::-webkit-calendar-picker-indicator:hover,
+input[type="time"]::-webkit-calendar-picker-indicator:hover {
+  transform: scale(1.1);
+  opacity: 1;
+}
+
+/* Menús desplegables (select options) */
+select option {
+  background-color: #0A1633 !important;
+  color: #F8FAFC !important;
+  padding: 8px 12px;
 }
 
 .input-label {
   display: block;
-  font-size: 0.85rem;
+  font-size: 0.82rem;
   font-weight: 600;
   color: var(--text-muted);
   margin-bottom: 6px;
