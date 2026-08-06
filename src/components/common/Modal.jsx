@@ -24,7 +24,7 @@ const Modal = ({ isOpen, onClose, title, children, widthPx = '740px' }) => {
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'center',
-        padding: '20px 16px',
+        padding: '20px 16px 20px min(240px, 15vw)',
         backgroundColor: 'rgba(6, 13, 30, 0.92)',
         backdropFilter: 'blur(16px)',
         WebkitBackdropFilter: 'blur(16px)'
@@ -34,12 +34,12 @@ const Modal = ({ isOpen, onClose, title, children, widthPx = '740px' }) => {
         if (e.target === e.currentTarget) onClose();
       }}
     >
-      {/* Contenedor Modal con Altura Máxima y Scroll Interno Fluido */}
+      {/* Contenedor Modal Centrado en el Área Útil de la Página */}
       <div
         style={{
           width: '100%',
           maxWidth: widthPx,
-          maxHeight: '88vh',
+          maxHeight: '86vh',
           backgroundColor: '#0A1633',
           border: '2px solid #D4AF37',
           borderRadius: '18px',
