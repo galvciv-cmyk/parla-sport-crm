@@ -32,7 +32,7 @@ const PlayerManager = () => {
       posicion: 'Mediocampista',
       piernaHabil: 'Derecha',
       contactoTutor: '',
-      foto: 'https://images.unsplash.com/photo-1543351611-58f69d7c1781?auto=format&fit=crop&q=80&w=300',
+      foto: '',
       observacionesTecnicas: ''
     });
     setIsEditing(false);
@@ -48,6 +48,10 @@ const PlayerManager = () => {
 
   const handleSave = (e) => {
     e.preventDefault();
+    if (!formData.nombre || !formData.nombre.trim()) {
+      alert('Por favor ingresa el nombre del jugador.');
+      return;
+    }
     if (isEditing && selectedPlayer) {
       updatePlayer(selectedPlayer.id, formData);
       setIsDetailModalOpen(false);
@@ -291,10 +295,10 @@ const PlayerManager = () => {
           </div>
 
           <div>
-            <label className="input-label">URL Fotografía de Perfil</label>
+            <label className="input-label">URL Fotografía de Perfil (Opcional - dejar en blanco para ícono verde)</label>
             <input
               type="text"
-              placeholder="https://..."
+              placeholder="https://... (opcional)"
               disabled={!isAddModalOpen && !isEditing}
               className="input-field"
               value={formData.foto}

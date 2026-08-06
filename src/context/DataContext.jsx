@@ -64,6 +64,27 @@ export const DataProvider = ({ children }) => {
     return () => unsub();
   }, []);
 
+  // Escuchar jugadores en tiempo real desde Firestore
+  useEffect(() => {
+    const unsub = onSnapshot(collection(db, 'players'), (snapshot) => {
+      const firestorePlayers = snapshot.docs.map(d => ({ id: d.id, ...d.data() }));
+      if (firestorePlayers.length > 0) {
+        setPlayers(prev => {
+          const map = new Map();
+          firestorePlayers.forEach(p => map.set(p.id, p));
+          prev.forEach(p => {
+            if (!map.has(p.id)) map.set(p.id, p);
+          });
+          return Array.from(map.values());
+        });
+      }
+    }, (err) => {
+      console.warn('[DataContext] Error escuchando Firestore players:', err);
+    });
+
+    return () => unsub();
+  }, []);
+
   // Persistencia local
   useEffect(() => {
     localStorage.setItem('parla_players', JSON.stringify(players));
@@ -77,23 +98,33 @@ export const DataProvider = ({ children }) => {
     localStorage.setItem('parla_sessions', JSON.stringify(sessions));
   }, [sessions]);
 
-  // --- CRUD JUGADORES ---
+  // --- CRUD JUGADORES CON SINCRO EN FIRESTORE ---
   const addPlayer = (playerData) => {
     const newPlayer = {
       ...playerData,
-      id: `jug-${Date.now()}`,
+      id: playerData.id || `jug-${Date.now()}`,
+      foto: playerData.foto || '',
       fechaRegistro: new Date().toISOString().split('T')[0]
     };
     setPlayers(prev => [newPlayer, ...prev]);
+    setDoc(doc(db, 'players', newPlayer.id), newPlayer).catch(err => {
+      console.warn('[DataContext] No se pudo guardar el jugador en Firestore:', err);
+    });
     return newPlayer;
   };
 
   const updatePlayer = (id, updatedFields) => {
     setPlayers(prev => prev.map(p => p.id === id ? { ...p, ...updatedFields } : p));
+    setDoc(doc(db, 'players', id), updatedFields, { merge: true }).catch(err => {
+      console.warn('[DataContext] Error al actualizar jugador en Firestore:', err);
+    });
   };
 
   const deletePlayer = (id) => {
     setPlayers(prev => prev.filter(p => p.id !== id));
+    deleteDoc(doc(db, 'players', id)).catch(err => {
+      console.warn('[DataContext] Error al eliminar jugador en Firestore:', err);
+    });
   };
 
   // --- CRUD ENTRENADORES CON SINCRO EN FIRESTORE ---
