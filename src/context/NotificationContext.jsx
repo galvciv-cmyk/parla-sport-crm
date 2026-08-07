@@ -2,6 +2,7 @@ import React, { createContext, useContext, useState, useEffect } from 'react';
 import { doc, setDoc, deleteDoc, onSnapshot, collection } from 'firebase/firestore';
 import { db } from '../services/firebase';
 import { sendSessionAssignmentEmail } from '../services/emailService';
+import { sendOneSignalPush } from '../services/oneSignalService';
 import { triggerLocalPushNotification } from '../services/pwaService';
 import { useAuth } from './AuthContext';
 
@@ -172,8 +173,12 @@ export const NotificationProvider = ({ children }) => {
       previousCoachName
     }).catch(() => {});
 
-    // Disparar Push PWA en el dispositivo
-    triggerLocalPushNotification(titleCoach, messageCoach);
+    // Disparar Push remoto vía OneSignal
+    if (coachId) {
+      sendOneSignalPush(titleCoach, messageCoach, coachId);
+    } else {
+      triggerLocalPushNotification(titleCoach, messageCoach);
+    }
   };
 
   // Notificación de Clase Finalizada por el Entrenador (dirigida al Admin)
@@ -192,6 +197,8 @@ export const NotificationProvider = ({ children }) => {
     };
 
     await saveNotificationLocallyAndRemote([notifAdmin]);
+    // Asumimos que los Admins pueden estar suscritos bajo un tag o ID específico
+    // Para simplificar, usamos notificación local si el Admin está usando la app
     triggerLocalPushNotification(notifAdmin.title, notifAdmin.message);
   };
 
@@ -214,7 +221,11 @@ export const NotificationProvider = ({ children }) => {
     };
 
     await saveNotificationLocallyAndRemote([notifCoach]);
-    triggerLocalPushNotification(notifCoach.title, notifCoach.message);
+    if (coachId) {
+      sendOneSignalPush(notifCoach.title, notifCoach.message, coachId);
+    } else {
+      triggerLocalPushNotification(notifCoach.title, notifCoach.message);
+    }
   };
 
   const markAsRead = (id) => {

@@ -91,9 +91,12 @@ const MainContent = () => {
   return <MainLayout key={currentUser.uid || userRole} defaultTab={initialTab} />;
 };
 
+import { initOneSignal } from './services/oneSignalService';
+
 export default function App() {
   useEffect(() => {
     registerServiceWorker();
+    initOneSignal();
   }, []);
 
   return (

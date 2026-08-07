@@ -8,6 +8,7 @@ import {
 import { doc, getDoc, setDoc } from 'firebase/firestore';
 import { auth, db } from '../services/firebase';
 import { MASTER_ADMIN_EMAIL } from '../utils/mockData';
+import { loginToOneSignal, logoutFromOneSignal } from '../services/oneSignalService';
 
 const AuthContext = createContext();
 
@@ -141,6 +142,9 @@ export const AuthProvider = ({ children }) => {
           role: profile.role || defaultRole,
           coachId: isMaster ? null : (profile.coachId || generatedCoachId)
         });
+
+        // Autenticar en OneSignal para vincular el dispositivo a este usuario
+        loginToOneSignal(firebaseUser.uid);
       } catch (err) {
         console.error('[Auth] Error en onAuthStateChanged:', err);
       } finally {
@@ -313,6 +317,7 @@ export const AuthProvider = ({ children }) => {
 
   const logout = async () => {
     updateSessionState(null);
+    logoutFromOneSignal();
     await signOut(auth).catch(() => {});
   };
 
