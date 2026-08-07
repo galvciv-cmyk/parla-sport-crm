@@ -1,17 +1,13 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { Search, Trash2, ShieldCheck, User } from 'lucide-react';
 import { useData } from '../../context/DataContext';
 import { formatTo12Hour } from '../../utils/scheduling';
+import Modal from '../common/Modal';
 
 const CoachManager = () => {
   const { coaches, deleteCoach } = useData();
-  const [searchTerm, setSearchTerm] = React.useState('');
-
-  const handleDelete = (id, nombre) => {
-    if (window.confirm(`¿Estás seguro de desvincular a ${nombre}? Se eliminará su registro del sistema.`)) {
-      deleteCoach(id);
-    }
-  };
+  const [searchTerm, setSearchTerm] = useState('');
+  const [coachToDelete, setCoachToDelete] = useState(null);
 
   const filteredCoaches = coaches.filter(c =>
     (c.nombre || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -117,15 +113,64 @@ const CoachManager = () => {
                 <button
                   className="btn-danger"
                   style={{ padding: '8px 14px', fontSize: '0.82rem', display: 'flex', alignItems: 'center', gap: '6px' }}
-                  onClick={() => handleDelete(coach.id, coach.nombre)}
+                  onClick={() => setCoachToDelete(coach)}
                 >
-                  <Trash2 size={16} /> Desvincular Entrenador
+                  <Trash2 size={14} /> Desvincular Entrenador
                 </button>
               </div>
             </div>
           ))
         )}
       </div>
+
+      {/* Modal de Confirmación de Desvinculación de Entrenador */}
+      <Modal
+        isOpen={!!coachToDelete}
+        onClose={() => setCoachToDelete(null)}
+        title="🗑️ Desvincular Entrenador"
+      >
+        {coachToDelete && (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+            <div style={{
+              background: 'rgba(239, 68, 68, 0.12)',
+              border: '1px solid rgba(239, 68, 68, 0.35)',
+              padding: '14px',
+              borderRadius: '12px',
+              color: '#F87171',
+              fontSize: '0.9rem',
+              display: 'flex',
+              flexDirection: 'column',
+              gap: '6px'
+            }}>
+              <strong style={{ fontSize: '0.95rem' }}>⚠️ ¿Estás seguro de desvincular a {coachToDelete.nombre}?</strong>
+              <span>
+                Se eliminará el perfil del profesor <strong>({coachToDelete.email})</strong> y su registro de la academia.
+              </span>
+            </div>
+
+            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px', marginTop: '8px' }}>
+              <button
+                type="button"
+                className="btn-secondary"
+                onClick={() => setCoachToDelete(null)}
+              >
+                Cancelar
+              </button>
+              <button
+                type="button"
+                className="btn-danger"
+                style={{ padding: '8px 16px', fontWeight: 700 }}
+                onClick={() => {
+                  deleteCoach(coachToDelete.id);
+                  setCoachToDelete(null);
+                }}
+              >
+                <Trash2 size={16} /> Confirmar Desvinculación
+              </button>
+            </div>
+          </div>
+        )}
+      </Modal>
 
     </div>
   );

@@ -91,11 +91,7 @@ const PlayerManager = () => {
     }
   };
 
-  const handleDelete = (id, name) => {
-    if (window.confirm(`¿Estás seguro de eliminar a ${name}?`)) {
-      deletePlayer(id);
-    }
-  };
+  const [playerToDelete, setPlayerToDelete] = useState(null);
 
   const filteredPlayers = players.filter(p => {
     const matchesSearch = p.nombre.toLowerCase().includes(searchTerm.toLowerCase());
@@ -236,7 +232,7 @@ const PlayerManager = () => {
 
               <button
                 style={{ background: 'rgba(239, 68, 68, 0.15)', border: '1px solid rgba(239, 68, 68, 0.3)', color: '#F87171', padding: '6px 10px', borderRadius: '8px', cursor: 'pointer' }}
-                onClick={() => handleDelete(player.id, player.nombre)}
+                onClick={() => setPlayerToDelete(player)}
                 title="Eliminar Jugador"
               >
                 <Trash2 size={14} />
@@ -246,88 +242,88 @@ const PlayerManager = () => {
         ))}
       </div>
 
-      {/* Modal para Crear o Ver/Editar Ficha Técnica */}
-      <Modal
-        isOpen={isAddModalOpen || isDetailModalOpen}
-        onClose={() => { setIsAddModalOpen(false); setIsDetailModalOpen(false); }}
-        title={isAddModalOpen ? "Registrar Nuevo Jugador" : (isEditing ? `Editar Ficha: ${formData.nombre}` : `Ficha Técnica Deportiva`)}
-      >
-        <form onSubmit={handleSave} style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
-          
-          {/* Nombre, Fecha de Nacimiento y Edad Automática */}
-          <div style={{ display: 'grid', gridTemplateColumns: '1.2fr 1fr 0.8fr', gap: '14px' }}>
-            <div>
-              <label className="input-label">Nombre del Jugador</label>
-              <input
-                type="text"
-                required
-                disabled={!isAddModalOpen && !isEditing}
-                className="input-field"
-                value={formData.nombre}
-                onChange={(e) => setFormData({ ...formData, nombre: e.target.value })}
-              />
-            </div>
-
-            <div>
-              <label className="input-label">Fecha de Nacimiento</label>
-              <input
-                type="date"
-                disabled={!isAddModalOpen && !isEditing}
-                className="input-field"
-                value={formData.fechaNacimiento || ''}
-                onChange={(e) => handleBirthDateChange(e.target.value)}
-              />
-            </div>
-
-            <div>
-              <label className="input-label">Edad (Auto)</label>
-              <input
-                type="text"
-                readOnly
-                className="input-field"
-                style={{ color: '#10B981', fontWeight: 700 }}
-                value={formData.edad > 0 ? `${formData.edad} Años` : 'Por calcular'}
-              />
-            </div>
-          </div>
-
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '14px' }}>
-            <div>
-              <label className="input-label">Posición Principal</label>
-              <select
-                disabled={!isAddModalOpen && !isEditing}
-                className="input-field"
-                value={formData.posicion}
-                onChange={(e) => setFormData({ ...formData, posicion: e.target.value })}
-              >
-                <option value="Portero">Portero</option>
-                <option value="Defensa">Defensa</option>
-                <option value="Mediocampista">Mediocampista</option>
-                <option value="Delantero">Delantero</option>
-              </select>
-            </div>
-
-            <div>
-              <label className="input-label">Pierna Hábil</label>
-              <select
-                disabled={!isAddModalOpen && !isEditing}
-                className="input-field"
-                value={formData.piernaHabil}
-                onChange={(e) => setFormData({ ...formData, piernaHabil: e.target.value })}
-              >
-                <option value="Derecha">Derecha</option>
-                <option value="Izquierda">Izquierda</option>
-                <option value="Ambidiestro">Ambidiestro</option>
-              </select>
-            </div>
+    {/* Modal Añadir / Editar Jugador */}
+    <Modal
+      isOpen={isAddModalOpen || isDetailModalOpen}
+      onClose={() => { setIsAddModalOpen(false); setIsDetailModalOpen(false); }}
+      title={isAddModalOpen ? '⚽ Registrar Nuevo Jugador' : (isEditing ? '✏️ Editar Ficha Técnica' : '📋 Ficha Técnica del Jugador')}
+      widthPx="700px"
+    >
+      <form onSubmit={handleSave} style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
+          <div>
+            <label className="input-label">Nombre Completo del Jugador</label>
+            <input
+              type="text"
+              required
+              disabled={!isAddModalOpen && !isEditing}
+              placeholder="Ej. Carlos Mendoza"
+              className="input-field"
+              value={formData.nombre}
+              onChange={(e) => setFormData({ ...formData, nombre: e.target.value })}
+            />
           </div>
 
           <div>
-            <label className="input-label">Contacto del Tutor / Representante</label>
+            <label className="input-label">Fecha de Nacimiento</label>
+            <input
+              type="date"
+              disabled={!isAddModalOpen && !isEditing}
+              className="input-field"
+              value={formData.fechaNacimiento || ''}
+              onChange={(e) => handleBirthDateChange(e.target.value)}
+            />
+          </div>
+        </div>
+
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '12px' }}>
+          <div>
+            <label className="input-label">Edad (Cálculo Automático)</label>
+            <input
+              type="number"
+              disabled
+              className="input-field"
+              value={formData.edad}
+            />
+          </div>
+
+          <div>
+            <label className="input-label">Posición Principal</label>
+            <select
+              disabled={!isAddModalOpen && !isEditing}
+              className="input-field"
+              value={formData.posicion}
+              onChange={(e) => setFormData({ ...formData, posicion: e.target.value })}
+            >
+              <option value="Portero">Portero</option>
+              <option value="Defensa">Defensa</option>
+              <option value="Mediocampista">Mediocampista</option>
+              <option value="Delantero">Delantero</option>
+            </select>
+          </div>
+
+          <div>
+            <label className="input-label">Pierna Hábil</label>
+            <select
+              disabled={!isAddModalOpen && !isEditing}
+              className="input-field"
+              value={formData.piernaHabil}
+              onChange={(e) => setFormData({ ...formData, piernaHabil: e.target.value })}
+            >
+              <option value="Derecha">Derecha</option>
+              <option value="Izquierda">Izquierda</option>
+              <option value="Ambidextro">Ambidextro</option>
+            </select>
+          </div>
+        </div>
+
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
+          <div>
+            <label className="input-label">Contacto Representante / Tutor</label>
             <input
               type="text"
-              placeholder="+58 414 1234567 (Papá)"
               disabled={!isAddModalOpen && !isEditing}
+              placeholder="+58 412 9988776"
               className="input-field"
               value={formData.contactoTutor}
               onChange={(e) => setFormData({ ...formData, contactoTutor: e.target.value })}
@@ -335,45 +331,98 @@ const PlayerManager = () => {
           </div>
 
           <div>
-            <label className="input-label">URL Fotografía de Perfil (Opcional - dejar en blanco para ícono verde)</label>
+            <label className="input-label">URL Foto de Perfil (Opcional)</label>
             <input
-              type="text"
-              placeholder="https://... (opcional)"
+              type="url"
               disabled={!isAddModalOpen && !isEditing}
+              placeholder="https://..."
               className="input-field"
               value={formData.foto}
               onChange={(e) => setFormData({ ...formData, foto: e.target.value })}
             />
           </div>
+        </div>
 
-          <div>
-            <label className="input-label">Observaciones Técnicas & Evaluación</label>
-            <textarea
-              rows="4"
-              placeholder="Describe aspectos a mejorar, fortalezas tácticas o físicas..."
-              disabled={!isAddModalOpen && !isEditing}
-              className="input-field"
-              value={formData.observacionesTecnicas}
-              onChange={(e) => setFormData({ ...formData, observacionesTecnicas: e.target.value })}
-            />
+        <div>
+          <label className="input-label">Observaciones Técnicas y Desarrollo</label>
+          <textarea
+            disabled={!isAddModalOpen && !isEditing}
+            rows={3}
+            className="input-field"
+            placeholder="Comentarios sobre fortalezas, técnica, visión de juego o aspectos a entrenar..."
+            value={formData.observacionesTecnicas}
+            onChange={(e) => setFormData({ ...formData, observacionesTecnicas: e.target.value })}
+          />
+        </div>
+
+        {(isAddModalOpen || isEditing) && (
+          <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px', marginTop: '10px' }}>
+            <button
+              type="button"
+              className="btn-secondary"
+              onClick={() => { setIsAddModalOpen(false); setIsDetailModalOpen(false); }}
+            >
+              Cancelar
+            </button>
+            <button type="submit" className="btn-primary">
+              Guardar Ficha
+            </button>
+          </div>
+        )}
+      </form>
+    </Modal>
+
+    {/* Modal de Confirmación de Eliminación de Jugador */}
+    <Modal
+      isOpen={!!playerToDelete}
+      onClose={() => setPlayerToDelete(null)}
+      title="🗑️ Eliminar Ficha de Jugador"
+    >
+      {playerToDelete && (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+          <div style={{
+            background: 'rgba(239, 68, 68, 0.12)',
+            border: '1px solid rgba(239, 68, 68, 0.35)',
+            padding: '14px',
+            borderRadius: '12px',
+            color: '#F87171',
+            fontSize: '0.9rem',
+            display: 'flex',
+            flexDirection: 'column',
+            gap: '6px'
+          }}>
+            <strong style={{ fontSize: '0.95rem' }}>⚠️ ¿Estás seguro de eliminar a {playerToDelete.nombre}?</strong>
+            <span>
+              Posición: <strong>{playerToDelete.posicion}</strong> | Edad: <strong>{playerToDelete.edad} años</strong>
+            </span>
+            <span style={{ fontSize: '0.8rem', color: '#94A3B8', marginTop: '4px' }}>
+              Se borra la ficha técnica y la información de contacto del jugador.
+            </span>
           </div>
 
-          {(isAddModalOpen || isEditing) && (
-            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px', marginTop: '10px' }}>
-              <button
-                type="button"
-                className="btn-secondary"
-                onClick={() => { setIsAddModalOpen(false); setIsDetailModalOpen(false); }}
-              >
-                Cancelar
-              </button>
-              <button type="submit" className="btn-primary">
-                Guardar Ficha
-              </button>
-            </div>
-          )}
-        </form>
-      </Modal>
+          <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px', marginTop: '8px' }}>
+            <button
+              type="button"
+              className="btn-secondary"
+              onClick={() => setPlayerToDelete(null)}
+            >
+              Cancelar
+            </button>
+            <button
+              type="button"
+              className="btn-danger"
+              style={{ padding: '8px 16px', fontWeight: 700 }}
+              onClick={() => {
+                deletePlayer(playerToDelete.id);
+                setPlayerToDelete(null);
+              }}
+            >
+              <Trash2 size={16} /> Confirmar Eliminación
+            </button>
+          </div>
+        </div>
+      )}
+    </Modal>
 
     </div>
   );

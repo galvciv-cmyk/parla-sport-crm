@@ -8,6 +8,9 @@ import Modal from '../common/Modal';
 const SessionScheduler = () => {
   const { players, coaches, sessions, createSession, updateSessionStatus, deleteSession, reassignSession } = useData();
 
+  // Estado de Confirmación de Eliminación (Modal de la App)
+  const [sessionToDelete, setSessionToDelete] = useState(null);
+
   // Estado del Formulario de Creación
   const [sessionData, setSessionData] = useState({
     fecha: new Date().toISOString().split('T')[0],
@@ -493,15 +496,7 @@ const SessionScheduler = () => {
                       <button
                         className="btn-danger"
                         style={{ padding: '6px 12px', fontSize: '0.78rem' }}
-                        onClick={async () => {
-                          if (window.confirm(`¿Estás seguro de eliminar esta sesión permanentemente?`)) {
-                            try {
-                              await deleteSession(s.id);
-                            } catch (err) {
-                              alert(err.message || 'Error al eliminar sesión.');
-                            }
-                          }
-                        }}
+                        onClick={() => setSessionToDelete(s)}
                         title="Eliminar esta sesión de la base de datos"
                       >
                         <Trash2 size={14} /> Eliminar
@@ -569,6 +564,65 @@ const SessionScheduler = () => {
               </button>
             </div>
           </form>
+        )}
+      </Modal>
+
+      {/* Modal de Confirmación de Eliminación de Sesión (Diseño de la App) */}
+      <Modal
+        isOpen={!!sessionToDelete}
+        onClose={() => setSessionToDelete(null)}
+        title="🗑️ Eliminar Sesión Agendada"
+      >
+        {sessionToDelete && (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+            <div style={{
+              background: 'rgba(239, 68, 68, 0.12)',
+              border: '1px solid rgba(239, 68, 68, 0.35)',
+              padding: '14px',
+              borderRadius: '12px',
+              color: '#F87171',
+              fontSize: '0.9rem',
+              display: 'flex',
+              flexDirection: 'column',
+              gap: '6px'
+            }}>
+              <strong style={{ fontSize: '0.95rem' }}>⚠️ ¿Estás seguro de eliminar esta sesión?</strong>
+              <span>
+                Sesión de tipo <strong>{sessionToDelete.tipo}</strong> programada para el <strong>{sessionToDelete.fecha}</strong> ({formatTo12Hour(sessionToDelete.horaInicio)} - {formatTo12Hour(sessionToDelete.horaFin)}).
+              </span>
+              <span style={{ fontSize: '0.8rem', color: '#94A3B8', marginTop: '4px' }}>
+                Esta acción eliminará la clase de la aplicación y de la base de datos Firestore.
+              </span>
+            </div>
+
+            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px', marginTop: '8px' }}>
+              <button
+                type="button"
+                className="btn-secondary"
+                onClick={() => setSessionToDelete(null)}
+              >
+                Cancelar
+              </button>
+              <button
+                type="button"
+                className="btn-danger"
+                style={{ padding: '8px 16px', fontWeight: 700 }}
+                onClick={async () => {
+                  try {
+                    await deleteSession(sessionToDelete.id);
+                    setSessionToDelete(null);
+                    setSuccessMessage('Sesión eliminada de la base de datos.');
+                    setTimeout(() => setSuccessMessage(''), 3500);
+                  } catch (err) {
+                    setErrorMessage(err.message || 'Error al eliminar sesión.');
+                    setSessionToDelete(null);
+                  }
+                }}
+              >
+                <Trash2 size={16} /> Confirmar Eliminación
+              </button>
+            </div>
+          </div>
         )}
       </Modal>
 
