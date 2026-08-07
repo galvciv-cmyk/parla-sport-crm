@@ -21,10 +21,25 @@ const NotificationBell = () => {
 
     const notifCoachId = String(n.recipientCoachId || '');
     const notifEmail = String(n.recipientEmail || '').trim().toLowerCase();
+    const userName = String(currentUser?.nombre || '').trim().toLowerCase();
 
     if (n.recipientRole === 'all') return true;
-    if (notifCoachId && (notifCoachId === String(userCoachId) || notifCoachId === String(activeCoachId))) return true;
+
+    // Coincidencia 1: Por ID de Entrenador (directa o por UID de Firebase)
+    if (notifCoachId) {
+      if (userCoachId && notifCoachId === String(userCoachId)) return true;
+      if (activeCoachId && notifCoachId === String(activeCoachId)) return true;
+      if (currentUser?.uid && (notifCoachId === String(currentUser.uid) || notifCoachId.includes(String(currentUser.uid)))) return true;
+    }
+
+    // Coincidencia 2: Por Email del Entrenador
     if (userEmail && notifEmail && notifEmail === userEmail) return true;
+
+    // Coincidencia 3: Por contenido de texto que mencione al Entrenador o su Email
+    if (userName && userName.length > 2 && n.message && String(n.message).toLowerCase().includes(userName)) return true;
+    if (userEmail && n.message && String(n.message).toLowerCase().includes(userEmail)) return true;
+
+    // Coincidencia 4: Notificaciones generales enviadas a profesores
     if (n.recipientRole === 'coach' && !notifCoachId && !notifEmail) return true;
 
     return false;

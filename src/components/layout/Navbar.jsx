@@ -39,18 +39,19 @@ const Navbar = () => {
         flexWrap: 'wrap',
         gap: '16px'
       }}>
-        {/* Logo Oficial de Parla Sport + Campana de Notificaciones Fija en la Izquierda */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: '14px' }}>
+        {/* Logo Oficial de Parla Sport (Izquierda) */}
+        <div style={{ display: 'flex', alignItems: 'center' }}>
           <img
             src="/logo.png"
             alt="Parla Sport Logo Oficial"
             style={{ height: '48px', width: 'auto', objectFit: 'contain' }}
           />
-          <NotificationBell />
         </div>
 
-        {/* User Profile Badge & Actions */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: '14px', flexWrap: 'wrap' }}>
+        {/* Acciones del Encabezado (Derecha): Perfil, Campana y Salir */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap' }}>
+          {/* Campana de Notificaciones Fija en la Derecha */}
+          <NotificationBell />
           
           {currentUser && (
             <div style={{
