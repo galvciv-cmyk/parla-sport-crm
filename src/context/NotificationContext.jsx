@@ -27,13 +27,13 @@ export const NotificationProvider = ({ children }) => {
       } catch (e) {
         console.warn(e);
       }
-    }, (err) => {
-      console.warn('[NotificationContext] Aviso Firestore permissions / network:', err.message);
+    }, () => {
+      // Manejo silencioso y elegante del respaldo en almacenamiento local
       try {
         const saved = localStorage.getItem('parla_notifications_store');
         if (saved) setNotifications(JSON.parse(saved));
-      } catch (e) {
-        console.warn(e);
+      } catch {
+        // Silencioso
       }
     });
 

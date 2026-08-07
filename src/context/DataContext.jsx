@@ -40,9 +40,7 @@ export const DataProvider = ({ children }) => {
     const unsub = onSnapshot(collection(db, 'coaches'), (snapshot) => {
       const firestoreCoaches = snapshot.docs.map(d => ({ id: d.id, ...d.data() }));
       setCoaches(firestoreCoaches);
-    }, (err) => {
-      console.warn('[DataContext] Error escuchando Firestore coaches:', err);
-    });
+    }, () => {});
 
     return () => unsub();
   }, []);
@@ -52,9 +50,7 @@ export const DataProvider = ({ children }) => {
     const unsub = onSnapshot(collection(db, 'players'), (snapshot) => {
       const firestorePlayers = snapshot.docs.map(d => ({ id: d.id, ...d.data() }));
       setPlayers(firestorePlayers);
-    }, (err) => {
-      console.warn('[DataContext] Error escuchando Firestore players:', err);
-    });
+    }, () => {});
 
     return () => unsub();
   }, []);
@@ -64,9 +60,7 @@ export const DataProvider = ({ children }) => {
     const unsub = onSnapshot(collection(db, 'sessions'), (snapshot) => {
       const firestoreSessions = snapshot.docs.map(d => ({ id: d.id, ...d.data() }));
       setSessions(firestoreSessions);
-    }, (err) => {
-      console.warn('[DataContext] Error escuchando Firestore sessions:', err);
-    });
+    }, () => {});
 
     return () => unsub();
   }, []);
