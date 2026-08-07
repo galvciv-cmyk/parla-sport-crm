@@ -120,7 +120,7 @@ const NotificationBell = () => {
           boxShadow: '0 20px 40px rgba(0, 0, 0, 0.6)',
           zIndex: 100,
           overflow: 'hidden'
-        }} className="animate-fade-in">
+        }} className="notification-dropdown animate-fade-in">
           {/* Encabezado */}
           <div style={{
             padding: '14px 18px',

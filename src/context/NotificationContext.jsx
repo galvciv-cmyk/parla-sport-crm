@@ -3,6 +3,7 @@ import { doc, setDoc, deleteDoc, onSnapshot, collection } from 'firebase/firesto
 import { db } from '../services/firebase';
 import { sendSessionAssignmentEmail } from '../services/emailService';
 import { triggerLocalPushNotification } from '../services/pwaService';
+import { useAuth } from './AuthContext';
 
 const NotificationContext = createContext();
 
@@ -16,17 +17,55 @@ export const NotificationProvider = ({ children }) => {
     }
   });
 
+  const { currentUser, role, activeCoachId } = useAuth() || {};
+
   // Escuchar notificaciones en tiempo real desde Firestore con respaldo en LocalStorage
   useEffect(() => {
+    let isInitialLoad = true;
+
     const unsub = onSnapshot(collection(db, 'notifications'), (snapshot) => {
       const firestoreNotifs = snapshot.docs.map(d => ({ id: d.id, ...d.data() }));
       firestoreNotifs.sort((a, b) => new Date(b.timestamp || 0) - new Date(a.timestamp || 0));
       setNotifications(firestoreNotifs);
+      
       try {
         localStorage.setItem('parla_notifications_store', JSON.stringify(firestoreNotifs));
       } catch (e) {
         console.warn(e);
       }
+
+      if (!isInitialLoad) {
+        snapshot.docChanges().forEach((change) => {
+          if (change.type === 'added') {
+            const n = change.doc.data();
+            // Evitar notificar si fue creada por este mismo dispositivo en los últimos 5 segundos
+            const isVeryRecent = (new Date() - new Date(n.timestamp)) < 5000;
+            
+            let shouldNotify = false;
+            const notifCoachId = String(n.recipientCoachId || '');
+            const notifEmail = String(n.recipientEmail || '').trim().toLowerCase();
+            const userEmail = (currentUser?.email || '').trim().toLowerCase();
+            const userCoachId = activeCoachId || (currentUser?.uid ? `coach-${currentUser.uid}` : '');
+
+            if (role === 'admin') {
+              shouldNotify = true;
+            } else if (n.recipientRole === 'all') {
+              shouldNotify = true;
+            } else if (notifCoachId && (notifCoachId === String(userCoachId) || notifCoachId === String(currentUser?.uid) || notifCoachId.includes(String(currentUser?.uid)))) {
+              shouldNotify = true;
+            } else if (userEmail && notifEmail && notifEmail === userEmail) {
+              shouldNotify = true;
+            } else if (n.recipientRole === 'coach' && !notifCoachId && !notifEmail) {
+              shouldNotify = true;
+            }
+
+            if (shouldNotify && !isVeryRecent) {
+              triggerLocalPushNotification(n.title, n.message);
+            }
+          }
+        });
+      }
+      isInitialLoad = false;
     }, () => {
       // Manejo silencioso y elegante del respaldo en almacenamiento local
       try {
@@ -38,7 +77,7 @@ export const NotificationProvider = ({ children }) => {
     });
 
     return () => unsub();
-  }, []);
+  }, [currentUser, role, activeCoachId]);
 
   const saveNotificationLocallyAndRemote = async (newNotifs) => {
     setNotifications(prev => {
