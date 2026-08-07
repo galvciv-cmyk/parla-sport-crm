@@ -17,7 +17,6 @@ import AcademyCalendar from './components/coach/AcademyCalendar';
 
 import { registerServiceWorker } from './services/pwaService';
 
-// Error Boundary silencioso: si ocurre algún desajuste, muestra la pantalla de Login directamente
 class ErrorBoundary extends Component {
   constructor(props) {
     super(props);
@@ -29,12 +28,7 @@ class ErrorBoundary extends Component {
   }
 
   componentDidCatch(error, errorInfo) {
-    console.error('[ErrorBoundary] Se capturó un desajuste:', error, errorInfo);
-    try {
-      localStorage.removeItem('parla_user_session');
-    } catch (e) {
-      console.warn(e);
-    }
+    console.error('[ErrorBoundary] Capturado desajuste en renderizado:', error, errorInfo);
   }
 
   render() {
@@ -87,16 +81,14 @@ const MainContent = () => {
     );
   }
 
-  // Si no hay usuario en sesión, mostrar la pantalla de Login directamente
   if (!currentUser) {
     return <LoginScreen />;
   }
 
-  // Determinar rol y vista inicial (Admin -> Dashboard | Entrenador -> Mi Calendario)
   const userRole = role || currentUser?.role || 'admin';
   const initialTab = userRole === 'coach' ? 'coach-calendar' : 'dashboard';
 
-  return <MainLayout key={currentUser.uid || userRole} userRole={userRole} defaultTab={initialTab} />;
+  return <MainLayout key={currentUser.uid || userRole} defaultTab={initialTab} />;
 };
 
 export default function App() {
@@ -105,14 +97,14 @@ export default function App() {
   }, []);
 
   return (
-    <ErrorBoundary>
-      <AuthProvider>
-        <NotificationProvider>
-          <DataProvider>
+    <AuthProvider>
+      <NotificationProvider>
+        <DataProvider>
+          <ErrorBoundary>
             <MainContent />
-          </DataProvider>
-        </NotificationProvider>
-      </AuthProvider>
-    </ErrorBoundary>
+          </ErrorBoundary>
+        </DataProvider>
+      </NotificationProvider>
+    </AuthProvider>
   );
 }

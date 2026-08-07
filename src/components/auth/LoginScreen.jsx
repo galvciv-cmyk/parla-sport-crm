@@ -13,7 +13,10 @@ const DAYS_BUTTONS = [
 ];
 
 const LoginScreen = () => {
-  const { login, register, masterEmail } = useAuth();
+  const authContext = useAuth();
+  const login = authContext?.login;
+  const register = authContext?.register;
+  const masterEmail = authContext?.masterEmail || 'admin@parlasport.com';
 
   const [activeTab, setActiveTab] = useState('login'); // 'login' | 'register'
   const [submitting, setSubmitting] = useState(false);
