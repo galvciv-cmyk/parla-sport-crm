@@ -32,23 +32,28 @@ const CoachCalendar = () => {
   const userCoachId = activeCoachId || (userUid ? `coach-${userUid}` : '');
 
   // Buscar la ficha del entrenador en la colección global
-  const activeCoach = coaches.find(c =>
-    (c.id && userCoachId && c.id === userCoachId) ||
-    (c.id && userUid && (c.id === userUid || c.id.includes(userUid))) ||
-    (c.email && coachEmail && c.email.trim().toLowerCase() === coachEmail)
-  );
+  const activeCoach = coaches.find(c => {
+    if (!c) return false;
+    const cid = String(c.id || '');
+    if (cid && userCoachId && cid === String(userCoachId)) return true;
+    if (cid && userUid && (cid === String(userUid) || cid.includes(String(userUid)))) return true;
+    if (c.email && coachEmail && String(c.email).trim().toLowerCase() === coachEmail) return true;
+    return false;
+  });
 
   const coachName = (activeCoach?.nombre || currentUser?.nombre || '').trim().toLowerCase();
 
   // Algoritmo de filtrado de 4 capas para garantizar la máxima coincidencia
-  const coachSessions = sessions.filter(s => {
-    if (s.estado === 'cancelada') return false;
+  const coachSessions = (sessions || []).filter(s => {
+    if (!s || s.estado === 'cancelada') return false;
+
+    const sCoachId = String(s.entrenadorId || '');
 
     // Capa 1: Coincidencia por ID de entrenador
-    if (s.entrenadorId) {
-      if (activeCoach?.id && s.entrenadorId === activeCoach.id) return true;
-      if (userCoachId && s.entrenadorId === userCoachId) return true;
-      if (userUid && (s.entrenadorId === userUid || s.entrenadorId.includes(userUid))) return true;
+    if (sCoachId) {
+      if (activeCoach?.id && sCoachId === String(activeCoach.id)) return true;
+      if (userCoachId && sCoachId === String(userCoachId)) return true;
+      if (userUid && (sCoachId === String(userUid) || sCoachId.includes(String(userUid)))) return true;
     }
 
     // Capa 2: Coincidencia por Email registrado en el documento de la sesión o del usuario
