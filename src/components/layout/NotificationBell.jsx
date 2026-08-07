@@ -15,15 +15,15 @@ const NotificationBell = () => {
   const userCoachId = activeCoachId || (currentUser?.uid ? `coach-${currentUser.uid}` : '');
 
   // Filtrar notificaciones según el rol activo y el destinatario
-  const filteredNotifications = notifications.filter(n => {
+  const filteredNotifications = (notifications || []).filter(n => {
     if (!n) return false;
     if (role === 'admin') return true; // El Administrador monitorea el 100% de alertas del sistema
 
-    const notifCoachId = n.recipientCoachId || '';
-    const notifEmail = (n.recipientEmail || '').trim().toLowerCase();
+    const notifCoachId = String(n.recipientCoachId || '');
+    const notifEmail = String(n.recipientEmail || '').trim().toLowerCase();
 
     if (n.recipientRole === 'all') return true;
-    if (notifCoachId && (notifCoachId === userCoachId || notifCoachId === activeCoachId)) return true;
+    if (notifCoachId && (notifCoachId === String(userCoachId) || notifCoachId === String(activeCoachId))) return true;
     if (userEmail && notifEmail && notifEmail === userEmail) return true;
     if (n.recipientRole === 'coach' && !notifCoachId && !notifEmail) return true;
 

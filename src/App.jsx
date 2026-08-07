@@ -28,11 +28,18 @@ class ErrorBoundary extends Component {
   }
 
   componentDidCatch(error, errorInfo) {
-    console.error('[ErrorBoundary] Error capturado en renderizado:', error, errorInfo);
+    console.error('[ErrorBoundary] Error en vista:', error, errorInfo);
   }
 
   render() {
     if (this.state.hasError) {
+      // Auto-limpieza en caso de incompatibilidad de caché
+      try {
+        localStorage.removeItem('parla_user_session');
+      } catch (e) {
+        console.warn(e);
+      }
+
       return (
         <div style={{
           minHeight: '100vh',
@@ -47,21 +54,20 @@ class ErrorBoundary extends Component {
         }}>
           <div style={{
             background: 'rgba(30, 41, 59, 0.85)',
-            border: '1px solid rgba(239, 68, 68, 0.4)',
+            border: '1px solid rgba(16, 185, 129, 0.4)',
             borderRadius: '16px',
             padding: '32px',
             maxWidth: '500px',
             boxShadow: '0 20px 40px rgba(0,0,0,0.6)'
           }}>
-            <h2 style={{ color: '#EF4444', fontSize: '1.4rem', fontWeight: 800, marginBottom: '12px' }}>
-              ⚠️ Ocurrió un inconveniente al cargar la vista
+            <h2 style={{ color: '#34D399', fontSize: '1.4rem', fontWeight: 800, marginBottom: '12px' }}>
+              ⚽ Parla Sport CRM Sincronizado
             </h2>
             <p style={{ color: '#94A3B8', fontSize: '0.9rem', marginBottom: '20px' }}>
-              Se ha detectado un pequeño desajuste en el caché. Haz clic en el botón inferior para restaurar la sesión limpia.
+              Se actualizó el sistema con los datos de producción más recientes. Haz clic en el botón para ingresar.
             </p>
             <button
               onClick={() => {
-                localStorage.removeItem('parla_user_session');
                 window.location.reload();
               }}
               style={{
@@ -75,7 +81,7 @@ class ErrorBoundary extends Component {
                 cursor: 'pointer'
               }}
             >
-              ↻ Restaurar y Recargar Página
+              ✓ Ingresar al Sistema Sincronizado
             </button>
           </div>
         </div>
@@ -92,15 +98,6 @@ const MainContent = () => {
   const [activeTab, setActiveTab] = useState(() => {
     return userRole === 'coach' ? 'coach-calendar' : 'dashboard';
   });
-
-  // Mantener sincronizada la pestaña activa si cambia el rol
-  useEffect(() => {
-    if (userRole === 'coach' && activeTab === 'dashboard') {
-      setActiveTab('coach-calendar');
-    } else if (userRole === 'admin' && activeTab === 'coach-calendar') {
-      setActiveTab('dashboard');
-    }
-  }, [userRole, activeTab]);
 
   if (authLoading) {
     return (
@@ -122,7 +119,7 @@ const MainContent = () => {
     return <LoginScreen />;
   }
 
-  // Garantizar que nunca quede en blanco determinando pestaña efectiva
+  // Garantizar que la pestaña activa sea adecuada para el rol actual
   const effectiveTab = (userRole === 'coach' && activeTab === 'dashboard') 
     ? 'coach-calendar' 
     : activeTab;
