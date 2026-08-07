@@ -12,6 +12,8 @@ export const initOneSignal = async () => {
         enable: true,
       },
     });
+    // Forzar la solicitud de permisos automáticamente
+    OneSignal.Slidedown.promptPush();
     console.log('[OneSignal] Inicializado correctamente');
   } catch (error) {
     console.error('[OneSignal] Error al inicializar:', error);

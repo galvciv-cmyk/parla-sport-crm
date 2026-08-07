@@ -1,7 +1,6 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { doc, setDoc, deleteDoc, onSnapshot, collection } from 'firebase/firestore';
 import { db } from '../services/firebase';
-import { sendSessionAssignmentEmail } from '../services/emailService';
 import { sendOneSignalPush } from '../services/oneSignalService';
 import { triggerLocalPushNotification } from '../services/pwaService';
 import { useAuth } from './AuthContext';
@@ -159,19 +158,6 @@ export const NotificationProvider = ({ children }) => {
 
     // Guardar localmente e intentar remoto sin bloquear
     await saveNotificationLocallyAndRemote([notifCoach, notifAdmin]);
-
-    // Enviar correo electrónico mediante EmailJS
-    sendSessionAssignmentEmail({
-      coachName,
-      coachEmail,
-      sessionType: session.tipo,
-      date: session.fecha,
-      startTime: session.horaInicio,
-      endTime: session.horaFin,
-      playerNames,
-      isReassignment,
-      previousCoachName
-    }).catch(() => {});
 
     // Disparar Push remoto vía OneSignal
     if (coachId) {
