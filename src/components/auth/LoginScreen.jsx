@@ -2,7 +2,15 @@ import React, { useState } from 'react';
 import { KeyRound, Mail, Lock, UserPlus, Plus, Trash2, Clock } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 
-const DAYS_LIST = ['Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado'];
+const DAYS_BUTTONS = [
+  { code: 'L', name: 'Lunes' },
+  { code: 'M', name: 'Martes' },
+  { code: 'MI', name: 'Miércoles' },
+  { code: 'J', name: 'Jueves' },
+  { code: 'V', name: 'Viernes' },
+  { code: 'S', name: 'Sábado' },
+  { code: 'D', name: 'Domingo' }
+];
 
 const LoginScreen = () => {
   const { login, register, masterEmail } = useAuth();
@@ -22,26 +30,34 @@ const LoginScreen = () => {
     password: '',
     confirmPassword: '',
     telefono: '',
-    especialidad: 'Táctica & Fundamentos 1-1',
+    especialidad: 'Entrenador General',
     foto: '',
-    bloquesDisponibilidad: [
-      { dia: 'Lunes', horaInicio: '08:00', horaFin: '12:00' },
-      { dia: 'Miércoles', horaInicio: '08:00', horaFin: '12:00' },
-      { dia: 'Viernes', horaInicio: '14:00', horaFin: '18:00' }
-    ]
+    bloquesDisponibilidad: []
   });
 
-  const [newBlock, setNewBlock] = useState({
-    dia: 'Lunes',
-    horaInicio: '08:00',
-    horaFin: '12:00'
-  });
+  const [selectedRegDays, setSelectedRegDays] = useState([]);
+  const [regTimeRange, setRegTimeRange] = useState({ horaInicio: '08:00', horaFin: '12:00' });
 
-  const handleAddBlock = () => {
+  const handleAddMultipleBlocks = () => {
+    if (selectedRegDays.length === 0) {
+      alert('Por favor selecciona al menos un día (L, M, MI, J, V, S, D).');
+      return;
+    }
+
+    const newBlocks = selectedRegDays.map(code => {
+      const dayObj = DAYS_BUTTONS.find(d => d.code === code);
+      return {
+        dia: dayObj ? dayObj.name : 'Lunes',
+        horaInicio: regTimeRange.horaInicio,
+        horaFin: regTimeRange.horaFin
+      };
+    });
+
     setRegData(prev => ({
       ...prev,
-      bloquesDisponibilidad: [...prev.bloquesDisponibilidad, { ...newBlock }]
+      bloquesDisponibilidad: [...prev.bloquesDisponibilidad, ...newBlocks]
     }));
+
   };
 
   const handleRemoveBlock = (index) => {
@@ -318,50 +334,75 @@ const LoginScreen = () => {
                 <Clock size={16} /> Configura tus Días y Horarios Disponibles:
               </div>
 
-              {/* Selector para añadir bloques */}
-              <div style={{ display: 'flex', gap: '8px', alignItems: 'flex-end', flexWrap: 'wrap' }}>
-                <div style={{ flex: 1, minWidth: '110px' }}>
-                  <label className="input-label" style={{ fontSize: '0.72rem' }}>Día</label>
-                  <select
-                    className="input-field"
-                    style={{ padding: '6px 10px', fontSize: '0.8rem' }}
-                    value={newBlock.dia}
-                    onChange={(e) => setNewBlock({ ...newBlock, dia: e.target.value })}
+              {/* Selector Multi-Día para Registro */}
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                <div>
+                  <label className="input-label" style={{ fontSize: '0.72rem', marginBottom: '6px', display: 'block' }}>
+                    Selecciona tus días disponibles:
+                  </label>
+                  <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap' }}>
+                    {DAYS_BUTTONS.map(d => {
+                      const isSelected = selectedRegDays.includes(d.code);
+                      return (
+                        <button
+                          key={d.code}
+                          type="button"
+                          onClick={() => {
+                            setSelectedRegDays(prev =>
+                              prev.includes(d.code) ? prev.filter(c => c !== d.code) : [...prev, d.code]
+                            );
+                          }}
+                          style={{
+                            padding: '6px 10px',
+                            borderRadius: '8px',
+                            fontWeight: 800,
+                            fontSize: '0.8rem',
+                            cursor: 'pointer',
+                            border: isSelected ? '2px solid #FBBF24' : '1px solid rgba(255, 255, 255, 0.15)',
+                            background: isSelected ? 'rgba(245, 158, 11, 0.25)' : 'rgba(15, 23, 42, 0.8)',
+                            color: isSelected ? '#FBBF24' : '#94A3B8',
+                            transition: 'all 0.15s ease'
+                          }}
+                        >
+                          {d.code}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+
+                <div style={{ display: 'flex', gap: '8px', alignItems: 'flex-end', flexWrap: 'wrap' }}>
+                  <div style={{ flex: 1, minWidth: '95px' }}>
+                    <label className="input-label" style={{ fontSize: '0.72rem' }}>Hora Inicio</label>
+                    <input
+                      type="time"
+                      className="input-field"
+                      style={{ padding: '6px 8px', fontSize: '0.8rem' }}
+                      value={regTimeRange.horaInicio}
+                      onChange={(e) => setRegTimeRange({ ...regTimeRange, horaInicio: e.target.value })}
+                    />
+                  </div>
+
+                  <div style={{ flex: 1, minWidth: '95px' }}>
+                    <label className="input-label" style={{ fontSize: '0.72rem' }}>Hora Fin</label>
+                    <input
+                      type="time"
+                      className="input-field"
+                      style={{ padding: '6px 8px', fontSize: '0.8rem' }}
+                      value={regTimeRange.horaFin}
+                      onChange={(e) => setRegTimeRange({ ...regTimeRange, horaFin: e.target.value })}
+                    />
+                  </div>
+
+                  <button
+                    type="button"
+                    className="btn-secondary"
+                    onClick={handleAddMultipleBlocks}
+                    style={{ padding: '7px 10px', fontSize: '0.75rem', color: '#10B981', borderColor: 'rgba(16, 185, 129, 0.4)' }}
                   >
-                    {DAYS_LIST.map(d => <option key={d} value={d}>{d}</option>)}
-                  </select>
+                    <Plus size={14} /> Añadir a Días
+                  </button>
                 </div>
-
-                <div style={{ width: '100px' }}>
-                  <label className="input-label" style={{ fontSize: '0.72rem' }}>Hora Inicio</label>
-                  <input
-                    type="time"
-                    className="input-field"
-                    style={{ padding: '6px 8px', fontSize: '0.8rem' }}
-                    value={newBlock.horaInicio}
-                    onChange={(e) => setNewBlock({ ...newBlock, horaInicio: e.target.value })}
-                  />
-                </div>
-
-                <div style={{ width: '100px' }}>
-                  <label className="input-label" style={{ fontSize: '0.72rem' }}>Hora Fin</label>
-                  <input
-                    type="time"
-                    className="input-field"
-                    style={{ padding: '6px 8px', fontSize: '0.8rem' }}
-                    value={newBlock.horaFin}
-                    onChange={(e) => setNewBlock({ ...newBlock, horaFin: e.target.value })}
-                  />
-                </div>
-
-                <button
-                  type="button"
-                  className="btn-secondary"
-                  onClick={handleAddBlock}
-                  style={{ padding: '6px 10px', fontSize: '0.78rem', color: '#10B981', borderColor: 'rgba(16, 185, 129, 0.4)' }}
-                >
-                  <Plus size={14} /> Añadir Horario
-                </button>
               </div>
 
               {/* Lista de bloques configurados */}

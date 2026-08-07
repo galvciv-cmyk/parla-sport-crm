@@ -204,9 +204,18 @@ export const AuthProvider = ({ children }) => {
     }
   };
 
-  const logout = async () => {
-    updateSessionState(null);
-    await signOut(auth);
+  const updateUserProfileName = async (newName) => {
+    if (!currentUser || !newName || !newName.trim()) return;
+    const cleanName = newName.trim();
+    const updatedUser = { ...currentUser, nombre: cleanName };
+    updateSessionState(updatedUser);
+
+    if (currentUser.uid) {
+      await setDoc(doc(db, 'users', currentUser.uid), { nombre: cleanName }, { merge: true }).catch(() => {});
+    }
+    if (currentUser.coachId) {
+      await setDoc(doc(db, 'coaches', currentUser.coachId), { nombre: cleanName }, { merge: true }).catch(() => {});
+    }
   };
 
   return (
@@ -220,6 +229,7 @@ export const AuthProvider = ({ children }) => {
       login,
       register,
       logout,
+      updateUserProfileName,
       masterEmail: MASTER_ADMIN_EMAIL
     }}>
       {children}
