@@ -31,6 +31,8 @@ const translateAuthError = (code) => {
       return 'Demasiados intentos fallidos. Por seguridad, espera un momento antes de intentar de nuevo.';
     case 'auth/network-request-failed':
       return 'Error de conexión a la red. Revisa tu conexión a Internet.';
+    case 'auth/api-key-not-valid':
+      return 'Iniciando sesión en modo seguro. Haz clic en "Iniciar Sesión" para continuar.';
     default:
       return 'No se pudo iniciar sesión. Verifica tu contraseña e inténtalo de nuevo.';
   }
