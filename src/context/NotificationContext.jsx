@@ -7,20 +7,58 @@ import { triggerLocalPushNotification } from '../services/pwaService';
 const NotificationContext = createContext();
 
 export const NotificationProvider = ({ children }) => {
-  const [notifications, setNotifications] = useState([]);
+  const [notifications, setNotifications] = useState(() => {
+    try {
+      const saved = localStorage.getItem('parla_notifications_store');
+      return saved ? JSON.parse(saved) : [];
+    } catch {
+      return [];
+    }
+  });
 
-  // Escuchar notificaciones en tiempo real desde Firestore
+  // Escuchar notificaciones en tiempo real desde Firestore con respaldo en LocalStorage
   useEffect(() => {
     const unsub = onSnapshot(collection(db, 'notifications'), (snapshot) => {
       const firestoreNotifs = snapshot.docs.map(d => ({ id: d.id, ...d.data() }));
       firestoreNotifs.sort((a, b) => new Date(b.timestamp || 0) - new Date(a.timestamp || 0));
       setNotifications(firestoreNotifs);
+      try {
+        localStorage.setItem('parla_notifications_store', JSON.stringify(firestoreNotifs));
+      } catch (e) {
+        console.warn(e);
+      }
     }, (err) => {
-      console.warn('[NotificationContext] Error escuchando Firestore notifications:', err);
+      console.warn('[NotificationContext] Aviso Firestore permissions / network:', err.message);
+      try {
+        const saved = localStorage.getItem('parla_notifications_store');
+        if (saved) setNotifications(JSON.parse(saved));
+      } catch (e) {
+        console.warn(e);
+      }
     });
 
     return () => unsub();
   }, []);
+
+  const saveNotificationLocallyAndRemote = async (newNotifs) => {
+    setNotifications(prev => {
+      const updated = [...newNotifs, ...prev.filter(p => !newNotifs.some(n => n.id === p.id))];
+      try {
+        localStorage.setItem('parla_notifications_store', JSON.stringify(updated));
+      } catch (e) {
+        console.warn(e);
+      }
+      return updated;
+    });
+
+    for (const notif of newNotifs) {
+      try {
+        await setDoc(doc(db, 'notifications', notif.id), notif);
+      } catch (err) {
+        console.warn('[NotificationContext] No se pudo guardar la notificación en Firestore (usando respaldo local):', err.message);
+      }
+    }
+  };
 
   // Notificación de Asignación / Reasignación de Sesión (para el Entrenador Y para el Admin)
   const notifySessionAssignment = async ({
@@ -35,7 +73,7 @@ export const NotificationProvider = ({ children }) => {
     const playerNames = (players || []).map(p => p.nombre || 'Jugador').filter(Boolean);
     const coachName = coach?.nombre || session.entrenadorNombre || 'Entrenador';
     const coachEmail = (coach?.email || session.entrenadorEmail || '').trim().toLowerCase();
-    const coachId = coach?.id || session.entrenadorId || '';
+    const coachId = String(coach?.id || session.entrenadorId || '');
 
     // 1. Notificación para el ENTRENADOR
     const titleCoach = isReassignment
@@ -79,18 +117,10 @@ export const NotificationProvider = ({ children }) => {
       type: 'info'
     };
 
-    // Actualizar estado local inmediatamente para velocidad instantánea
-    setNotifications(prev => [notifCoach, notifAdmin, ...prev]);
+    // Guardar localmente e intentar remoto sin bloquear
+    await saveNotificationLocallyAndRemote([notifCoach, notifAdmin]);
 
-    // Guardar en Firestore para sincronización entre dispositivos
-    try {
-      await setDoc(doc(db, 'notifications', notifCoach.id), notifCoach);
-      await setDoc(doc(db, 'notifications', notifAdmin.id), notifAdmin);
-    } catch (err) {
-      console.warn('[NotificationContext] Error guardando notificaciones en Firestore:', err);
-    }
-
-    // Enviar correo electrónico
+    // Enviar correo electrónico mediante EmailJS
     sendSessionAssignmentEmail({
       coachName,
       coachEmail,
@@ -122,21 +152,14 @@ export const NotificationProvider = ({ children }) => {
       type: 'warning'
     };
 
-    setNotifications(prev => [notifAdmin, ...prev]);
-
-    try {
-      await setDoc(doc(db, 'notifications', notifAdmin.id), notifAdmin);
-    } catch (err) {
-      console.warn('[NotificationContext] Error guardando notificación de clase finalizada:', err);
-    }
-
+    await saveNotificationLocallyAndRemote([notifAdmin]);
     triggerLocalPushNotification(notifAdmin.title, notifAdmin.message);
   };
 
   // Notificación de Clase Pagada por el Admin (dirigida al Entrenador)
   const notifySessionPaid = async ({ session, coach }) => {
     if (!session) return;
-    const coachId = coach?.id || session.entrenadorId || '';
+    const coachId = String(coach?.id || session.entrenadorId || '');
     const coachEmail = (coach?.email || session.entrenadorEmail || '').trim().toLowerCase();
 
     const notifCoach = {
@@ -151,33 +174,39 @@ export const NotificationProvider = ({ children }) => {
       type: 'success'
     };
 
-    setNotifications(prev => [notifCoach, ...prev]);
-
-    try {
-      await setDoc(doc(db, 'notifications', notifCoach.id), notifCoach);
-    } catch (err) {
-      console.warn('[NotificationContext] Error guardando notificación de pago:', err);
-    }
-
+    await saveNotificationLocallyAndRemote([notifCoach]);
     triggerLocalPushNotification(notifCoach.title, notifCoach.message);
   };
 
-  const markAsRead = async (id) => {
-    setNotifications(prev => prev.map(n => n.id === id ? { ...n, read: true } : n));
-    await setDoc(doc(db, 'notifications', id), { read: true }, { merge: true }).catch(() => {});
+  const markAsRead = (id) => {
+    setNotifications(prev => {
+      const updated = prev.map(n => n.id === id ? { ...n, read: true } : n);
+      try {
+        localStorage.setItem('parla_notifications_store', JSON.stringify(updated));
+      } catch (e) { console.warn(e); }
+      return updated;
+    });
+    setDoc(doc(db, 'notifications', id), { read: true }, { merge: true }).catch(() => {});
   };
 
-  const markAllAsRead = async () => {
-    setNotifications(prev => prev.map(n => ({ ...n, read: true })));
+  const markAllAsRead = () => {
+    setNotifications(prev => {
+      const updated = prev.map(n => ({ ...n, read: true }));
+      try {
+        localStorage.setItem('parla_notifications_store', JSON.stringify(updated));
+      } catch (e) { console.warn(e); }
+      return updated;
+    });
     notifications.forEach(n => {
-      if (!n.read) {
-        setDoc(doc(db, 'notifications', n.id), { read: true }, { merge: true }).catch(() => {});
-      }
+      setDoc(doc(db, 'notifications', n.id), { read: true }, { merge: true }).catch(() => {});
     });
   };
 
-  const clearNotifications = async () => {
+  const clearNotifications = () => {
     setNotifications([]);
+    try {
+      localStorage.removeItem('parla_notifications_store');
+    } catch (e) { console.warn(e); }
     notifications.forEach(n => {
       deleteDoc(doc(db, 'notifications', n.id)).catch(() => {});
     });

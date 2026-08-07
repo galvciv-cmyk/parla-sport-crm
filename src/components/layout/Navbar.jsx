@@ -48,37 +48,34 @@ const Navbar = () => {
           />
         </div>
 
-        {/* Acciones del Encabezado (Derecha): Perfil, Campana y Salir */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap' }}>
-          {/* Campana de Notificaciones Fija en la Derecha */}
-          <NotificationBell />
-          
+        {/* Acciones del Encabezado (Derecha): Perfil, Salir y Campana Fija en la Esquina Superior Derecha */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap', marginLeft: 'auto' }}>
           {currentUser && (
             <div style={{
               display: 'flex',
               alignItems: 'center',
-              gap: '12px',
+              gap: '10px',
               background: 'rgba(15, 28, 63, 0.9)',
               border: '1px solid rgba(212, 175, 55, 0.35)',
               borderRadius: '12px',
-              padding: '6px 14px'
+              padding: '6px 12px'
             }}>
               <div style={{ display: 'flex', flexDirection: 'column' }}>
-                <span style={{ fontSize: '0.82rem', fontWeight: 700, color: '#F8FAFC' }}>
+                <span style={{ fontSize: '0.8rem', fontWeight: 700, color: '#F8FAFC' }}>
                   {currentUser.nombre}
                 </span>
-                <span style={{ fontSize: '0.7rem', color: '#94A3B8' }}>
+                <span style={{ fontSize: '0.68rem', color: '#94A3B8' }}>
                   {currentUser.email}
                 </span>
               </div>
 
               {isAdmin ? (
-                <span className="badge badge-gold" style={{ fontSize: '0.65rem' }}>
-                  ADMIN MAESTRO
+                <span className="badge badge-gold" style={{ fontSize: '0.62rem' }}>
+                  ADMIN
                 </span>
               ) : (
-                <span className="badge badge-blue" style={{ fontSize: '0.65rem' }}>
-                  <UserCheck size={10} /> ENTRENADOR
+                <span className="badge badge-blue" style={{ fontSize: '0.62rem' }}>
+                  <UserCheck size={10} /> PROFE
                 </span>
               )}
 
@@ -93,17 +90,19 @@ const Navbar = () => {
                   color: '#F87171',
                   borderRadius: '8px',
                   padding: '4px 8px',
-                  fontSize: '0.75rem',
+                  fontSize: '0.72rem',
                   fontWeight: 600,
-                  cursor: 'pointer',
-                  marginLeft: '4px'
+                  cursor: 'pointer'
                 }}
                 title="Cerrar Sesión"
               >
-                <LogOut size={13} /> Salir
+                <LogOut size={12} /> Salir
               </button>
             </div>
           )}
+
+          {/* Campana de Notificaciones Ubicada en la Esquina Superior Derecha */}
+          <NotificationBell />
 
           {/* Botón PWA Install */}
           {canInstallPwa && (
