@@ -3,6 +3,8 @@ import { Bell, Check, Trash2, Mail, Smartphone, AlertCircle } from 'lucide-react
 import { useNotifications } from '../../context/NotificationContext';
 import { useAuth } from '../../context/AuthContext';
 
+import { requestNotificationPermission } from '../../services/pwaService';
+
 const NotificationBell = () => {
   const { notifications, markAsRead, markAllAsRead, clearNotifications } = useNotifications();
   const { role, activeCoachId, currentUser } = useAuth();
@@ -14,19 +16,23 @@ const NotificationBell = () => {
 
   // Filtrar notificaciones según el rol activo y el destinatario
   const filteredNotifications = notifications.filter(n => {
-    if (role === 'admin') {
-      return n.recipientRole === 'admin' || n.recipientRole === 'all' || !n.recipientRole;
-    }
+    if (role === 'admin') return true; // El Administrador monitorea el 100% de alertas del sistema
     return (
-      (n.recipientCoachId && n.recipientCoachId === userCoachId) ||
-      (n.recipientCoachId && activeCoachId && n.recipientCoachId === activeCoachId) ||
-      (n.recipientEmail && n.recipientEmail.trim().toLowerCase() === userEmail) ||
+      n.recipientRole === 'all' ||
       n.recipientRole === 'coach' ||
-      n.recipientRole === 'all'
+      (n.recipientCoachId && (n.recipientCoachId === userCoachId || n.recipientCoachId === activeCoachId)) ||
+      (n.recipientEmail && n.recipientEmail.trim().toLowerCase() === userEmail)
     );
   });
 
   const unreadCount = filteredNotifications.filter(n => !n.read).length;
+
+  const handleToggleBell = () => {
+    setIsOpen(!isOpen);
+    if (!isOpen) {
+      requestNotificationPermission();
+    }
+  };
 
   useEffect(() => {
     const handleClickOutside = (event) => {
@@ -42,7 +48,7 @@ const NotificationBell = () => {
     <div style={{ position: 'relative' }} ref={dropdownRef}>
       {/* Icono de Campana */}
       <button
-        onClick={() => setIsOpen(!isOpen)}
+        onClick={handleToggleBell}
         style={{
           position: 'relative',
           background: 'rgba(30, 41, 59, 0.7)',

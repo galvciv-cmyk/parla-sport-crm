@@ -47,23 +47,52 @@ export const requestNotificationPermission = async () => {
   }
 
   if (Notification.permission !== 'denied') {
-    const permission = await Notification.requestPermission();
-    return permission === 'granted';
+    try {
+      const permission = await Notification.requestPermission();
+      return permission === 'granted';
+    } catch (e) {
+      console.warn('[PWA] Error al solicitar permiso de notificación:', e);
+      return false;
+    }
   }
 
   return false;
 };
 
 export const triggerLocalPushNotification = (title, body) => {
-  if ('serviceWorker' in navigator && Notification.permission === 'granted') {
-    navigator.serviceWorker.ready.then((registration) => {
-      registration.showNotification(title, {
-        body,
-        icon: '/favicon.svg',
-        badge: '/favicon.svg',
-        vibrate: [100, 50, 100],
-        tag: 'parla-sport-notice'
-      });
+  if (!('Notification' in window)) return;
+
+  const dispatchNotification = () => {
+    try {
+      // Intentar primero con Service Worker para soporte PWA/Móvil
+      if ('serviceWorker' in navigator && navigator.serviceWorker.controller) {
+        navigator.serviceWorker.ready.then((reg) => {
+          reg.showNotification(title, {
+            body,
+            icon: '/favicon.svg',
+            badge: '/favicon.svg',
+            vibrate: [100, 50, 100],
+            tag: 'parla-sport-notice'
+          });
+        }).catch(() => {
+          new Notification(title, { body, icon: '/favicon.svg' });
+        });
+      } else {
+        // Notificación estándar web/escritorio
+        new Notification(title, { body, icon: '/favicon.svg' });
+      }
+    } catch (err) {
+      console.warn('[PWA] Fallo al mostrar notificación push:', err);
+    }
+  };
+
+  if (Notification.permission === 'granted') {
+    dispatchNotification();
+  } else if (Notification.permission !== 'denied') {
+    Notification.requestPermission().then((perm) => {
+      if (perm === 'granted') {
+        dispatchNotification();
+      }
     });
   }
 };
