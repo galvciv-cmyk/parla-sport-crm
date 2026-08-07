@@ -44,7 +44,7 @@ const MainLayout = ({ defaultTab }) => {
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', minHeight: '100vh', backgroundColor: '#060D1E' }}>
-      <Navbar />
+      <Navbar activeTab={activeTab} setActiveTab={setActiveTab} />
 
       <div className="app-container" style={{ display: 'flex', flex: 1, maxWidth: '1400px', width: '100%', margin: '0 auto' }}>
         <Sidebar activeTab={activeTab} setActiveTab={setActiveTab} />
