@@ -48,8 +48,9 @@ export const sendOneSignalPush = async (title, message, externalUserId) => {
 
   const payload = {
     app_id: APP_ID,
+    include_external_user_ids: [String(externalUserId)],
     include_aliases: {
-      external_id: [externalUserId]
+      external_id: [String(externalUserId)]
     },
     target_channel: 'push',
     headings: { en: title, es: title },
@@ -67,8 +68,13 @@ export const sendOneSignalPush = async (title, message, externalUserId) => {
     });
 
     const data = await response.json();
-    console.log('[OneSignal] Push enviado:', data);
+    if (!response.ok) {
+      console.error('[OneSignal] Error de API OneSignal:', response.status, data);
+      alert(`Error de Push (Ver consola): ${data.errors ? JSON.stringify(data.errors) : 'Desconocido'}`);
+    } else {
+      console.log('[OneSignal] Push enviado con éxito:', data);
+    }
   } catch (error) {
-    console.error('[OneSignal] Error al enviar Push HTTP:', error);
+    console.error('[OneSignal] Error de red al enviar Push HTTP:', error);
   }
 };
