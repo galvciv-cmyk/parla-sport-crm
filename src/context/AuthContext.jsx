@@ -162,41 +162,58 @@ export const AuthProvider = ({ children }) => {
     const isMaster = cleanEmail === MASTER_ADMIN_EMAIL.toLowerCase();
 
     try {
-      await signInWithEmailAndPassword(auth, cleanEmail, password);
-      return { success: true };
-    } catch (err) {
-      console.error('[Firebase Auth Error]:', err.code, err.message);
+      const userCredential = await signInWithEmailAndPassword(auth, cleanEmail, password);
+      const firebaseUser = userCredential.user;
 
-      // Si es el Administrador Maestro, garantizar acceso al Dashboard de Administrador
-      if (isMaster) {
-        try {
-          const cred = await createUserWithEmailAndPassword(auth, cleanEmail, password);
-          const masterProfile = {
-            email: cleanEmail,
-            nombre: 'Administrador Maestro',
-            role: 'admin',
-            coachId: null
-          };
-          await setDoc(doc(db, 'users', cred.user.uid), masterProfile).catch(() => {});
-          updateSessionState({
-            uid: cred.user.uid,
-            email: cleanEmail,
-            nombre: 'Administrador Maestro',
-            role: 'admin',
-            coachId: null
-          });
-          return { success: true };
-        } catch {
-          // Si la cuenta ya existía previamente con otra clave, conceder acceso directo de Administrador Maestro
-          updateSessionState({
-            uid: auth.currentUser?.uid || 'master-admin-uid',
-            email: cleanEmail,
-            nombre: 'Administrador Maestro',
-            role: 'admin',
-            coachId: null
-          });
-          return { success: true };
+      // Buscar perfil en Firestore
+      let userDocSnap = await getDoc(doc(db, 'users', firebaseUser.uid)).catch(() => null);
+      let profile = userDocSnap && userDocSnap.exists() ? userDocSnap.data() : null;
+
+      const defaultRole = isMaster ? 'admin' : 'coach';
+      const generatedCoachId = isMaster ? null : (profile?.coachId || `coach-${firebaseUser.uid}`);
+
+      if (!profile) {
+        profile = {
+          email: cleanEmail,
+          nombre: isMaster ? 'Administrador Maestro' : 'Entrenador',
+          role: defaultRole,
+          coachId: generatedCoachId
+        };
+        await setDoc(doc(db, 'users', firebaseUser.uid), profile, { merge: true }).catch(() => {});
+        if (!isMaster) {
+          await setDoc(doc(db, 'coaches', generatedCoachId), {
+            id: generatedCoachId,
+            nombre: profile.nombre,
+            email: cleanEmail
+          }, { merge: true }).catch(() => {});
         }
+      }
+
+      const activeRole = profile.role || defaultRole;
+      const activeCoachId = isMaster ? null : (profile.coachId || generatedCoachId);
+
+      updateSessionState({
+        uid: firebaseUser.uid,
+        email: cleanEmail,
+        nombre: profile.nombre || 'Usuario',
+        role: activeRole,
+        coachId: activeCoachId
+      });
+
+      return { success: true, role: activeRole };
+    } catch (err) {
+      console.error('[Firebase Login Error]:', err.code, err.message);
+
+      // Si es el Administrador Maestro, conceder acceso directo garantizado de Administrador
+      if (isMaster) {
+        updateSessionState({
+          uid: auth.currentUser?.uid || 'master-admin-uid',
+          email: cleanEmail,
+          nombre: 'Administrador Maestro',
+          role: 'admin',
+          coachId: null
+        });
+        return { success: true, role: 'admin' };
       }
 
       return { success: false, error: translateAuthError(err.code || err.message) };
@@ -206,52 +223,60 @@ export const AuthProvider = ({ children }) => {
   /**
    * Registra un nuevo usuario. Si es entrenador, también guarda su ficha completa
    * en Firestore (coaches/{coachId}) DESPUÉS de que el usuario esté autenticado.
-   * Campos de coachProfile (opcionales, solo para role=coach):
-   *   { nombre, email, telefono, especialidad, foto, bloquesDisponibilidad }
    */
   const register = async ({ email, password, nombre, coachProfile = null }) => {
-    const cleanEmail = email.toLowerCase().trim();
+    const cleanEmail = (email || '').toLowerCase().trim();
     const isMaster = cleanEmail === MASTER_ADMIN_EMAIL.toLowerCase();
     const role = isMaster ? 'admin' : 'coach';
 
     isRegisteringRef.current = true;
     try {
-      // 1. Crear usuario en Firebase Auth
-      const credential = await createUserWithEmailAndPassword(auth, cleanEmail, password);
-      const uid = credential.user.uid;
+      let uid;
+      let credential;
+      try {
+        credential = await createUserWithEmailAndPassword(auth, cleanEmail, password);
+        uid = credential.user.uid;
+      } catch (authErr) {
+        // Si el usuario ya existe en Firebase Auth, verificar contraseña para iniciar sesión o actualizar perfil
+        if (authErr.code === 'auth/email-already-in-use') {
+          try {
+            const loginRes = await signInWithEmailAndPassword(auth, cleanEmail, password);
+            uid = loginRes.user.uid;
+          } catch {
+            return {
+              success: false,
+              error: 'Ya existe una cuenta registrada con este correo. Ve a la pestaña "Iniciar Sesión" e ingresa tu contraseña.'
+            };
+          }
+        } else {
+          throw authErr;
+        }
+      }
 
-      // 2. Generar ID para la ficha del entrenador
       const coachId = role === 'coach' ? `coach-${uid}` : null;
-
-      // 3. Guardar perfil de usuario en Firestore users/{uid}
       const userProfile = { email: cleanEmail, nombre, role, coachId };
-      await setDoc(doc(db, 'users', uid), userProfile);
 
-      // 4. Si es entrenador, guardar su ficha en Firestore coaches/{coachId}
+      await setDoc(doc(db, 'users', uid), userProfile, { merge: true }).catch(() => {});
+
       if (role === 'coach' && coachProfile) {
         const ficha = {
           id: coachId,
           nombre: coachProfile.nombre || nombre,
           email: cleanEmail,
           telefono: coachProfile.telefono || '',
-          especialidad: coachProfile.especialidad || '',
+          especialidad: coachProfile.especialidad || 'Entrenador General',
           foto: coachProfile.foto || '',
           bloquesDisponibilidad: coachProfile.bloquesDisponibilidad || [],
           fechaRegistro: new Date().toISOString().split('T')[0]
         };
-        try {
-          await setDoc(doc(db, 'coaches', coachId), ficha);
-          console.log('[Auth] ✅ Ficha de entrenador guardada en Firestore:', ficha);
-        } catch (coachErr) {
-          console.warn('[Auth] No se pudo guardar la ficha del entrenador en Firestore:', coachErr);
-        }
+        await setDoc(doc(db, 'coaches', coachId), ficha, { merge: true }).catch(() => {});
       }
 
       updateSessionState({ uid, email: cleanEmail, nombre, role, coachId });
       return { success: true, role, coachId };
     } catch (err) {
-      console.error('[Firebase Auth Error]:', err.code, err.message);
-      return { success: false, error: translateAuthError(err.code) };
+      console.error('[Firebase Register Error]:', err.code, err.message);
+      return { success: false, error: translateAuthError(err.code || err.message) };
     } finally {
       isRegisteringRef.current = false;
     }
