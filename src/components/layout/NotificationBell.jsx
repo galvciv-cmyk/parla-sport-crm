@@ -3,7 +3,7 @@ import { Bell, Check, Trash2, Mail, Smartphone, AlertCircle } from 'lucide-react
 import { useNotifications } from '../../context/NotificationContext';
 import { useAuth } from '../../context/AuthContext';
 
-import { requestNotificationPermission } from '../../services/pwaService';
+import { requestNotificationPermission, triggerLocalPushNotification } from '../../services/pwaService';
 
 const NotificationBell = () => {
   const { notifications, markAsRead, markAllAsRead, clearNotifications } = useNotifications();
@@ -16,13 +16,18 @@ const NotificationBell = () => {
 
   // Filtrar notificaciones según el rol activo y el destinatario
   const filteredNotifications = notifications.filter(n => {
+    if (!n) return false;
     if (role === 'admin') return true; // El Administrador monitorea el 100% de alertas del sistema
-    return (
-      n.recipientRole === 'all' ||
-      n.recipientRole === 'coach' ||
-      (n.recipientCoachId && (n.recipientCoachId === userCoachId || n.recipientCoachId === activeCoachId)) ||
-      (n.recipientEmail && n.recipientEmail.trim().toLowerCase() === userEmail)
-    );
+
+    const notifCoachId = n.recipientCoachId || '';
+    const notifEmail = (n.recipientEmail || '').trim().toLowerCase();
+
+    if (n.recipientRole === 'all') return true;
+    if (notifCoachId && (notifCoachId === userCoachId || notifCoachId === activeCoachId)) return true;
+    if (userEmail && notifEmail && notifEmail === userEmail) return true;
+    if (n.recipientRole === 'coach' && !notifCoachId && !notifEmail) return true;
+
+    return false;
   });
 
   const unreadCount = filteredNotifications.filter(n => !n.read).length;
@@ -114,24 +119,54 @@ const NotificationBell = () => {
               <span style={{ fontWeight: 700, fontSize: '0.95rem' }}>Notificaciones</span>
               <span className="badge badge-emerald">{unreadCount} nuevas</span>
             </div>
-            {filteredNotifications.length > 0 && (
-              <div style={{ display: 'flex', gap: '6px' }}>
-                <button
-                  onClick={() => markAllAsRead(role === 'coach' ? activeCoachId : null)}
-                  style={{ background: 'none', border: 'none', color: '#10B981', cursor: 'pointer', fontSize: '0.75rem', fontWeight: 600 }}
-                  title="Marcar todas como leídas"
-                >
-                  <Check size={16} />
-                </button>
-                <button
-                  onClick={clearNotifications}
-                  style={{ background: 'none', border: 'none', color: '#EF4444', cursor: 'pointer', fontSize: '0.75rem' }}
-                  title="Limpiar historial"
-                >
-                  <Trash2 size={16} />
-                </button>
-              </div>
-            )}
+
+            <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+              <button
+                onClick={async () => {
+                  const granted = await requestNotificationPermission();
+                  if (granted) {
+                    triggerLocalPushNotification('⚽ Parla Sport CRM', 'Notificaciones push activas en este dispositivo.');
+                  } else {
+                    alert('Debes otorgar permisos de notificación en el navegador.');
+                  }
+                }}
+                style={{
+                  background: 'rgba(16, 185, 129, 0.15)',
+                  border: '1px solid rgba(16, 185, 129, 0.35)',
+                  color: '#34D399',
+                  fontSize: '0.7rem',
+                  fontWeight: 700,
+                  padding: '3px 8px',
+                  borderRadius: '6px',
+                  cursor: 'pointer',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '4px'
+                }}
+                title="Activar o Probar Notificaciones Push en este Dispositivo"
+              >
+                <Smartphone size={12} /> Activar Push
+              </button>
+
+              {filteredNotifications.length > 0 && (
+                <>
+                  <button
+                    onClick={() => markAllAsRead()}
+                    style={{ background: 'none', border: 'none', color: '#10B981', cursor: 'pointer', fontSize: '0.75rem', fontWeight: 600 }}
+                    title="Marcar todas como leídas"
+                  >
+                    <Check size={16} />
+                  </button>
+                  <button
+                    onClick={clearNotifications}
+                    style={{ background: 'none', border: 'none', color: '#EF4444', cursor: 'pointer', fontSize: '0.75rem' }}
+                    title="Limpiar historial"
+                  >
+                    <Trash2 size={16} />
+                  </button>
+                </>
+              )}
+            </div>
           </div>
 
           {/* Canales Integrados Badge */}
