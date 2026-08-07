@@ -28,35 +28,18 @@ export const DataProvider = ({ children }) => {
     return saved ? JSON.parse(saved) : INITIAL_SESSIONS;
   });
 
-  // Limpieza inicial para comenzar todo desde cero (sin datos predeterminados)
+  // Limpieza inicial de caché local para garantizar sincronización 100% pura con Firestore
   useEffect(() => {
-    if (!localStorage.getItem('parla_clean_start_v2')) {
-      localStorage.removeItem('parla_players');
-      localStorage.removeItem('parla_coaches');
-      localStorage.removeItem('parla_sessions');
-      localStorage.setItem('parla_clean_start_v2', 'true');
-      setPlayers([]);
-      setCoaches([]);
-      setSessions([]);
-    }
+    localStorage.removeItem('parla_players');
+    localStorage.removeItem('parla_coaches');
+    localStorage.removeItem('parla_sessions');
   }, []);
 
-  // Escuchar entrenadores en tiempo real desde Firestore
+  // Escuchar entrenadores en tiempo real desde Firestore (Fuente Única de Verdad)
   useEffect(() => {
     const unsub = onSnapshot(collection(db, 'coaches'), (snapshot) => {
       const firestoreCoaches = snapshot.docs.map(d => ({ id: d.id, ...d.data() }));
-      if (firestoreCoaches.length > 0) {
-        setCoaches(prev => {
-          const map = new Map();
-          // Cargar primero los de Firestore (fuente principal)
-          firestoreCoaches.forEach(c => map.set(c.id, c));
-          // Conservar los locales si aún no se han sincronizado
-          prev.forEach(c => {
-            if (!map.has(c.id)) map.set(c.id, c);
-          });
-          return Array.from(map.values());
-        });
-      }
+      setCoaches(firestoreCoaches);
     }, (err) => {
       console.warn('[DataContext] Error escuchando Firestore coaches:', err);
     });
@@ -64,20 +47,11 @@ export const DataProvider = ({ children }) => {
     return () => unsub();
   }, []);
 
-  // Escuchar jugadores en tiempo real desde Firestore
+  // Escuchar jugadores en tiempo real desde Firestore (Fuente Única de Verdad)
   useEffect(() => {
     const unsub = onSnapshot(collection(db, 'players'), (snapshot) => {
       const firestorePlayers = snapshot.docs.map(d => ({ id: d.id, ...d.data() }));
-      if (firestorePlayers.length > 0) {
-        setPlayers(prev => {
-          const map = new Map();
-          firestorePlayers.forEach(p => map.set(p.id, p));
-          prev.forEach(p => {
-            if (!map.has(p.id)) map.set(p.id, p);
-          });
-          return Array.from(map.values());
-        });
-      }
+      setPlayers(firestorePlayers);
     }, (err) => {
       console.warn('[DataContext] Error escuchando Firestore players:', err);
     });
@@ -85,18 +59,11 @@ export const DataProvider = ({ children }) => {
     return () => unsub();
   }, []);
 
-  // Escuchar sesiones en tiempo real desde Firestore
+  // Escuchar sesiones en tiempo real desde Firestore (Fuente Única de Verdad)
   useEffect(() => {
     const unsub = onSnapshot(collection(db, 'sessions'), (snapshot) => {
       const firestoreSessions = snapshot.docs.map(d => ({ id: d.id, ...d.data() }));
-      setSessions(prev => {
-        const map = new Map();
-        firestoreSessions.forEach(s => map.set(s.id, s));
-        prev.forEach(s => {
-          if (!map.has(s.id)) map.set(s.id, s);
-        });
-        return Array.from(map.values());
-      });
+      setSessions(firestoreSessions);
     }, (err) => {
       console.warn('[DataContext] Error escuchando Firestore sessions:', err);
     });
