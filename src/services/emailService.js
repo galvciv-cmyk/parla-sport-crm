@@ -1,13 +1,44 @@
-// Client-side Email Integration (EmailJS / Resend API)
+// Client-side Email Integration via EmailJS
 import emailjs from '@emailjs/browser';
 
-// Default configuration place-holders for EmailJS / Resend
-const EMAILJS_SERVICE_ID = import.meta.env.VITE_EMAILJS_SERVICE_ID || 'service_parlasport';
-const EMAILJS_TEMPLATE_ID = import.meta.env.VITE_EMAILJS_TEMPLATE_ID || 'template_session_notice';
-const EMAILJS_PUBLIC_KEY = import.meta.env.VITE_EMAILJS_PUBLIC_KEY || 'demo_public_key';
+const EMAILJS_SERVICE_ID = import.meta.env.VITE_EMAILJS_SERVICE_ID || 'service_7zgx9nt';
+const EMAILJS_TEMPLATE_ID = import.meta.env.VITE_EMAILJS_TEMPLATE_ID || 'template_7refn8b';
+const EMAILJS_PUBLIC_KEY = import.meta.env.VITE_EMAILJS_PUBLIC_KEY || '';
 
 /**
- * Envia un correo electronico al entrenador asignado o reasignado
+ * Notifica a un profesor mediante EmailJS con los parámetros del Template
+ * @param {string} email - Correo del profesor (email_profesor)
+ * @param {string} nombre - Nombre del profesor (nombre_profesor)
+ * @param {string} fecha - Fecha y horario de la sesión (fecha_sesion)
+ * @param {string} categoria - Categoría o tipo de sesión (categoria_equipo)
+ */
+export function notificarProfesor(email, nombre, fecha, categoria) {
+  // 1. Preparamos los parámetros exactos definidos en el Template
+  const templateParams = {
+    email_profesor: email,       // Destinatario
+    nombre_profesor: nombre,     // Saludo en el mensaje
+    fecha_sesion: fecha,         // Detalle de la fecha
+    categoria_equipo: categoria  // Detalle de la categoría
+  };
+
+  // 2. Ejecutamos el envío con tus IDs reales
+  return emailjs.send(
+    EMAILJS_SERVICE_ID,
+    EMAILJS_TEMPLATE_ID,
+    templateParams,
+    EMAILJS_PUBLIC_KEY || undefined
+  )
+  .then(function(response) {
+    console.log('[EmailJS] ✅ Notificación enviada al profe con éxito:', response.status, response.text);
+    return { success: true, status: response.status, text: response.text };
+  }, function(error) {
+    console.error('[EmailJS] ❌ Error al enviar la notificación:', error);
+    return { success: false, error };
+  });
+}
+
+/**
+ * Envia un correo electrónico al entrenador asignado o reasignado
  */
 export const sendSessionAssignmentEmail = async ({
   coachName,
@@ -20,82 +51,41 @@ export const sendSessionAssignmentEmail = async ({
   isReassignment = false,
   previousCoachName = ''
 }) => {
-  const subject = isReassignment
-    ? `⚠️ Reasignación de Sesión (${sessionType}) - Parla Sport`
-    : `⚽ Nueva Sesión Asignada (${sessionType}) - Parla Sport`;
+  if (!coachEmail) return { success: false, reason: 'No coach email provided' };
 
-  const messageText = isReassignment
-    ? `Hola ${coachName}, se te ha reasignado una sesión por ausencia de ${previousCoachName || 'otro entrenador'}.\n` +
-      `Fecha: ${date} de ${startTime} a ${endTime}.\n` +
-      `Jugadores: ${playerNames.join(', ')}.\n` +
-      `Ingresa al sistema para ver sus Fichas Técnicas.`
-    : `Hola ${coachName}, tienes una nueva sesión programada.\n` +
-      `Fecha: ${date} de ${startTime} a ${endTime}.\n` +
-      `Jugadores: ${playerNames.join(', ')}.`;
+  const reassignText = isReassignment ? ` (Reasignado por ausencia de ${previousCoachName || 'otro profesor'})` : '';
+  const fechaDetalle = `${date} de ${startTime} a ${endTime}`;
+  const categoriaDetalle = `${sessionType || '1-1'}${reassignText} - Jugadores: ${playerNames ? playerNames.join(', ') : 'Asignados'}`;
 
-  console.log(`[EmailService] 📧 Intento de envío a: ${coachEmail} | Asunto: ${subject}`);
+  console.log(`[EmailService] 📧 Enviando notificación EmailJS a: ${coachEmail} (${coachName})`);
 
-  if (import.meta.env.VITE_EMAILJS_PUBLIC_KEY) {
-    try {
-      const templateParams = {
-        to_name: coachName,
-        to_email: coachEmail,
-        subject: subject,
-        session_type: sessionType,
-        session_date: date,
-        session_time: `${startTime} - ${endTime}`,
-        player_list: playerNames.join(', '),
-        message: messageText
-      };
-      
-      const response = await emailjs.send(
-        EMAILJS_SERVICE_ID,
-        EMAILJS_TEMPLATE_ID,
-        templateParams,
-        EMAILJS_PUBLIC_KEY
-      );
-      return { success: true, method: 'EmailJS', status: response.status };
-    } catch (error) {
-      console.warn('[EmailService] fallo en EmailJS, ejecutando simulación visual.', error);
-    }
-  }
-
-  return {
-    success: true,
-    method: 'Simulated Client Dispatch',
-    details: { coachEmail, subject, messageText }
-  };
+  return notificarProfesor(
+    coachEmail,
+    coachName || 'Profesor',
+    fechaDetalle,
+    categoriaDetalle
+  );
 };
 
 /**
- * Envia la notificacion / recordatorio semanal dominical a un entrenador para actualizar su horario
+ * Envia un recordatorio de disponibilidad al profesor
  */
 export const sendWeeklyAvailabilityReminderEmail = async ({ coachName, coachEmail }) => {
-  const subject = `🗓️ Recordatorio Semanal: Actualiza tus Días y Horarios Disponibles - Parla Sport`;
-  const messageText = `Hola ${coachName},\n\n` +
-    `Recuerda revisar y ajustar tus bloques de disponibilidad de días y horas para la próxima semana en el sistema CRM Parla Sport.\n` +
-    `Mantener tu horario al día permite a la academia programar tus entrenamientos 1-1, 1-2 y 1-3 sin choques.`;
+  if (!coachEmail) return { success: false };
 
-  console.log(`[EmailService] 🗓️ Envió de recordatorio semanal de disponibilidad a: ${coachEmail}`);
+  const fechaDetalle = 'Recordatorio de Disponibilidad Semanal';
+  const categoriaDetalle = 'Actualización de Horarios Parla Sport';
 
-  if (import.meta.env.VITE_EMAILJS_PUBLIC_KEY) {
-    try {
-      const templateParams = {
-        to_name: coachName,
-        to_email: coachEmail,
-        subject: subject,
-        message: messageText
-      };
-      await emailjs.send(EMAILJS_SERVICE_ID, EMAILJS_TEMPLATE_ID, templateParams, EMAILJS_PUBLIC_KEY);
-      return { success: true, method: 'EmailJS' };
-    } catch (error) {
-      console.warn('[EmailService] fallo enviando recordatorio semanal vía EmailJS.', error);
-    }
-  }
+  return notificarProfesor(
+    coachEmail,
+    coachName || 'Profesor',
+    fechaDetalle,
+    categoriaDetalle
+  );
+};
 
-  return {
-    success: true,
-    method: 'Simulated Client Dispatch',
-    details: { coachEmail, subject, messageText }
-  };
+export default {
+  notificarProfesor,
+  sendSessionAssignmentEmail,
+  sendWeeklyAvailabilityReminderEmail
 };
