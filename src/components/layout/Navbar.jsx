@@ -39,13 +39,14 @@ const Navbar = () => {
         flexWrap: 'wrap',
         gap: '16px'
       }}>
-        {/* Logo Oficial de Parla Sport Limpio */}
-        <div style={{ display: 'flex', alignItems: 'center' }}>
+        {/* Logo Oficial de Parla Sport + Campana de Notificaciones Fija en la Izquierda */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: '14px' }}>
           <img
             src="/logo.png"
             alt="Parla Sport Logo Oficial"
-            style={{ height: '52px', width: 'auto', objectFit: 'contain' }}
+            style={{ height: '48px', width: 'auto', objectFit: 'contain' }}
           />
+          <NotificationBell />
         </div>
 
         {/* User Profile Badge & Actions */}
@@ -113,9 +114,6 @@ const Navbar = () => {
               <Download size={14} /> Instalar PWA
             </button>
           )}
-
-          {/* Campana de Notificaciones */}
-          <NotificationBell />
         </div>
       </div>
     </header>
