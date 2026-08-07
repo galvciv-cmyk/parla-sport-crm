@@ -17,19 +17,22 @@ const translateAuthError = (code) => {
     case 'auth/invalid-email':
       return 'El correo electrónico no es válido.';
     case 'auth/user-not-found':
-    case 'auth/invalid-credential':
     case 'auth/wrong-password':
-      return 'Correo o contraseña incorrectos.';
+    case 'auth/invalid-credential':
+    case 'auth/invalid-login-credentials':
+      return 'Correo o contraseña incorrectos. Si no tienes cuenta aún, regístrate en la pestaña "Registrar Profesor".';
     case 'auth/email-already-in-use':
-      return 'Ya existe una cuenta registrada con este correo. Ve a la pestaña "Iniciar Sesión" e ingresa con tu contraseña.';
+      return 'Ya existe una cuenta registrada con este correo. Ve a la pestaña "Iniciar Sesión" e ingresa tu contraseña.';
     case 'auth/weak-password':
       return 'La contraseña debe tener al menos 6 caracteres.';
     case 'auth/operation-not-allowed':
-      return 'El inicio de sesión con Correo/Contraseña no está activado en la consola de Firebase.';
+      return 'El inicio de sesión con Correo/Contraseña no está activado en Firebase.';
     case 'auth/too-many-requests':
-      return 'Demasiados intentos. Espera un momento antes de volver a intentar.';
+      return 'Demasiados intentos fallidos. Por seguridad, espera un momento antes de intentar de nuevo.';
+    case 'auth/network-request-failed':
+      return 'Error de conexión a la red. Revisa tu conexión a Internet.';
     default:
-      return 'Ocurrió un error al procesar la solicitud. Inténtalo de nuevo.';
+      return 'No se pudo iniciar sesión. Verifica tu contraseña e inténtalo de nuevo.';
   }
 };
 
@@ -155,12 +158,40 @@ export const AuthProvider = ({ children }) => {
   }, []);
 
   const login = async (email, password) => {
+    const cleanEmail = (email || '').toLowerCase().trim();
+    const isMaster = cleanEmail === MASTER_ADMIN_EMAIL.toLowerCase();
+
     try {
-      await signInWithEmailAndPassword(auth, email.toLowerCase().trim(), password);
+      await signInWithEmailAndPassword(auth, cleanEmail, password);
       return { success: true };
     } catch (err) {
       console.error('[Firebase Auth Error]:', err.code, err.message);
-      return { success: false, error: translateAuthError(err.code) };
+
+      // Si es el Administrador Maestro y la cuenta no está registrada aún en Firebase Auth, registrarla automáticamente
+      if (isMaster && (err.code === 'auth/user-not-found' || err.code === 'auth/invalid-credential' || err.code === 'auth/invalid-login-credentials')) {
+        try {
+          const cred = await createUserWithEmailAndPassword(auth, cleanEmail, password);
+          const masterProfile = {
+            email: cleanEmail,
+            nombre: 'Administrador Maestro',
+            role: 'admin',
+            coachId: null
+          };
+          await setDoc(doc(db, 'users', cred.user.uid), masterProfile).catch(() => {});
+          updateSessionState({
+            uid: cred.user.uid,
+            email: cleanEmail,
+            nombre: 'Administrador Maestro',
+            role: 'admin',
+            coachId: null
+          });
+          return { success: true };
+        } catch (regErr) {
+          console.error('[Auth] Error al registrar automáticamente Admin Maestro:', regErr);
+        }
+      }
+
+      return { success: false, error: translateAuthError(err.code || err.message) };
     }
   };
 
