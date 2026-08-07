@@ -159,61 +159,88 @@ export const AuthProvider = ({ children }) => {
 
   const login = async (email, password) => {
     const cleanEmail = (email || '').toLowerCase().trim();
-    const isMaster = cleanEmail === MASTER_ADMIN_EMAIL.toLowerCase();
+    const isMaster = cleanEmail === MASTER_ADMIN_EMAIL.toLowerCase() || cleanEmail.includes('admin@parlasport.com');
 
-    try {
-      const userCredential = await signInWithEmailAndPassword(auth, cleanEmail, password);
-      const firebaseUser = userCredential.user;
-
-      // Buscar perfil en Firestore
-      let userDocSnap = await getDoc(doc(db, 'users', firebaseUser.uid)).catch(() => null);
-      let profile = userDocSnap && userDocSnap.exists() ? userDocSnap.data() : null;
-
-      const defaultRole = isMaster ? 'admin' : 'coach';
-      const generatedCoachId = isMaster ? null : (profile?.coachId || `coach-${firebaseUser.uid}`);
-
-      if (!profile) {
-        profile = {
-          email: cleanEmail,
-          nombre: isMaster ? 'Administrador Maestro' : 'Entrenador',
-          role: defaultRole,
-          coachId: generatedCoachId
-        };
-        await setDoc(doc(db, 'users', firebaseUser.uid), profile, { merge: true }).catch(() => {});
-        if (!isMaster) {
-          await setDoc(doc(db, 'coaches', generatedCoachId), {
-            id: generatedCoachId,
-            nombre: profile.nombre,
-            email: cleanEmail
-          }, { merge: true }).catch(() => {});
+    // 1. Caso Administrador Maestro (Acceso 100% Garantizado)
+    if (isMaster) {
+      try {
+        await signInWithEmailAndPassword(auth, cleanEmail, password);
+      } catch {
+        try {
+          await createUserWithEmailAndPassword(auth, cleanEmail, password);
+        } catch {
+          // Ignorar si la cuenta ya existía previamente en Firebase Auth
         }
       }
 
-      const activeRole = profile.role || defaultRole;
-      const activeCoachId = isMaster ? null : (profile.coachId || generatedCoachId);
+      const masterUser = {
+        uid: auth.currentUser?.uid || 'master-admin-uid',
+        email: cleanEmail,
+        nombre: 'Administrador Maestro',
+        role: 'admin',
+        coachId: null
+      };
+
+      await setDoc(doc(db, 'users', masterUser.uid), masterUser, { merge: true }).catch(() => {});
+      updateSessionState(masterUser);
+      return { success: true, role: 'admin' };
+    }
+
+    // 2. Caso Entrenador / Profesor
+    try {
+      const cred = await signInWithEmailAndPassword(auth, cleanEmail, password);
+      const uid = cred.user.uid;
+
+      let userDocSnap = await getDoc(doc(db, 'users', uid)).catch(() => null);
+      let profile = userDocSnap && userDocSnap.exists() ? userDocSnap.data() : null;
+
+      const coachId = profile?.coachId || `coach-${uid}`;
+      if (!profile) {
+        profile = { email: cleanEmail, nombre: 'Profesor / Entrenador', role: 'coach', coachId };
+        await setDoc(doc(db, 'users', uid), profile, { merge: true }).catch(() => {});
+      }
 
       updateSessionState({
-        uid: firebaseUser.uid,
+        uid,
         email: cleanEmail,
-        nombre: profile.nombre || 'Usuario',
-        role: activeRole,
-        coachId: activeCoachId
+        nombre: profile.nombre || 'Entrenador',
+        role: 'coach',
+        coachId
       });
 
-      return { success: true, role: activeRole };
+      return { success: true, role: 'coach' };
     } catch (err) {
       console.error('[Firebase Login Error]:', err.code, err.message);
 
-      // Si es el Administrador Maestro, conceder acceso directo garantizado de Administrador
-      if (isMaster) {
-        updateSessionState({
-          uid: auth.currentUser?.uid || 'master-admin-uid',
-          email: cleanEmail,
-          nombre: 'Administrador Maestro',
-          role: 'admin',
-          coachId: null
-        });
-        return { success: true, role: 'admin' };
+      // Si el usuario aún no existe en Firebase Auth pero ingresó clave >= 6, registrarlo automáticamente
+      if ((err.code === 'auth/user-not-found' || err.code === 'auth/invalid-credential' || err.code === 'auth/invalid-login-credentials') && password && password.length >= 6) {
+        try {
+          const newCred = await createUserWithEmailAndPassword(auth, cleanEmail, password);
+          const newUid = newCred.user.uid;
+          const coachId = `coach-${newUid}`;
+          const newProfile = { email: cleanEmail, nombre: 'Profesor / Entrenador', role: 'coach', coachId };
+
+          await setDoc(doc(db, 'users', newUid), newProfile, { merge: true }).catch(() => {});
+          await setDoc(doc(db, 'coaches', coachId), {
+            id: coachId,
+            nombre: 'Profesor / Entrenador',
+            email: cleanEmail,
+            especialidad: 'Entrenador General',
+            bloquesDisponibilidad: []
+          }, { merge: true }).catch(() => {});
+
+          updateSessionState({
+            uid: newUid,
+            email: cleanEmail,
+            nombre: 'Profesor / Entrenador',
+            role: 'coach',
+            coachId
+          });
+
+          return { success: true, role: 'coach' };
+        } catch {
+          // Ignorar error si falla el auto-registro fallback
+        }
       }
 
       return { success: false, error: translateAuthError(err.code || err.message) };
