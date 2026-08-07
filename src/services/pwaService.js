@@ -59,8 +59,43 @@ export const requestNotificationPermission = async () => {
   return false;
 };
 
+const playNotificationSound = () => {
+  try {
+    const AudioContext = window.AudioContext || window.webkitAudioContext;
+    if (!AudioContext) return;
+    
+    const audioCtx = new AudioContext();
+    if (audioCtx.state === 'suspended') {
+      audioCtx.resume();
+    }
+    
+    // Generar un sonido de "Ding" agradable para la notificación
+    const osc = audioCtx.createOscillator();
+    const gainNode = audioCtx.createGain();
+    
+    osc.type = 'sine';
+    osc.frequency.setValueAtTime(587.33, audioCtx.currentTime); // D5
+    osc.frequency.exponentialRampToValueAtTime(880, audioCtx.currentTime + 0.1); // A5
+    
+    gainNode.gain.setValueAtTime(0, audioCtx.currentTime);
+    gainNode.gain.linearRampToValueAtTime(0.3, audioCtx.currentTime + 0.05);
+    gainNode.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.5);
+    
+    osc.connect(gainNode);
+    gainNode.connect(audioCtx.destination);
+    
+    osc.start(audioCtx.currentTime);
+    osc.stop(audioCtx.currentTime + 0.5);
+  } catch (e) {
+    console.warn('[PWA] Fallo al reproducir sonido:', e);
+  }
+};
+
 export const triggerLocalPushNotification = (title, body) => {
   if (!('Notification' in window)) return;
+
+  // Reproducir sonido nativo si la app está en primer plano
+  playNotificationSound();
 
   const dispatchNotification = () => {
     try {
@@ -71,15 +106,17 @@ export const triggerLocalPushNotification = (title, body) => {
             body,
             icon: '/favicon.svg',
             badge: '/favicon.svg',
-            vibrate: [100, 50, 100],
-            tag: 'parla-sport-notice'
+            vibrate: [200, 100, 200, 100, 200],
+            silent: false,
+            requireInteraction: true,
+            tag: 'parla-sport-notice-' + Date.now()
           });
         }).catch(() => {
-          new Notification(title, { body, icon: '/favicon.svg' });
+          new Notification(title, { body, icon: '/favicon.svg', silent: false });
         });
       } else {
         // Notificación estándar web/escritorio
-        new Notification(title, { body, icon: '/favicon.svg' });
+        new Notification(title, { body, icon: '/favicon.svg', silent: false });
       }
     } catch (err) {
       console.warn('[PWA] Fallo al mostrar notificación push:', err);
