@@ -21,7 +21,7 @@ const Sidebar = ({ activeTab, setActiveTab }) => {
   const currentMenu = isAdmin ? adminMenu : coachMenu;
 
   return (
-    <aside style={{
+    <aside className="sidebar-container" style={{
       width: '240px',
       flexShrink: 0,
       background: 'rgba(15, 23, 42, 0.6)',
@@ -31,7 +31,7 @@ const Sidebar = ({ activeTab, setActiveTab }) => {
       flexDirection: 'column',
       gap: '8px'
     }}>
-      <div style={{
+      <div className="sidebar-header" style={{
         padding: '8px 12px',
         fontSize: '0.72rem',
         fontWeight: 700,
@@ -49,6 +49,7 @@ const Sidebar = ({ activeTab, setActiveTab }) => {
           <button
             key={item.id}
             onClick={() => setActiveTab(item.id)}
+            className={isActive ? 'active' : ''}
             style={{
               display: 'flex',
               alignItems: 'center',

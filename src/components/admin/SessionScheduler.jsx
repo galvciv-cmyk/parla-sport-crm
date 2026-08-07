@@ -164,7 +164,7 @@ const SessionScheduler = () => {
       </div>
 
       {/* Grid Principal: Formulario + Sesiones Existentes */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'minmax(320px, 1fr) 1.2fr', gap: '24px' }}>
+      <div className="scheduler-grid" style={{ display: 'grid', gridTemplateColumns: 'minmax(300px, 1fr) 1.2fr', gap: '24px' }}>
         
         {/* FORMULARIO DE AGENDAMIENTO */}
         <div className="glass-card" style={{ padding: '20px' }}>

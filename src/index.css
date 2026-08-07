@@ -319,3 +319,84 @@ select option {
 .pulse-glow {
   animation: pulseGlow 2.5s infinite;
 }
+
+/* --- RESPONSIVE MEDIA QUERIES & MOBILE DESIGN SYSTEM --- */
+
+@media (max-width: 768px) {
+  .app-container {
+    flex-direction: column !important;
+  }
+
+  .sidebar-container {
+    width: 100% !important;
+    border-right: none !important;
+    border-bottom: 1px solid rgba(212, 175, 55, 0.25) !important;
+    padding: 10px 12px !important;
+    flex-direction: row !important;
+    overflow-x: auto !important;
+    white-space: nowrap !important;
+    gap: 8px !important;
+    -webkit-overflow-scrolling: touch;
+    background: rgba(10, 22, 51, 0.95) !important;
+  }
+
+  .sidebar-header {
+    display: none !important;
+  }
+
+  .sidebar-container button {
+    flex-shrink: 0 !important;
+    width: auto !important;
+    padding: 10px 14px !important;
+    font-size: 0.82rem !important;
+    border-left: none !important;
+    border-bottom: 3px solid transparent !important;
+    border-radius: 10px !important;
+  }
+
+  .sidebar-container button.active {
+    border-bottom: 3px solid #FBBF24 !important;
+    background: rgba(245, 158, 11, 0.15) !important;
+  }
+
+  .main-content {
+    padding: 16px 12px !important;
+  }
+
+  .glass-panel {
+    padding: 16px 14px !important;
+    border-radius: 14px !important;
+  }
+
+  .glass-modal {
+    width: 94% !important;
+    max-width: 100% !important;
+    padding: 24px 18px !important;
+    margin: 12px auto !important;
+  }
+
+  /* Grids responsivos de 1 sola columna en dispositivos móviles */
+  .grid-cols-mobile-1 {
+    grid-template-columns: 1fr !important;
+  }
+
+  .scheduler-grid {
+    grid-template-columns: 1fr !important;
+  }
+
+  /* Tablas con scroll horizontal suave en móviles */
+  .table-responsive-container {
+    overflow-x: auto !important;
+    -webkit-overflow-scrolling: touch;
+  }
+}
+
+@media (min-width: 769px) and (max-width: 1024px) {
+  .sidebar-container {
+    width: 200px !important;
+  }
+
+  .main-content {
+    padding: 20px 16px !important;
+  }
+}

@@ -46,10 +46,10 @@ const MainLayout = ({ defaultTab }) => {
     <div style={{ display: 'flex', flexDirection: 'column', minHeight: '100vh', backgroundColor: '#060D1E' }}>
       <Navbar />
 
-      <div style={{ display: 'flex', flex: 1, maxWidth: '1400px', width: '100%', margin: '0 auto' }}>
+      <div className="app-container" style={{ display: 'flex', flex: 1, maxWidth: '1400px', width: '100%', margin: '0 auto' }}>
         <Sidebar activeTab={activeTab} setActiveTab={setActiveTab} />
 
-        <main style={{ flex: 1, padding: '24px', overflowY: 'auto' }}>
+        <main className="main-content" style={{ flex: 1, padding: '24px', overflowY: 'auto' }}>
           {activeTab === 'dashboard' && <DashboardOverview setActiveTab={setActiveTab} />}
           {activeTab === 'players' && <PlayerManager />}
           {activeTab === 'coaches' && <CoachManager />}
