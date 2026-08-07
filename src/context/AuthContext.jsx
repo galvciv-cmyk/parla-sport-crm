@@ -34,15 +34,35 @@ const translateAuthError = (code) => {
 };
 
 export const AuthProvider = ({ children }) => {
-  const [currentUser, setCurrentUser] = useState(null);
-  const [authLoading, setAuthLoading] = useState(true);
+  const [currentUser, setCurrentUser] = useState(() => {
+    try {
+      const saved = localStorage.getItem('parla_user_session');
+      return saved ? JSON.parse(saved) : null;
+    } catch {
+      return null;
+    }
+  });
+
+  const [authLoading, setAuthLoading] = useState(() => {
+    return !localStorage.getItem('parla_user_session');
+  });
+
   const isRegisteringRef = useRef(false);
+
+  const updateSessionState = (userData) => {
+    setCurrentUser(userData);
+    setAuthLoading(false);
+    if (userData) {
+      localStorage.setItem('parla_user_session', JSON.stringify(userData));
+    } else {
+      localStorage.removeItem('parla_user_session');
+    }
+  };
 
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
       if (!firebaseUser) {
-        setCurrentUser(null);
-        setAuthLoading(false);
+        updateSessionState(null);
         return;
       }
 
@@ -108,15 +128,13 @@ export const AuthProvider = ({ children }) => {
         }, { merge: true }).catch(() => {});
       }
 
-      setCurrentUser({
+      updateSessionState({
         uid: firebaseUser.uid,
         email: cleanEmail,
         nombre: profile.nombre || (isMaster ? 'Administrador Maestro' : 'Entrenador'),
         role: profile.role || defaultRole,
         coachId: isMaster ? null : (profile.coachId || generatedCoachId)
       });
-
-      setAuthLoading(false);
     });
 
     return unsubscribe;
@@ -176,7 +194,7 @@ export const AuthProvider = ({ children }) => {
         }
       }
 
-      setCurrentUser({ uid, email: cleanEmail, nombre, role, coachId });
+      updateSessionState({ uid, email: cleanEmail, nombre, role, coachId });
       return { success: true, role, coachId };
     } catch (err) {
       console.error('[Firebase Auth Error]:', err.code, err.message);
@@ -186,7 +204,10 @@ export const AuthProvider = ({ children }) => {
     }
   };
 
-  const logout = () => signOut(auth);
+  const logout = async () => {
+    updateSessionState(null);
+    await signOut(auth);
+  };
 
   return (
     <AuthContext.Provider value={{

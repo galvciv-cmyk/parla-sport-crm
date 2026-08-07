@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { CalendarPlus, RefreshCw, CheckCircle, Trash2 } from 'lucide-react';
 import { useData } from '../../context/DataContext';
-import { getAvailableCoaches, getSpanishDayName, formatTo12Hour, addOneHour, generateTimeOptions } from '../../utils/scheduling';
+import { getAvailableCoaches, getSpanishDayName, formatTo12Hour, addOneHour, generateTimeOptions, hasPlayerSessionConflict } from '../../utils/scheduling';
 import { STATUS_CONFIG } from '../../utils/mockData';
 import Modal from '../common/Modal';
 
@@ -299,25 +299,50 @@ const SessionScheduler = () => {
               <div style={{ maxHeight: '160px', overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: '6px', background: 'rgba(15,23,42,0.6)', padding: '10px', borderRadius: '10px' }}>
                 {players.map(p => {
                   const isSelected = sessionData.jugadoresIds.includes(p.id);
+                  const playerConflict = hasPlayerSessionConflict(
+                    sessions,
+                    [p.id],
+                    sessionData.fecha,
+                    sessionData.horaInicio,
+                    sessionData.horaFin
+                  );
+
                   return (
                     <div
                       key={p.id}
-                      onClick={() => handlePlayerToggle(p.id)}
+                      onClick={() => {
+                        if (playerConflict.conflict && !isSelected) {
+                          alert(`⚠️ El jugador ${p.nombre} ya tiene otra clase agendada el ${sessionData.fecha} entre las ${formatTo12Hour(sessionData.horaInicio)} y ${formatTo12Hour(sessionData.horaFin)}.`);
+                          return;
+                        }
+                        handlePlayerToggle(p.id);
+                      }}
                       style={{
                         display: 'flex',
                         alignItems: 'center',
                         justifyContent: 'space-between',
                         padding: '8px 12px',
                         borderRadius: '8px',
-                        background: isSelected ? 'rgba(16, 185, 129, 0.15)' : 'transparent',
-                        border: isSelected ? '1px solid rgba(16, 185, 129, 0.4)' : '1px solid transparent',
-                        cursor: 'pointer'
+                        background: isSelected
+                          ? 'rgba(16, 185, 129, 0.15)'
+                          : (playerConflict.conflict ? 'rgba(239, 68, 68, 0.12)' : 'transparent'),
+                        border: isSelected
+                          ? '1px solid rgba(16, 185, 129, 0.4)'
+                          : (playerConflict.conflict ? '1px solid rgba(239, 68, 68, 0.35)' : '1px solid transparent'),
+                        cursor: playerConflict.conflict && !isSelected ? 'not-allowed' : 'pointer',
+                        opacity: playerConflict.conflict && !isSelected ? 0.65 : 1
                       }}
                     >
-                      <span style={{ fontSize: '0.85rem', color: isSelected ? '#F8FAFC' : '#CBD5E1', fontWeight: isSelected ? 700 : 400 }}>
+                      <span style={{ fontSize: '0.85rem', color: isSelected ? '#F8FAFC' : (playerConflict.conflict ? '#F87171' : '#CBD5E1'), fontWeight: isSelected ? 700 : 400 }}>
                         ⚽ {p.nombre} ({p.posicion})
                       </span>
+
                       {isSelected && <CheckCircle size={16} color="#10B981" />}
+                      {playerConflict.conflict && !isSelected && (
+                        <span className="badge badge-danger" style={{ fontSize: '0.65rem' }}>
+                          ⚠️ Choque de Horario
+                        </span>
+                      )}
                     </div>
                   );
                 })}
