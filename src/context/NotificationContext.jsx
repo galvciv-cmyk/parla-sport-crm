@@ -1,30 +1,29 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
-import { sendSessionAssignmentEmail, sendWeeklyAvailabilityReminderEmail } from '../services/emailService';
+import { doc, setDoc, deleteDoc, onSnapshot, collection } from 'firebase/firestore';
+import { db } from '../services/firebase';
+import { sendSessionAssignmentEmail } from '../services/emailService';
 import { triggerLocalPushNotification } from '../services/pwaService';
 
 const NotificationContext = createContext();
 
 export const NotificationProvider = ({ children }) => {
-  const [notifications, setNotifications] = useState(() => {
-    const saved = localStorage.getItem('parla_notifications');
-    return saved ? JSON.parse(saved) : [
-      {
-        id: 'notif-init-1',
-        title: 'Bienvenido a Parla Sport CRM',
-        message: 'Sistema listo para gestionar 1-1, 1-2, 1-3, ausencias y notificaciones de disponibilidad.',
-        recipientCoachId: 'coach-1',
-        timestamp: new Date().toISOString(),
-        read: false,
-        type: 'info'
-      }
-    ];
-  });
+  const [notifications, setNotifications] = useState([]);
 
+  // Escuchar notificaciones en tiempo real desde Firestore
   useEffect(() => {
-    localStorage.setItem('parla_notifications', JSON.stringify(notifications));
-  }, [notifications]);
+    const unsub = onSnapshot(collection(db, 'notifications'), (snapshot) => {
+      const firestoreNotifs = snapshot.docs.map(d => ({ id: d.id, ...d.data() }));
+      // Ordenar por fecha descendente
+      firestoreNotifs.sort((a, b) => new Date(b.timestamp || 0) - new Date(a.timestamp || 0));
+      setNotifications(firestoreNotifs);
+    }, (err) => {
+      console.warn('[NotificationContext] Error escuchando Firestore notifications:', err);
+    });
 
-  // Notificación de Asignación / Reasignación de Sesión (In-App, Email y Push)
+    return () => unsub();
+  }, []);
+
+  // Notificación de Asignación / Reasignación de Sesión (para el Entrenador Y para el Admin)
   const notifySessionAssignment = async ({
     coach,
     session,
@@ -35,31 +34,57 @@ export const NotificationProvider = ({ children }) => {
     if (!coach) return;
 
     const playerNames = players.map(p => p.nombre);
-    const title = isReassignment
+    const coachName = coach.nombre || 'Entrenador';
+    const coachEmail = (coach.email || '').trim().toLowerCase();
+
+    // 1. Notificación para el ENTRENADOR
+    const titleCoach = isReassignment
       ? `⚠️ Reasignación: Sesión ${session.tipo}`
       : `⚽ Nueva Sesión Asignada (${session.tipo})`;
 
-    const message = isReassignment
+    const messageCoach = isReassignment
       ? `Se te ha reasignado la sesión del ${session.fecha} (${session.horaInicio}-${session.horaFin}) por ausencia de ${previousCoachName || 'profesor'}. Jugadores: ${playerNames.join(', ')}.`
       : `Nueva sesión programada para el ${session.fecha} (${session.horaInicio}-${session.horaFin}). Jugadores: ${playerNames.join(', ')}.`;
 
-    // 1. In-App Notification
-    const newNotif = {
-      id: `notif-${Date.now()}`,
-      title,
-      message,
+    const notifCoach = {
+      id: `notif-${Date.now()}-coach`,
+      title: titleCoach,
+      message: messageCoach,
       recipientCoachId: coach.id,
+      recipientEmail: coachEmail,
+      recipientRole: 'coach',
       timestamp: new Date().toISOString(),
       read: false,
       type: isReassignment ? 'warning' : 'success'
     };
 
-    setNotifications(prev => [newNotif, ...prev]);
+    // 2. Notificación para el ADMINISTRADOR
+    const titleAdmin = isReassignment
+      ? `⚠️ Sesión Reasignada a ${coachName}`
+      : `📋 Sesión Agendada Exitosamente`;
 
-    // 2. Email Notification
+    const messageAdmin = isReassignment
+      ? `La sesión del ${session.fecha} (${session.horaInicio}-${session.horaFin}) fue reasignada a ${coachName}.`
+      : `Se agendó la clase ${session.tipo} con ${coachName} para el ${session.fecha} (${session.horaInicio}-${session.horaFin}). Jugadores: ${playerNames.join(', ')}.`;
+
+    const notifAdmin = {
+      id: `notif-${Date.now()}-admin`,
+      title: titleAdmin,
+      message: messageAdmin,
+      recipientRole: 'admin',
+      timestamp: new Date().toISOString(),
+      read: false,
+      type: 'info'
+    };
+
+    // Guardar en Firestore para sincronización en tiempo real
+    await setDoc(doc(db, 'notifications', notifCoach.id), notifCoach).catch(() => {});
+    await setDoc(doc(db, 'notifications', notifAdmin.id), notifAdmin).catch(() => {});
+
+    // Enviar correo electrónico
     await sendSessionAssignmentEmail({
-      coachName: coach.nombre,
-      coachEmail: coach.email,
+      coachName,
+      coachEmail,
       sessionType: session.tipo,
       date: session.fecha,
       startTime: session.horaInicio,
@@ -67,65 +92,70 @@ export const NotificationProvider = ({ children }) => {
       playerNames,
       isReassignment,
       previousCoachName
-    });
+    }).catch(() => {});
 
-    // 3. PWA Push Notification
-    triggerLocalPushNotification(title, message);
+    // Disparar Push PWA
+    triggerLocalPushNotification(titleCoach, messageCoach);
   };
 
-  // Recordatorio semanal de disponibilidad dominical para un entrenador
-  const sendWeeklyAvailabilityReminder = async (coach) => {
-    if (!coach) return;
-
-    const title = '🗓️ Recordatorio Semanal: Disponibilidad Horaria';
-    const message = `Hola ${coach.nombre}, recuerda revisar y actualizar tus días y bloques de horarios disponibles para la próxima semana.`;
-
-    const newNotif = {
-      id: `notif-weekly-${Date.now()}`,
-      title,
-      message,
-      recipientCoachId: coach.id,
+  // Notificación de Clase Finalizada por el Entrenador (dirigida al Admin)
+  const notifySessionCompleted = async ({ session, coachName }) => {
+    const notifAdmin = {
+      id: `notif-${Date.now()}-completed`,
+      title: `🟠 Entrenamiento Finalizado`,
+      message: `El profesor ${coachName || 'asignado'} ha finalizado la sesión del ${session.fecha} (${session.horaInicio}-${session.horaFin}). Lista para revisión y pago.`,
+      recipientRole: 'admin',
       timestamp: new Date().toISOString(),
       read: false,
-      type: 'info'
+      type: 'warning'
     };
 
-    setNotifications(prev => [newNotif, ...prev]);
+    await setDoc(doc(db, 'notifications', notifAdmin.id), notifAdmin).catch(() => {});
+    triggerLocalPushNotification(notifAdmin.title, notifAdmin.message);
+  };
 
-    await sendWeeklyAvailabilityReminderEmail({
-      coachName: coach.nombre,
-      coachEmail: coach.email
+  // Notificación de Clase Pagada por el Admin (dirigida al Entrenador)
+  const notifySessionPaid = async ({ session, coach }) => {
+    if (!coach) return;
+    const notifCoach = {
+      id: `notif-${Date.now()}-paid`,
+      title: `🟢 Pago de Clase Registrado`,
+      message: `Se ha registrado el pago de tu clase del ${session.fecha} (${session.horaInicio}-${session.horaFin}).`,
+      recipientCoachId: coach.id,
+      recipientEmail: (coach.email || '').trim().toLowerCase(),
+      recipientRole: 'coach',
+      timestamp: new Date().toISOString(),
+      read: false,
+      type: 'success'
+    };
+
+    await setDoc(doc(db, 'notifications', notifCoach.id), notifCoach).catch(() => {});
+  };
+
+  const markAsRead = async (id) => {
+    await setDoc(doc(db, 'notifications', id), { read: true }, { merge: true }).catch(() => {});
+  };
+
+  const markAllAsRead = async () => {
+    notifications.forEach(n => {
+      if (!n.read) {
+        setDoc(doc(db, 'notifications', n.id), { read: true }, { merge: true }).catch(() => {});
+      }
     });
-
-    triggerLocalPushNotification(title, message);
   };
 
-  const markAsRead = (id) => {
-    setNotifications(prev =>
-      prev.map(n => (n.id === id ? { ...n, read: true } : n))
-    );
-  };
-
-  const markAllAsRead = (coachId = null) => {
-    setNotifications(prev =>
-      prev.map(n => {
-        if (!coachId || n.recipientCoachId === coachId) {
-          return { ...n, read: true };
-        }
-        return n;
-      })
-    );
-  };
-
-  const clearNotifications = () => {
-    setNotifications([]);
+  const clearNotifications = async () => {
+    notifications.forEach(n => {
+      deleteDoc(doc(db, 'notifications', n.id)).catch(() => {});
+    });
   };
 
   return (
     <NotificationContext.Provider value={{
       notifications,
       notifySessionAssignment,
-      sendWeeklyAvailabilityReminder,
+      notifySessionCompleted,
+      notifySessionPaid,
       markAsRead,
       markAllAsRead,
       clearNotifications

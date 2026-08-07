@@ -5,14 +5,25 @@ import { useAuth } from '../../context/AuthContext';
 
 const NotificationBell = () => {
   const { notifications, markAsRead, markAllAsRead, clearNotifications } = useNotifications();
-  const { role, activeCoachId } = useAuth();
+  const { role, activeCoachId, currentUser } = useAuth();
   const [isOpen, setIsOpen] = useState(false);
   const dropdownRef = useRef(null);
 
-  // Filtrar notificaciones según el rol activo
+  const userEmail = (currentUser?.email || '').trim().toLowerCase();
+  const userCoachId = activeCoachId || (currentUser?.uid ? `coach-${currentUser.uid}` : '');
+
+  // Filtrar notificaciones según el rol activo y el destinatario
   const filteredNotifications = notifications.filter(n => {
-    if (role === 'admin') return true;
-    return n.recipientCoachId === activeCoachId;
+    if (role === 'admin') {
+      return n.recipientRole === 'admin' || n.recipientRole === 'all' || !n.recipientRole;
+    }
+    return (
+      (n.recipientCoachId && n.recipientCoachId === userCoachId) ||
+      (n.recipientCoachId && activeCoachId && n.recipientCoachId === activeCoachId) ||
+      (n.recipientEmail && n.recipientEmail.trim().toLowerCase() === userEmail) ||
+      n.recipientRole === 'coach' ||
+      n.recipientRole === 'all'
+    );
   });
 
   const unreadCount = filteredNotifications.filter(n => !n.read).length;

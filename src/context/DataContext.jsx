@@ -8,7 +8,7 @@ import { useNotifications } from './NotificationContext';
 const DataContext = createContext();
 
 export const DataProvider = ({ children }) => {
-  const { notifySessionAssignment } = useNotifications();
+  const { notifySessionAssignment, notifySessionCompleted, notifySessionPaid } = useNotifications();
 
   // 1. Estado de Jugadores
   const [players, setPlayers] = useState(() => {
@@ -230,6 +230,16 @@ export const DataProvider = ({ children }) => {
     await setDoc(doc(db, 'sessions', sessionId), { estado: newStatus }, { merge: true }).catch(err => {
       console.warn('[DataContext] Error al actualizar estado de sesión en Firestore:', err);
     });
+
+    // Disparar notificaciones en tiempo real según el cambio de estado
+    if (session) {
+      const coach = coaches.find(c => c.id === session.entrenadorId);
+      if (newStatus === 'realizada' && notifySessionCompleted) {
+        await notifySessionCompleted({ session, coachName: coach ? coach.nombre : session.entrenadorNombre }).catch(() => {});
+      } else if (newStatus === 'pagada' && notifySessionPaid && coach) {
+        await notifySessionPaid({ session, coach }).catch(() => {});
+      }
+    }
   };
 
   const deleteSession = async (sessionId) => {
