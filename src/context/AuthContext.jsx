@@ -223,18 +223,22 @@ export const AuthProvider = ({ children }) => {
     await signOut(auth).catch(() => {});
   };
 
-  const updateUserProfileName = async (newName) => {
-    if (!currentUser || !newName || !newName.trim()) return;
-    const cleanName = newName.trim();
-    const updatedUser = { ...currentUser, nombre: cleanName };
+  const updateUserProfile = async (updatedFields) => {
+    if (!currentUser || !updatedFields) return;
+    const updatedUser = { ...currentUser, ...updatedFields };
     updateSessionState(updatedUser);
 
     if (currentUser.uid) {
-      await setDoc(doc(db, 'users', currentUser.uid), { nombre: cleanName }, { merge: true }).catch(() => {});
+      await setDoc(doc(db, 'users', currentUser.uid), updatedFields, { merge: true }).catch(() => {});
     }
     if (currentUser.coachId) {
-      await setDoc(doc(db, 'coaches', currentUser.coachId), { nombre: cleanName }, { merge: true }).catch(() => {});
+      await setDoc(doc(db, 'coaches', currentUser.coachId), updatedFields, { merge: true }).catch(() => {});
     }
+  };
+
+  const updateUserProfileName = async (newName) => {
+    if (!newName || !newName.trim()) return;
+    await updateUserProfile({ nombre: newName.trim() });
   };
 
   return (
@@ -248,6 +252,7 @@ export const AuthProvider = ({ children }) => {
       login,
       register,
       logout,
+      updateUserProfile,
       updateUserProfileName,
       masterEmail: MASTER_ADMIN_EMAIL
     }}>

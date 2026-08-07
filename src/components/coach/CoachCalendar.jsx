@@ -18,11 +18,15 @@ const DAYS_BUTTONS = [
 ];
 
 const CoachCalendar = () => {
-  const { activeCoachId, currentUser, updateUserProfileName } = useAuth();
+  const { activeCoachId, currentUser, updateUserProfile } = useAuth();
   const { coaches, sessions, players, updateCoach } = useData();
 
-  const [isEditNameModalOpen, setIsEditNameModalOpen] = useState(false);
-  const [newCoachName, setNewCoachName] = useState('');
+  const [isEditProfileModalOpen, setIsEditProfileModalOpen] = useState(false);
+  const [editProfileData, setEditProfileData] = useState({
+    nombre: '',
+    fechaNacimiento: '',
+    telefono: ''
+  });
 
   const [selectedDays, setSelectedDays] = useState([]);
   const [timeRange, setTimeRange] = useState({ horaInicio: '08:00', horaFin: '12:00' });
@@ -168,12 +172,16 @@ const CoachCalendar = () => {
                 {activeCoach?.nombre || currentUser?.nombre}
               </h2>
 
-              {/* Botón del Lápiz para Editar Nombre */}
+              {/* Botón del Lápiz para Editar Perfil */}
               <button
                 type="button"
                 onClick={() => {
-                  setNewCoachName(activeCoach?.nombre || currentUser?.nombre || '');
-                  setIsEditNameModalOpen(true);
+                  setEditProfileData({
+                    nombre: activeCoach?.nombre || currentUser?.nombre || '',
+                    fechaNacimiento: activeCoach?.fechaNacimiento || currentUser?.fechaNacimiento || '',
+                    telefono: activeCoach?.telefono || currentUser?.telefono || ''
+                  });
+                  setIsEditProfileModalOpen(true);
                 }}
                 style={{
                   background: 'rgba(245, 158, 11, 0.15)',
@@ -188,15 +196,17 @@ const CoachCalendar = () => {
                   fontSize: '0.75rem',
                   fontWeight: 700
                 }}
-                title="Editar Nombre del Entrenador"
+                title="Editar Perfil del Entrenador"
               >
-                <Edit3 size={14} /> Editar
+                <Edit3 size={14} /> Editar Perfil
               </button>
 
               <span className="badge badge-blue">Mi Panel de Entrenador</span>
             </div>
             <p style={{ color: '#94A3B8', fontSize: '0.85rem', marginTop: '2px' }}>
-              {activeCoach?.especialidad} • {activeCoach?.email || currentUser?.email}
+              {activeCoach?.email || currentUser?.email}
+              {(activeCoach?.telefono || currentUser?.telefono) && ` • 📞 ${activeCoach?.telefono || currentUser?.telefono}`}
+              {(activeCoach?.fechaNacimiento || currentUser?.fechaNacimiento) && ` • 🎂 Nac: ${activeCoach?.fechaNacimiento || currentUser?.fechaNacimiento}`}
             </p>
           </div>
         </div>
@@ -487,34 +497,59 @@ const CoachCalendar = () => {
         </form>
       </Modal>
 
-      {/* Modal Editar Nombre del Entrenador */}
+      {/* Modal Editar Perfil del Entrenador */}
       <Modal
-        isOpen={isEditNameModalOpen}
-        onClose={() => setIsEditNameModalOpen(false)}
-        title="✏️ Editar Nombre del Entrenador"
+        isOpen={isEditProfileModalOpen}
+        onClose={() => setIsEditProfileModalOpen(false)}
+        title="✏️ Editar Perfil del Entrenador"
       >
         <form
           onSubmit={async (e) => {
             e.preventDefault();
-            if (newCoachName.trim()) {
-              await updateUserProfileName(newCoachName.trim());
-              if (activeCoach) {
-                await updateCoach(activeCoach.id, { nombre: newCoachName.trim() });
-              }
-              setIsEditNameModalOpen(false);
+            const cleanedData = {
+              nombre: editProfileData.nombre.trim(),
+              fechaNacimiento: editProfileData.fechaNacimiento,
+              telefono: editProfileData.telefono.trim()
+            };
+
+            await updateUserProfile(cleanedData);
+            if (activeCoach?.id) {
+              await updateCoach(activeCoach.id, cleanedData);
             }
+            setIsEditProfileModalOpen(false);
           }}
           style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}
         >
           <div>
-            <label className="input-label">Nuevo Nombre Completo</label>
+            <label className="input-label">Nombre Completo</label>
             <input
               type="text"
               required
               className="input-field"
               placeholder="Ej. Profesor Carlos Mendoza"
-              value={newCoachName}
-              onChange={(e) => setNewCoachName(e.target.value)}
+              value={editProfileData.nombre}
+              onChange={(e) => setEditProfileData({ ...editProfileData, nombre: e.target.value })}
+            />
+          </div>
+
+          <div>
+            <label className="input-label">Fecha de Nacimiento</label>
+            <input
+              type="date"
+              className="input-field"
+              value={editProfileData.fechaNacimiento}
+              onChange={(e) => setEditProfileData({ ...editProfileData, fechaNacimiento: e.target.value })}
+            />
+          </div>
+
+          <div>
+            <label className="input-label">Número de Teléfono / WhatsApp</label>
+            <input
+              type="tel"
+              className="input-field"
+              placeholder="+58 414 1234567"
+              value={editProfileData.telefono}
+              onChange={(e) => setEditProfileData({ ...editProfileData, telefono: e.target.value })}
             />
           </div>
 
@@ -522,12 +557,12 @@ const CoachCalendar = () => {
             <button
               type="button"
               className="btn-secondary"
-              onClick={() => setIsEditNameModalOpen(false)}
+              onClick={() => setIsEditProfileModalOpen(false)}
             >
               Cancelar
             </button>
             <button type="submit" className="btn-primary">
-              Guardar Nombre
+              Guardar Perfil
             </button>
           </div>
         </form>
