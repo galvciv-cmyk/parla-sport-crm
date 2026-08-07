@@ -39,7 +39,9 @@ export const DataProvider = ({ children }) => {
   useEffect(() => {
     const unsub = onSnapshot(collection(db, 'coaches'), (snapshot) => {
       const firestoreCoaches = snapshot.docs.map(d => ({ id: d.id, ...d.data() }));
-      setCoaches(firestoreCoaches);
+      if (firestoreCoaches.length > 0) {
+        setCoaches(firestoreCoaches);
+      }
     }, (err) => {
       console.warn('[DataContext] Error escuchando Firestore coaches:', err);
     });
@@ -51,7 +53,9 @@ export const DataProvider = ({ children }) => {
   useEffect(() => {
     const unsub = onSnapshot(collection(db, 'players'), (snapshot) => {
       const firestorePlayers = snapshot.docs.map(d => ({ id: d.id, ...d.data() }));
-      setPlayers(firestorePlayers);
+      if (firestorePlayers.length > 0) {
+        setPlayers(firestorePlayers);
+      }
     }, (err) => {
       console.warn('[DataContext] Error escuchando Firestore players:', err);
     });
@@ -63,7 +67,9 @@ export const DataProvider = ({ children }) => {
   useEffect(() => {
     const unsub = onSnapshot(collection(db, 'sessions'), (snapshot) => {
       const firestoreSessions = snapshot.docs.map(d => ({ id: d.id, ...d.data() }));
-      setSessions(firestoreSessions);
+      if (firestoreSessions.length > 0) {
+        setSessions(firestoreSessions);
+      }
     }, (err) => {
       console.warn('[DataContext] Error escuchando Firestore sessions:', err);
     });

@@ -61,83 +61,97 @@ export const AuthProvider = ({ children }) => {
 
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
-      if (!firebaseUser) {
-        updateSessionState(null);
-        return;
-      }
-
-      const cleanEmail = (firebaseUser.email || '').toLowerCase().trim();
-      const isMaster = cleanEmail === MASTER_ADMIN_EMAIL.toLowerCase();
-      const defaultRole = isMaster ? 'admin' : 'coach';
-
-      // Si el registro está en progreso, esperar a que setDoc cree el documento
-      if (isRegisteringRef.current) {
-        let attempts = 0;
-        let docSnap = await getDoc(doc(db, 'users', firebaseUser.uid)).catch(() => null);
-        while ((!docSnap || !docSnap.exists()) && attempts < 8 && isRegisteringRef.current) {
-          await new Promise(r => setTimeout(r, 400));
-          attempts++;
-          docSnap = await getDoc(doc(db, 'users', firebaseUser.uid)).catch(() => null);
-        }
-      }
-
-      let profile = null;
       try {
-        const userDocSnap = await getDoc(doc(db, 'users', firebaseUser.uid));
-        if (userDocSnap.exists()) {
-          profile = userDocSnap.data();
+        if (!firebaseUser) {
+          updateSessionState(null);
+          return;
         }
-      } catch (err) {
-        console.error('[Auth] Error leyendo documento Firestore users:', err);
-      }
 
-      const generatedCoachId = isMaster ? null : (profile?.coachId || `coach-${firebaseUser.uid}`);
+        const cleanEmail = (firebaseUser.email || '').toLowerCase().trim();
+        const isMaster = cleanEmail === MASTER_ADMIN_EMAIL.toLowerCase();
+        const defaultRole = isMaster ? 'admin' : 'coach';
 
-      // Auto-reparación: si existe en Auth pero sin documento en Firestore
-      if (!profile) {
-        profile = {
-          email: cleanEmail,
-          nombre: isMaster ? 'Administrador Maestro' : (firebaseUser.displayName || 'Profesor / Entrenador'),
-          role: defaultRole,
-          coachId: generatedCoachId
-        };
-        try {
-          await setDoc(doc(db, 'users', firebaseUser.uid), profile);
-          if (!isMaster) {
-            await setDoc(doc(db, 'coaches', generatedCoachId), {
-              id: generatedCoachId,
-              nombre: profile.nombre,
-              email: cleanEmail,
-              telefono: '',
-              especialidad: 'Entrenador General',
-              foto: '',
-              bloquesDisponibilidad: [],
-              fechaRegistro: new Date().toISOString().split('T')[0]
-            }, { merge: true });
+        // Si el registro está en progreso, esperar a que setDoc cree el documento
+        if (isRegisteringRef.current) {
+          let attempts = 0;
+          let docSnap = await getDoc(doc(db, 'users', firebaseUser.uid)).catch(() => null);
+          while ((!docSnap || !docSnap.exists()) && attempts < 8 && isRegisteringRef.current) {
+            await new Promise(r => setTimeout(r, 400));
+            attempts++;
+            docSnap = await getDoc(doc(db, 'users', firebaseUser.uid)).catch(() => null);
           }
-        } catch (setErr) {
-          console.warn('[Auth] No se pudo escribir perfil en Firestore:', setErr);
         }
-      } else if (!isMaster && !profile.coachId) {
-        profile.coachId = generatedCoachId;
-        setDoc(doc(db, 'users', firebaseUser.uid), { coachId: generatedCoachId }, { merge: true }).catch(() => {});
-        setDoc(doc(db, 'coaches', generatedCoachId), {
-          id: generatedCoachId,
-          nombre: profile.nombre || 'Entrenador',
-          email: cleanEmail
-        }, { merge: true }).catch(() => {});
-      }
 
-      updateSessionState({
-        uid: firebaseUser.uid,
-        email: cleanEmail,
-        nombre: profile.nombre || (isMaster ? 'Administrador Maestro' : 'Entrenador'),
-        role: profile.role || defaultRole,
-        coachId: isMaster ? null : (profile.coachId || generatedCoachId)
-      });
+        let profile = null;
+        try {
+          const userDocSnap = await getDoc(doc(db, 'users', firebaseUser.uid));
+          if (userDocSnap.exists()) {
+            profile = userDocSnap.data();
+          }
+        } catch (err) {
+          console.error('[Auth] Error leyendo documento Firestore users:', err);
+        }
+
+        const generatedCoachId = isMaster ? null : (profile?.coachId || `coach-${firebaseUser.uid}`);
+
+        // Auto-reparación: si existe en Auth pero sin documento en Firestore
+        if (!profile) {
+          profile = {
+            email: cleanEmail,
+            nombre: isMaster ? 'Administrador Maestro' : (firebaseUser.displayName || 'Profesor / Entrenador'),
+            role: defaultRole,
+            coachId: generatedCoachId
+          };
+          try {
+            await setDoc(doc(db, 'users', firebaseUser.uid), profile);
+            if (!isMaster) {
+              await setDoc(doc(db, 'coaches', generatedCoachId), {
+                id: generatedCoachId,
+                nombre: profile.nombre,
+                email: cleanEmail,
+                telefono: '',
+                especialidad: 'Entrenador General',
+                foto: '',
+                bloquesDisponibilidad: [],
+                fechaRegistro: new Date().toISOString().split('T')[0]
+              }, { merge: true });
+            }
+          } catch (setErr) {
+            console.warn('[Auth] No se pudo escribir perfil en Firestore:', setErr);
+          }
+        } else if (!isMaster && !profile.coachId) {
+          profile.coachId = generatedCoachId;
+          setDoc(doc(db, 'users', firebaseUser.uid), { coachId: generatedCoachId }, { merge: true }).catch(() => {});
+          setDoc(doc(db, 'coaches', generatedCoachId), {
+            id: generatedCoachId,
+            nombre: profile.nombre || 'Entrenador',
+            email: cleanEmail
+          }, { merge: true }).catch(() => {});
+        }
+
+        updateSessionState({
+          uid: firebaseUser.uid,
+          email: cleanEmail,
+          nombre: profile.nombre || (isMaster ? 'Administrador Maestro' : 'Entrenador'),
+          role: profile.role || defaultRole,
+          coachId: isMaster ? null : (profile.coachId || generatedCoachId)
+        });
+      } catch (err) {
+        console.error('[Auth] Error en onAuthStateChanged:', err);
+      } finally {
+        setAuthLoading(false);
+      }
     });
 
-    return unsubscribe;
+    // Temporizador de seguridad para evitar que la aplicación quede congelada en la pantalla de carga
+    const fallbackTimer = setTimeout(() => {
+      setAuthLoading(false);
+    }, 1200);
+
+    return () => {
+      unsubscribe();
+      clearTimeout(fallbackTimer);
+    };
   }, []);
 
   const login = async (email, password) => {
