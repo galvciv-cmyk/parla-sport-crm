@@ -17,87 +17,59 @@ import AcademyCalendar from './components/coach/AcademyCalendar';
 
 import { registerServiceWorker } from './services/pwaService';
 
+// Error Boundary silencioso: si ocurre algún desajuste, muestra la pantalla de Login directamente
 class ErrorBoundary extends Component {
   constructor(props) {
     super(props);
-    this.state = { hasError: false, error: null };
+    this.state = { hasError: false };
   }
 
-  static getDerivedStateFromError(error) {
-    return { hasError: true, error };
+  static getDerivedStateFromError() {
+    return { hasError: true };
   }
 
   componentDidCatch(error, errorInfo) {
-    console.error('[ErrorBoundary] Error en vista:', error, errorInfo);
+    console.error('[ErrorBoundary] Se capturó un desajuste:', error, errorInfo);
+    try {
+      localStorage.removeItem('parla_user_session');
+    } catch (e) {
+      console.warn(e);
+    }
   }
 
   render() {
     if (this.state.hasError) {
-      // Auto-limpieza en caso de incompatibilidad de caché
-      try {
-        localStorage.removeItem('parla_user_session');
-      } catch (e) {
-        console.warn(e);
-      }
-
-      return (
-        <div style={{
-          minHeight: '100vh',
-          display: 'flex',
-          flexDirection: 'column',
-          alignItems: 'center',
-          justifyContent: 'center',
-          backgroundColor: '#060D1E',
-          color: '#F8FAFC',
-          padding: '24px',
-          textAlign: 'center'
-        }}>
-          <div style={{
-            background: 'rgba(30, 41, 59, 0.85)',
-            border: '1px solid rgba(16, 185, 129, 0.4)',
-            borderRadius: '16px',
-            padding: '32px',
-            maxWidth: '500px',
-            boxShadow: '0 20px 40px rgba(0,0,0,0.6)'
-          }}>
-            <h2 style={{ color: '#34D399', fontSize: '1.4rem', fontWeight: 800, marginBottom: '12px' }}>
-              ⚽ Parla Sport CRM Sincronizado
-            </h2>
-            <p style={{ color: '#94A3B8', fontSize: '0.9rem', marginBottom: '20px' }}>
-              Se actualizó el sistema con los datos de producción más recientes. Haz clic en el botón para ingresar.
-            </p>
-            <button
-              onClick={() => {
-                window.location.reload();
-              }}
-              style={{
-                background: '#10B981',
-                color: '#000',
-                border: 'none',
-                padding: '12px 24px',
-                borderRadius: '10px',
-                fontWeight: '800',
-                fontSize: '0.9rem',
-                cursor: 'pointer'
-              }}
-            >
-              ✓ Ingresar al Sistema Sincronizado
-            </button>
-          </div>
-        </div>
-      );
+      return <LoginScreen />;
     }
     return this.props.children;
   }
 }
 
+const MainLayout = ({ defaultTab }) => {
+  const [activeTab, setActiveTab] = useState(defaultTab);
+
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', minHeight: '100vh', backgroundColor: '#060D1E' }}>
+      <Navbar />
+
+      <div style={{ display: 'flex', flex: 1, maxWidth: '1400px', width: '100%', margin: '0 auto' }}>
+        <Sidebar activeTab={activeTab} setActiveTab={setActiveTab} />
+
+        <main style={{ flex: 1, padding: '24px', overflowY: 'auto' }}>
+          {activeTab === 'dashboard' && <DashboardOverview setActiveTab={setActiveTab} />}
+          {activeTab === 'players' && <PlayerManager />}
+          {activeTab === 'coaches' && <CoachManager />}
+          {activeTab === 'scheduler' && <SessionScheduler />}
+          {activeTab === 'coach-calendar' && <CoachCalendar />}
+          {activeTab === 'general-calendar' && <AcademyCalendar />}
+        </main>
+      </div>
+    </div>
+  );
+};
+
 const MainContent = () => {
   const { currentUser, role, authLoading } = useAuth();
-  
-  const userRole = role || currentUser?.role || 'admin';
-  const [activeTab, setActiveTab] = useState(() => {
-    return userRole === 'coach' ? 'coach-calendar' : 'dashboard';
-  });
 
   if (authLoading) {
     return (
@@ -115,33 +87,16 @@ const MainContent = () => {
     );
   }
 
+  // Si no hay usuario en sesión, mostrar la pantalla de Login directamente
   if (!currentUser) {
     return <LoginScreen />;
   }
 
-  // Garantizar que la pestaña activa sea adecuada para el rol actual
-  const effectiveTab = (userRole === 'coach' && activeTab === 'dashboard') 
-    ? 'coach-calendar' 
-    : activeTab;
+  // Determinar rol y vista inicial (Admin -> Dashboard | Entrenador -> Mi Calendario)
+  const userRole = role || currentUser?.role || 'admin';
+  const initialTab = userRole === 'coach' ? 'coach-calendar' : 'dashboard';
 
-  return (
-    <div style={{ display: 'flex', flexDirection: 'column', minHeight: '100vh', backgroundColor: '#060D1E' }}>
-      <Navbar />
-
-      <div style={{ display: 'flex', flex: 1, maxWidth: '1400px', width: '100%', margin: '0 auto' }}>
-        <Sidebar activeTab={effectiveTab} setActiveTab={setActiveTab} />
-
-        <main style={{ flex: 1, padding: '24px', overflowY: 'auto' }}>
-          {effectiveTab === 'dashboard' && <DashboardOverview setActiveTab={setActiveTab} />}
-          {effectiveTab === 'players' && <PlayerManager />}
-          {effectiveTab === 'coaches' && <CoachManager />}
-          {effectiveTab === 'scheduler' && <SessionScheduler />}
-          {effectiveTab === 'coach-calendar' && <CoachCalendar />}
-          {effectiveTab === 'general-calendar' && <AcademyCalendar />}
-        </main>
-      </div>
-    </div>
-  );
+  return <MainLayout key={currentUser.uid || userRole} userRole={userRole} defaultTab={initialTab} />;
 };
 
 export default function App() {
