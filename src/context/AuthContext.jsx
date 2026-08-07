@@ -218,6 +218,11 @@ export const AuthProvider = ({ children }) => {
     }
   };
 
+  const logout = async () => {
+    updateSessionState(null);
+    await signOut(auth).catch(() => {});
+  };
+
   const updateUserProfileName = async (newName) => {
     if (!currentUser || !newName || !newName.trim()) return;
     const cleanName = newName.trim();
