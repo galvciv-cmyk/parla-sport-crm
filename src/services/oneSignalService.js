@@ -1,6 +1,6 @@
 import OneSignal from 'react-onesignal';
 import { showToast } from '../components/common/ToastNotification';
-import { logNotifEvent } from '../components/common/NotificationDebugPanel';
+import { logNotifEvent } from '../utils/debugLogger';
 
 const APP_ID = import.meta.env.VITE_ONESIGNAL_APP_ID || '1a53322b-aa05-442d-8b71-72c7bbaee998';
 const REST_API_KEY = import.meta.env.VITE_ONESIGNAL_REST_API_KEY || '';

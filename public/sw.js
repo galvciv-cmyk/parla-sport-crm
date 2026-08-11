@@ -1,10 +1,10 @@
 /* =============================================
-   PARLA SPORT CRM — Service Worker v2.1
-   Maneja: Cache offline, PWA install y soporte
-   de notificaciones de respaldo.
+   PARLA SPORT CRM — Service Worker v2.2 (Ultra-Fast PWA)
+   Maneja: Cache Stale-While-Revalidate, carga instantánea
+   y soporte Push en segundo plano.
    ============================================= */
 
-const CACHE_NAME = 'parla-sport-v2.1';
+const CACHE_NAME = 'parla-sport-v2.2';
 const STATIC_ASSETS = ['/', '/index.html', '/manifest.json', '/favicon.png', '/logo.png'];
 
 // ─── INSTALL ─────────────────────────────────
@@ -12,7 +12,7 @@ self.addEventListener('install', (event) => {
   event.waitUntil(
     caches.open(CACHE_NAME).then((cache) => {
       return cache.addAll(STATIC_ASSETS).catch(() => {
-        // Ignorar si algún asset estático falla
+        // Ignorar si algún asset estático inicial falla
       });
     })
   );
@@ -33,14 +33,39 @@ self.addEventListener('activate', (event) => {
   self.clients.claim();
 });
 
-// ─── FETCH (Cache First con Network Fallback) ───
+// ─── FETCH (Stale-While-Revalidate para Máxima Velocidad en Conexiones Lentas) ───
 self.addEventListener('fetch', (event) => {
   if (event.request.method !== 'GET') return;
-  if (!event.request.url.startsWith(self.location.origin)) return;
+  const url = new URL(event.request.url);
 
+  // No interceptar llamadas de Firebase / OneSignal / APIs externas
+  if (!url.origin.includes(self.location.origin)) return;
+
+  // Estrategia Stale-While-Revalidate para chunks compilados de JS y CSS
+  if (url.pathname.includes('/assets/') || STATIC_ASSETS.includes(url.pathname)) {
+    event.respondWith(
+      caches.match(event.request).then((cachedResponse) => {
+        const fetchPromise = fetch(event.request)
+          .then((networkResponse) => {
+            if (networkResponse && networkResponse.status === 200) {
+              const responseClone = networkResponse.clone();
+              caches.open(CACHE_NAME).then((cache) => cache.put(event.request, responseClone));
+            }
+            return networkResponse;
+          })
+          .catch(() => cachedResponse);
+
+        // Si ya está en caché, servirlo en <20ms mientras se actualiza en background
+        return cachedResponse || fetchPromise;
+      })
+    );
+    return;
+  }
+
+  // Navegación SPA: Network First con fallback a caché de /index.html
   event.respondWith(
-    caches.match(event.request).then((cached) => {
-      return cached || fetch(event.request).catch(() => caches.match('/index.html'));
+    fetch(event.request).catch(() => {
+      return caches.match(event.request).then((cached) => cached || caches.match('/index.html'));
     })
   );
 });
@@ -56,7 +81,6 @@ self.addEventListener('push', (event) => {
     data = { title: 'Parla Sport', body: event.data.text() };
   }
 
-  // Si ya fue procesado por OneSignal (contiene custom de OneSignal), no duplicar
   if (data.custom && data.custom.i) {
     return;
   }

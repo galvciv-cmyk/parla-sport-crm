@@ -1,4 +1,4 @@
-import React, { useState, useEffect, Component } from 'react';
+import React, { useState, useEffect, Component, lazy, Suspense } from 'react';
 import { AuthProvider, useAuth } from './context/AuthContext';
 import { DataProvider } from './context/DataContext';
 import { NotificationProvider } from './context/NotificationContext';
@@ -7,20 +7,43 @@ import LoginScreen from './components/auth/LoginScreen';
 import Navbar from './components/layout/Navbar';
 import Sidebar from './components/layout/Sidebar';
 
-import DashboardOverview from './components/admin/DashboardOverview';
-import PlayerManager from './components/admin/PlayerManager';
-import CoachManager from './components/admin/CoachManager';
-import SessionScheduler from './components/admin/SessionScheduler';
-
-import CoachCalendar from './components/coach/CoachCalendar';
-import AcademyCalendar from './components/coach/AcademyCalendar';
-
 import ToastContainer from './components/common/ToastNotification';
 import NotificationPermissionModal from './components/common/NotificationPermissionModal';
-import NotificationDebugPanel from './components/common/NotificationDebugPanel';
 
 import { registerServiceWorker } from './services/pwaService';
 import { initOneSignal } from './services/oneSignalService';
+
+// ─── CARGA DIFERIDA (CODE SPLITTING) PARA MÁXIMA VELOCIDAD ───
+const DashboardOverview = lazy(() => import('./components/admin/DashboardOverview'));
+const PlayerManager = lazy(() => import('./components/admin/PlayerManager'));
+const CoachManager = lazy(() => import('./components/admin/CoachManager'));
+const SessionScheduler = lazy(() => import('./components/admin/SessionScheduler'));
+const CoachCalendar = lazy(() => import('./components/coach/CoachCalendar'));
+const AcademyCalendar = lazy(() => import('./components/coach/AcademyCalendar'));
+const NotificationDebugPanel = lazy(() => import('./components/common/NotificationDebugPanel'));
+
+const ModuleLoadingFallback = () => (
+  <div style={{
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    minHeight: '350px',
+    flexDirection: 'column',
+    gap: '14px',
+    color: '#94A3B8'
+  }}>
+    <div style={{
+      width: '36px',
+      height: '36px',
+      border: '3px solid rgba(212,175,55,0.2)',
+      borderTopColor: '#FBBF24',
+      borderRadius: '50%',
+      animation: 'spin 0.7s linear infinite'
+    }} />
+    <span style={{ fontSize: '0.82rem', fontWeight: 600 }}>Cargando módulo...</span>
+    <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
+  </div>
+);
 
 class ErrorBoundary extends Component {
   constructor(props) {
@@ -55,12 +78,14 @@ const MainLayout = ({ defaultTab }) => {
         <Sidebar activeTab={activeTab} setActiveTab={setActiveTab} />
 
         <main className="main-content" style={{ flex: 1, padding: '24px', overflowY: 'auto' }}>
-          {activeTab === 'dashboard'        && <DashboardOverview setActiveTab={setActiveTab} />}
-          {activeTab === 'players'          && <PlayerManager />}
-          {activeTab === 'coaches'          && <CoachManager />}
-          {activeTab === 'scheduler'        && <SessionScheduler />}
-          {activeTab === 'coach-calendar'   && <CoachCalendar />}
-          {activeTab === 'general-calendar' && <AcademyCalendar />}
+          <Suspense fallback={<ModuleLoadingFallback />}>
+            {activeTab === 'dashboard'        && <DashboardOverview setActiveTab={setActiveTab} />}
+            {activeTab === 'players'          && <PlayerManager />}
+            {activeTab === 'coaches'          && <CoachManager />}
+            {activeTab === 'scheduler'        && <SessionScheduler />}
+            {activeTab === 'coach-calendar'   && <CoachCalendar />}
+            {activeTab === 'general-calendar' && <AcademyCalendar />}
+          </Suspense>
         </main>
       </div>
     </div>
@@ -114,7 +139,11 @@ const AdminOnlyDebugPanel = () => {
     return null;
   }
 
-  return <NotificationDebugPanel />;
+  return (
+    <Suspense fallback={null}>
+      <NotificationDebugPanel />
+    </Suspense>
+  );
 };
 
 const MainContent = () => {
@@ -168,7 +197,7 @@ export default function App() {
     // 1. Registrar Service Worker unificado (OneSignalSDKWorker.js)
     registerServiceWorker();
 
-    // 2. Inicializar OneSignal de forma asíncrona
+    // 2. Inicializar OneSignal de forma asíncrona no bloqueante
     initOneSignal().catch((err) => {
       console.warn('[App] OneSignal init falló silenciosamente:', err);
     });
@@ -184,7 +213,7 @@ export default function App() {
         </DataProvider>
       </NotificationProvider>
 
-      {/* Toast Container — montado globalmente para alertas visuales inmediatas */}
+      {/* Toast Container — montado globalmente */}
       <ToastContainer />
     </AuthProvider>
   );

@@ -4,7 +4,7 @@ import { db } from '../services/firebase';
 import { sendOneSignalPush } from '../services/oneSignalService';
 import { triggerLocalPushNotification } from '../services/pwaService';
 import { useAuth } from './AuthContext';
-import { logNotifEvent } from '../components/common/NotificationDebugPanel';
+import { logNotifEvent } from '../utils/debugLogger';
 import { formatTo12Hour } from '../utils/scheduling';
 
 const NotificationContext = createContext();
@@ -74,21 +74,27 @@ export const NotificationProvider = ({ children }) => {
             const userEmail = (currentUser?.email || '').trim().toLowerCase();
             const userCoachId = activeCoachId || (currentUser?.uid ? `coach-${currentUser.uid}` : '');
 
-            if (role === 'admin') {
+            const isUserAdmin = role === 'admin' || currentUser?.role === 'admin';
+
+            if (isUserAdmin) {
+              // El Administrador es el ÚNICO que recibe alertas de administración o globales
               shouldNotify = (n.recipientRole === 'admin' || n.recipientRole === 'all');
-            } else if (n.recipientRole === 'all') {
-              shouldNotify = true;
-            } else if (notifCoachId && (
-              notifCoachId === String(userCoachId) ||
-              notifCoachId === String(currentUser?.uid) ||
-              notifCoachId.includes(String(currentUser?.uid)) ||
-              (userCoachId && notifCoachId.includes(String(userCoachId)))
-            )) {
-              shouldNotify = true;
-            } else if (userEmail && notifEmail && notifEmail === userEmail) {
-              shouldNotify = true;
-            } else if (n.recipientRole === 'coach' && (!notifCoachId || !notifEmail)) {
-              shouldNotify = true;
+            } else {
+              // Los entrenadores NUNCA reciben alertas de administración ni de otros entrenadores
+              if (n.recipientRole === 'admin') {
+                shouldNotify = false;
+              } else if (n.recipientRole === 'all') {
+                shouldNotify = true;
+              } else if (notifCoachId && (
+                notifCoachId === String(userCoachId) ||
+                notifCoachId === String(currentUser?.uid) ||
+                notifCoachId === `coach-${currentUser?.uid}` ||
+                (activeCoachId && notifCoachId === String(activeCoachId))
+              )) {
+                shouldNotify = true;
+              } else if (userEmail && notifEmail && notifEmail === userEmail) {
+                shouldNotify = true;
+              }
             }
 
             // Si es destinatario válido y NO es quien originó la acción

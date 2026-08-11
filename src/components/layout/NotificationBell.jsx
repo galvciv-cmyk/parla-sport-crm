@@ -6,146 +6,171 @@ import NotificationPermissionModal from '../common/NotificationPermissionModal';
 
 const NotificationBell = () => {
   const { notifications, markAsRead, markAllAsRead, clearNotifications } = useNotifications();
-  const { role, activeCoachId, currentUser } = useAuth();
+  const { role, activeCoachId, currentUser, isAdmin } = useAuth();
   const [isOpen, setIsOpen] = useState(false);
   const [showPermModal, setShowPermModal] = useState(false);
-  const [permStatus, setPermStatus] = useState('default'); // 'default' | 'granted' | 'denied'
+  const [permStatus, setPermStatus] = useState('default');
   const dropdownRef = useRef(null);
 
   const userEmail = (currentUser?.email || '').trim().toLowerCase();
   const userCoachId = activeCoachId || (currentUser?.uid ? `coach-${currentUser.uid}` : '');
+  const isUserAdmin = isAdmin || role === 'admin' || currentUser?.role === 'admin';
 
-  // Detectar estado del permiso al montar
   useEffect(() => {
     if ('Notification' in window) {
       setPermStatus(Notification.permission);
     }
   }, []);
 
-  // Actualizar estado del permiso al abrir el panel
   useEffect(() => {
     if (isOpen && 'Notification' in window) {
       setPermStatus(Notification.permission);
     }
   }, [isOpen]);
 
-  // Filtrar notificaciones según el rol activo y el destinatario
+  // ─── REGLA ESTRICTA DE PRIVACIDAD: ───
+  // 1. El ADMINISTRADOR es el ÚNICO que puede ver todas las notificaciones de los entrenadores
+  // 2. Un ENTRENADOR SOLO ve notificaciones dirigidas ESTRICTAMENTE a él (sus sesiones asignadas, pagos, cancelaciones)
   const filteredNotifications = (notifications || []).filter(n => {
     if (!n) return false;
-    if (role === 'admin') return true;
+
+    // Si es Administrador -> Ve TODO el flujo y eventos del sistema
+    if (isUserAdmin) return true;
+
+    // Si es Entrenador -> NUNCA ve notificaciones de administración ni de otros entrenadores
+    if (n.recipientRole === 'admin') return false;
 
     const notifCoachId = String(n.recipientCoachId || '');
     const notifEmail = String(n.recipientEmail || '').trim().toLowerCase();
-    const userName = String(currentUser?.nombre || '').trim().toLowerCase();
 
-    if (n.recipientRole === 'all') return true;
-
+    // Solo si coincide exactamente con SU ID de entrenador o su correo
     if (notifCoachId) {
       if (userCoachId && notifCoachId === String(userCoachId)) return true;
       if (activeCoachId && notifCoachId === String(activeCoachId)) return true;
       if (currentUser?.uid && (
         notifCoachId === String(currentUser.uid) ||
-        notifCoachId.includes(String(currentUser.uid))
+        notifCoachId === `coach-${currentUser.uid}`
       )) return true;
     }
 
     if (userEmail && notifEmail && notifEmail === userEmail) return true;
 
-    if (userName && userName.length > 2 && n.message && String(n.message).toLowerCase().includes(userName)) return true;
-    if (userEmail && n.message && String(n.message).toLowerCase().includes(userEmail)) return true;
-
-    if (n.recipientRole === 'coach' && !notifCoachId && !notifEmail) return true;
+    // Notificaciones globales (no admin)
+    if (n.recipientRole === 'all') return true;
 
     return false;
   });
 
   const unreadCount = filteredNotifications.filter(n => !n.read).length;
 
-  const handlePermissionGranted = (granted) => {
-    setPermStatus(granted ? 'granted' : 'denied');
-  };
-
-  const getTypeIcon = (type) => {
-    switch (type) {
-      case 'warning': return <AlertCircle size={14} color="#F59E0B" />;
-      case 'success': return <CheckCircle size={14} color="#10B981" />;
-      case 'info': return <Info size={14} color="#3B82F6" />;
-      default: return <Bell size={14} color="#94A3B8" />;
-    }
-  };
-
-  const getTypeBg = (type, read) => {
-    if (read) return 'transparent';
-    switch (type) {
-      case 'warning': return 'rgba(245, 158, 11, 0.07)';
-      case 'success': return 'rgba(16, 185, 129, 0.07)';
-      case 'info': return 'rgba(59, 130, 246, 0.07)';
-      default: return 'rgba(148, 163, 184, 0.05)';
-    }
-  };
-
   useEffect(() => {
-    const handleClickOutside = (event) => {
-      if (dropdownRef.current && !dropdownRef.current.contains(event.target)) {
+    const handleClickOutside = (e) => {
+      if (dropdownRef.current && !dropdownRef.current.contains(e.target)) {
         setIsOpen(false);
       }
     };
-    document.addEventListener('mousedown', handleClickOutside);
-    return () => document.removeEventListener('mousedown', handleClickOutside);
-  }, []);
+    if (isOpen) {
+      document.addEventListener('mousedown', handleClickOutside);
+      document.addEventListener('touchstart', handleClickOutside);
+    }
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+      document.removeEventListener('touchstart', handleClickOutside);
+    };
+  }, [isOpen]);
+
+  const getNotifIcon = (type) => {
+    switch (type) {
+      case 'warning':
+        return <AlertCircle size={15} color="#F59E0B" />;
+      case 'success':
+        return <CheckCircle size={15} color="#10B981" />;
+      case 'system':
+        return <Zap size={15} color="#8B5CF6" />;
+      default:
+        return <Info size={15} color="#3B82F6" />;
+    }
+  };
+
+  const getNotifBorderColor = (type) => {
+    switch (type) {
+      case 'warning': return 'rgba(245, 158, 11, 0.4)';
+      case 'success': return 'rgba(16, 185, 129, 0.4)';
+      case 'system':  return 'rgba(139, 92, 246, 0.4)';
+      default:        return 'rgba(59, 130, 246, 0.3)';
+    }
+  };
+
+  const formatNotifTime = (timestamp) => {
+    if (!timestamp) return '';
+    try {
+      const date = new Date(timestamp);
+      const now = new Date();
+      const diffMs = now - date;
+      const diffSec = Math.floor(diffMs / 1000);
+      const diffMin = Math.floor(diffSec / 60);
+      const diffHour = Math.floor(diffMin / 60);
+      const diffDays = Math.floor(diffHour / 24);
+
+      if (diffSec < 60) return 'hace un momento';
+      if (diffMin < 60) return `hace ${diffMin}m`;
+      if (diffHour < 24) return `hace ${diffHour}h`;
+      if (diffDays === 1) return 'ayer';
+      if (diffDays < 7) return `hace ${diffDays}d`;
+      return date.toLocaleDateString('es', { day: '2-digit', month: '2-digit' });
+    } catch {
+      return '';
+    }
+  };
 
   return (
     <>
-      <div style={{ position: 'relative' }} ref={dropdownRef}>
-        {/* ─── Ícono de Campana ─── */}
+      <div ref={dropdownRef} style={{ position: 'relative', display: 'inline-block' }}>
+        {/* Botón Campana */}
         <button
-          onClick={() => setIsOpen(!isOpen)}
+          onClick={() => setIsOpen(prev => !prev)}
+          className="notification-bell-btn"
+          aria-label="Notificaciones"
           style={{
             position: 'relative',
-            background: isOpen
-              ? 'rgba(212, 175, 55, 0.15)'
-              : 'rgba(30, 41, 59, 0.7)',
-            border: isOpen
-              ? '1px solid rgba(212, 175, 55, 0.5)'
-              : '1px solid rgba(255, 255, 255, 0.1)',
-            color: '#F8FAFC',
-            padding: '10px',
-            borderRadius: '12px',
+            background: unreadCount > 0 ? 'rgba(212,175,55,0.15)' : 'rgba(255, 255, 255, 0.05)',
+            border: unreadCount > 0 ? '1px solid rgba(212, 175, 55, 0.5)' : '1px solid rgba(255, 255, 255, 0.1)',
+            borderRadius: '10px',
+            padding: '8px',
+            color: unreadCount > 0 ? '#FBBF24' : '#94A3B8',
             cursor: 'pointer',
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
-            transition: 'all 0.2s ease'
+            transition: 'all 0.2s',
+            boxShadow: unreadCount > 0 ? '0 0 15px rgba(212, 175, 55, 0.25)' : 'none'
           }}
-          title="Centro de Notificaciones"
         >
-          <Bell
-            size={20}
-            color={unreadCount > 0 ? '#FBBF24' : '#94A3B8'}
-            style={{
-              animation: unreadCount > 0 ? 'bell-shake 2s ease-in-out infinite' : 'none'
-            }}
-          />
+          <Bell size={18} />
+
           {unreadCount > 0 && (
-            <span style={{
-              position: 'absolute',
-              top: '-5px',
-              right: '-5px',
-              background: 'linear-gradient(135deg, #D4AF37, #FBBF24)',
-              color: '#000',
-              fontSize: '0.65rem',
-              fontWeight: '800',
-              minWidth: '18px',
-              height: '18px',
-              borderRadius: '9px',
-              padding: '0 4px',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              boxShadow: '0 0 10px rgba(251, 191, 36, 0.6)',
-              border: '1.5px solid #060D1E'
-            }}>
-              {unreadCount > 99 ? '99+' : unreadCount}
+            <span
+              className="animate-pulse"
+              style={{
+                position: 'absolute',
+                top: '-4px',
+                right: '-4px',
+                background: 'linear-gradient(135deg, #EF4444, #DC2626)',
+                color: '#FFFFFF',
+                fontSize: '0.62rem',
+                fontWeight: 800,
+                minWidth: '17px',
+                height: '17px',
+                borderRadius: '99px',
+                padding: '0 4px',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                boxShadow: '0 0 8px rgba(239, 68, 68, 0.7)',
+                border: '1.5px solid #060D1E'
+              }}
+            >
+              {unreadCount > 9 ? '9+' : unreadCount}
             </span>
           )}
         </button>
@@ -171,15 +196,15 @@ const NotificationBell = () => {
           >
             {/* Encabezado */}
             <div style={{
-              padding: '16px 18px 12px',
+              padding: '14px 16px 10px',
               borderBottom: '1px solid rgba(255, 255, 255, 0.06)',
               background: 'rgba(15, 23, 42, 0.8)'
             }}>
               <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                   <Bell size={16} color="#FBBF24" />
-                  <span style={{ fontWeight: 800, fontSize: '0.95rem', color: '#F8FAFC' }}>
-                    Notificaciones
+                  <span style={{ fontWeight: 800, fontSize: '0.92rem', color: '#F8FAFC' }}>
+                    {isUserAdmin ? 'Notificaciones (Admin)' : 'Mis Notificaciones'}
                   </span>
                   {unreadCount > 0 && (
                     <span style={{
@@ -230,7 +255,7 @@ const NotificationBell = () => {
                           display: 'flex',
                           alignItems: 'center'
                         }}
-                        title="Limpiar historial"
+                        title="Limpiar todas"
                       >
                         <Trash2 size={12} />
                       </button>
@@ -239,32 +264,24 @@ const NotificationBell = () => {
                 </div>
               </div>
 
-              {/* Estado del permiso de notificaciones */}
+              {/* Estado Push */}
               <div style={{
-                marginTop: '12px',
+                marginTop: '8px',
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'space-between',
-                padding: '8px 12px',
-                borderRadius: '10px',
-                background: permStatus === 'granted'
-                  ? 'rgba(16,185,129,0.08)'
-                  : permStatus === 'denied'
-                  ? 'rgba(239,68,68,0.08)'
-                  : 'rgba(251,191,36,0.08)',
-                border: permStatus === 'granted'
-                  ? '1px solid rgba(16,185,129,0.25)'
-                  : permStatus === 'denied'
-                  ? '1px solid rgba(239,68,68,0.25)'
-                  : '1px solid rgba(251,191,36,0.25)'
+                padding: '5px 8px',
+                borderRadius: '6px',
+                background: 'rgba(255,255,255,0.03)',
+                border: '1px solid rgba(255,255,255,0.05)'
               }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
                   {permStatus === 'granted' ? (
-                    <><CheckCircle size={13} color="#10B981" /><span style={{ fontSize: '0.72rem', color: '#10B981', fontWeight: 600 }}>Push activo en este dispositivo</span></>
+                    <><CheckCircle size={12} color="#10B981" /><span style={{ fontSize: '0.7rem', color: '#10B981', fontWeight: 600 }}>Push Activo en este móvil</span></>
                   ) : permStatus === 'denied' ? (
-                    <><BellOff size={13} color="#EF4444" /><span style={{ fontSize: '0.72rem', color: '#EF4444', fontWeight: 600 }}>Push bloqueado</span></>
+                    <><BellOff size={12} color="#EF4444" /><span style={{ fontSize: '0.7rem', color: '#EF4444', fontWeight: 600 }}>Push bloqueado</span></>
                   ) : (
-                    <><Bell size={13} color="#FBBF24" /><span style={{ fontSize: '0.72rem', color: '#FBBF24', fontWeight: 600 }}>Push no activado</span></>
+                    <><Bell size={12} color="#FBBF24" /><span style={{ fontSize: '0.7rem', color: '#FBBF24', fontWeight: 600 }}>Push no activado</span></>
                   )}
                 </div>
 
@@ -296,131 +313,103 @@ const NotificationBell = () => {
             </div>
 
             {/* Lista de Notificaciones */}
-            <div style={{ maxHeight: '360px', overflowY: 'auto' }}>
+            <div style={{ maxHeight: '340px', overflowY: 'auto' }}>
               {filteredNotifications.length === 0 ? (
-                <div style={{
-                  padding: '40px 20px',
-                  textAlign: 'center'
-                }}>
-                  <div style={{ fontSize: '2rem', marginBottom: '10px' }}>🔔</div>
-                  <div style={{ color: '#94A3B8', fontSize: '0.85rem', fontWeight: 500 }}>
-                    Sin notificaciones pendientes
-                  </div>
-                  <div style={{ color: '#475569', fontSize: '0.75rem', marginTop: '4px' }}>
-                    Las alertas aparecerán aquí en tiempo real
-                  </div>
+                <div style={{ padding: '36px 20px', textAlign: 'center', color: '#64748B' }}>
+                  <BellOff size={28} style={{ margin: '0 auto 8px', opacity: 0.4 }} />
+                  <p style={{ margin: 0, fontSize: '0.85rem', fontWeight: 600 }}>Sin notificaciones</p>
+                  <p style={{ margin: '4px 0 0', fontSize: '0.75rem' }}>
+                    {isUserAdmin ? 'Las alertas del sistema aparecerán aquí' : 'Tus avisos de sesiones y pagos aparecerán aquí'}
+                  </p>
                 </div>
               ) : (
-                filteredNotifications.map((item) => (
+                filteredNotifications.map(notif => (
                   <div
-                    key={item.id}
-                    onClick={() => markAsRead(item.id)}
+                    key={notif.id}
+                    onClick={() => !notif.read && markAsRead(notif.id)}
                     style={{
-                      padding: '13px 18px',
+                      padding: '12px 16px',
                       borderBottom: '1px solid rgba(255, 255, 255, 0.04)',
-                      background: getTypeBg(item.type, item.read),
-                      cursor: 'pointer',
-                      transition: 'background 0.2s ease',
-                      borderLeft: !item.read
-                        ? item.type === 'warning' ? '3px solid #F59E0B'
-                        : item.type === 'success' ? '3px solid #10B981'
-                        : item.type === 'info' ? '3px solid #3B82F6'
-                        : '3px solid #64748B'
-                        : '3px solid transparent'
+                      backgroundColor: notif.read ? 'transparent' : 'rgba(212, 175, 55, 0.04)',
+                      cursor: notif.read ? 'default' : 'pointer',
+                      transition: 'background 0.15s',
+                      display: 'flex',
+                      alignItems: 'flex-start',
+                      gap: '10px'
                     }}
-                    onMouseOver={(e) => e.currentTarget.style.background = 'rgba(255, 255, 255, 0.04)'}
-                    onMouseOut={(e) => e.currentTarget.style.background = getTypeBg(item.type, item.read)}
                   >
-                    <div style={{ display: 'flex', alignItems: 'flex-start', gap: '10px' }}>
-                      <div style={{
-                        flexShrink: 0,
-                        width: '28px',
-                        height: '28px',
-                        borderRadius: '8px',
-                        background: 'rgba(255,255,255,0.05)',
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                        marginTop: '1px'
-                      }}>
-                        {getTypeIcon(item.type)}
-                      </div>
+                    <div style={{
+                      width: '28px',
+                      height: '28px',
+                      borderRadius: '8px',
+                      background: 'rgba(255,255,255,0.05)',
+                      border: `1px solid ${getNotifBorderColor(notif.type)}`,
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      flexShrink: 0,
+                      marginTop: '2px'
+                    }}>
+                      {getNotifIcon(notif.type)}
+                    </div>
 
-                      <div style={{ flex: 1, minWidth: 0 }}>
-                        <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '3px', gap: '8px' }}>
-                          <span style={{
-                            fontWeight: item.read ? 500 : 700,
-                            fontSize: '0.82rem',
-                            color: item.read ? '#94A3B8' : '#F8FAFC',
-                            whiteSpace: 'nowrap',
-                            overflow: 'hidden',
-                            textOverflow: 'ellipsis'
-                          }}>
-                            {item.title}
-                          </span>
-                          <span style={{ fontSize: '0.68rem', color: '#475569', flexShrink: 0 }}>
-                            {new Date(item.timestamp).toLocaleTimeString('es', { hour: '2-digit', minute: '2-digit' })}
-                          </span>
-                        </div>
-                        <p style={{
-                          fontSize: '0.76rem',
-                          color: '#64748B',
-                          lineHeight: '1.4',
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '8px' }}>
+                        <h4 style={{
                           margin: 0,
-                          wordBreak: 'break-word'
+                          fontSize: '0.82rem',
+                          fontWeight: notif.read ? 600 : 800,
+                          color: notif.read ? '#CBD5E1' : '#F8FAFC',
+                          lineHeight: 1.3
                         }}>
-                          {item.message}
-                        </p>
+                          {notif.title}
+                        </h4>
+                        {!notif.read && (
+                          <span style={{
+                            width: '6px',
+                            height: '6px',
+                            borderRadius: '50%',
+                            background: '#FBBF24',
+                            flexShrink: 0
+                          }} />
+                        )}
                       </div>
 
-                      {!item.read && (
-                        <div style={{
-                          flexShrink: 0,
-                          width: '7px',
-                          height: '7px',
-                          borderRadius: '50%',
-                          background: '#FBBF24',
-                          boxShadow: '0 0 6px rgba(251,191,36,0.6)',
-                          marginTop: '6px'
-                        }} />
-                      )}
+                      <p style={{
+                        margin: '3px 0 0',
+                        fontSize: '0.75rem',
+                        color: '#94A3B8',
+                        lineHeight: 1.4,
+                        wordBreak: 'break-word'
+                      }}>
+                        {notif.message}
+                      </p>
+
+                      <span style={{
+                        display: 'block',
+                        marginTop: '4px',
+                        fontSize: '0.65rem',
+                        color: '#475569'
+                      }}>
+                        {formatNotifTime(notif.timestamp)}
+                      </span>
                     </div>
                   </div>
                 ))
               )}
             </div>
-
-            {/* Footer */}
-            {filteredNotifications.length > 0 && (
-              <div style={{
-                padding: '10px 18px',
-                borderTop: '1px solid rgba(255,255,255,0.05)',
-                textAlign: 'center',
-                fontSize: '0.72rem',
-                color: '#475569'
-              }}>
-                {filteredNotifications.length} notificaci{filteredNotifications.length !== 1 ? 'ones' : 'ón'} · Sincronizado con Firestore
-              </div>
-            )}
           </div>
         )}
       </div>
 
-      {/* Modal in-app de permisos */}
       <NotificationPermissionModal
         isOpen={showPermModal}
         onClose={() => setShowPermModal(false)}
-        onGranted={handlePermissionGranted}
+        onGranted={() => {
+          setShowPermModal(false);
+          setPermStatus('granted');
+        }}
       />
-
-      <style>{`
-        @keyframes bell-shake {
-          0%, 100% { transform: rotate(0deg); }
-          10%, 30% { transform: rotate(-10deg); }
-          20%, 40% { transform: rotate(10deg); }
-          50% { transform: rotate(0deg); }
-        }
-      `}</style>
     </>
   );
 };

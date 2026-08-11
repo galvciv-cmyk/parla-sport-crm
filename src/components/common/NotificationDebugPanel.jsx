@@ -22,22 +22,7 @@ const CHANNEL_CONFIG = {
   'info':        { color: '#94A3B8', bg: 'rgba(148,163,184,0.08)', border: 'rgba(148,163,184,0.3)', label: 'Sistema',      icon: Info }
 };
 
-// ─── Store de eventos (singleton, fuera del componente) ───
-let debugListeners = [];
-let eventIdCounter = 0;
-
-export const logNotifEvent = (channel, title, detail = '', data = null) => {
-  const event = {
-    id: ++eventIdCounter,
-    channel: channel || 'info',
-    title,
-    detail,
-    data,
-    timestamp: new Date(),
-    ms: Date.now()
-  };
-  debugListeners.forEach(l => l(event));
-};
+import { logNotifEvent, subscribeDebugEvents } from '../../utils/debugLogger';
 
 // ─── Tiempo relativo ───
 const timeAgo = (date) => {
@@ -188,7 +173,7 @@ const NotificationDebugPanel = () => {
   }, []);
 
   useEffect(() => {
-    debugListeners.push(addEvent);
+    const unsubscribe = subscribeDebugEvents(addEvent);
 
     // Evento inicial al montar
     logNotifEvent('info', '🟢 Panel de Debug iniciado', 'Escuchando eventos de notificaciones...');
@@ -219,7 +204,7 @@ const NotificationDebugPanel = () => {
     }
 
     return () => {
-      debugListeners = debugListeners.filter(l => l !== addEvent);
+      unsubscribe();
     };
   }, [addEvent]);
 
