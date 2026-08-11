@@ -7,28 +7,7 @@ export default defineConfig({
   build: {
     target: 'es2020',
     cssCodeSplit: true,
-    chunkSizeWarningLimit: 1000,
-    rollupOptions: {
-      output: {
-        manualChunks(id) {
-          if (id.includes('node_modules')) {
-            if (id.includes('react') || id.includes('react-dom')) {
-              return 'vendor-react';
-            }
-            if (id.includes('firebase')) {
-              return 'vendor-firebase';
-            }
-            if (id.includes('lucide-react')) {
-              return 'vendor-icons';
-            }
-            if (id.includes('react-onesignal')) {
-              return 'vendor-onesignal';
-            }
-            return 'vendor';
-          }
-        }
-      }
-    }
+    chunkSizeWarningLimit: 1200
   },
   server: {
     host: true

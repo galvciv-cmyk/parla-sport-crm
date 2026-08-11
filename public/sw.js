@@ -1,72 +1,82 @@
 /* =============================================
-   PARLA SPORT CRM — Service Worker v2.2 (Ultra-Fast PWA)
-   Maneja: Cache Stale-While-Revalidate, carga instantánea
-   y soporte Push en segundo plano.
+   PARLA SPORT CRM — Service Worker v3.0
+   Network-First para navegación HTML (evita pantallas blancas tras deploys)
+   Cache-First para assets versionados estáticos
    ============================================= */
 
-const CACHE_NAME = 'parla-sport-v2.2';
-const STATIC_ASSETS = ['/', '/index.html', '/manifest.json', '/favicon.png', '/logo.png'];
+const CACHE_NAME = 'parla-sport-v3.0';
 
 // ─── INSTALL ─────────────────────────────────
 self.addEventListener('install', (event) => {
-  event.waitUntil(
-    caches.open(CACHE_NAME).then((cache) => {
-      return cache.addAll(STATIC_ASSETS).catch(() => {
-        // Ignorar si algún asset estático inicial falla
-      });
-    })
-  );
   self.skipWaiting();
 });
 
-// ─── ACTIVATE ────────────────────────────────
+// ─── ACTIVATE (Limpiar absolutamente todos los caches viejos) ───
 self.addEventListener('activate', (event) => {
   event.waitUntil(
     caches.keys().then((keys) =>
       Promise.all(
-        keys
-          .filter((key) => key !== CACHE_NAME)
-          .map((key) => caches.delete(key))
+        keys.map((key) => {
+          if (key !== CACHE_NAME) {
+            console.log('[SW] Eliminando caché antiguo:', key);
+            return caches.delete(key);
+          }
+        })
       )
-    )
+    ).then(() => self.clients.claim())
   );
-  self.clients.claim();
 });
 
-// ─── FETCH (Stale-While-Revalidate para Máxima Velocidad en Conexiones Lentas) ───
+// ─── FETCH ──────────────────────────────────
 self.addEventListener('fetch', (event) => {
   if (event.request.method !== 'GET') return;
   const url = new URL(event.request.url);
 
-  // No interceptar llamadas de Firebase / OneSignal / APIs externas
+  // No interceptar peticiones de Firebase, OneSignal u otros orígenes
   if (!url.origin.includes(self.location.origin)) return;
 
-  // Estrategia Stale-While-Revalidate para chunks compilados de JS y CSS
-  if (url.pathname.includes('/assets/') || STATIC_ASSETS.includes(url.pathname)) {
+  // 1. Navegación principal (HTML / Document): SIEMPRE Network First
+  // Esto garantiza que tras un nuevo deploy, el usuario SIEMPRE descargue el nuevo index.html con los nuevos hashes de JS
+  if (event.request.mode === 'navigate' || url.pathname === '/' || url.pathname === '/index.html') {
+    event.respondWith(
+      fetch(event.request)
+        .then((networkResponse) => {
+          if (networkResponse && networkResponse.status === 200) {
+            const copy = networkResponse.clone();
+            caches.open(CACHE_NAME).then((cache) => cache.put(event.request, copy));
+          }
+          return networkResponse;
+        })
+        .catch(() => caches.match(event.request).then((cached) => cached || caches.match('/index.html')))
+    );
+    return;
+  }
+
+  // 2. Chunks estáticos compilados (/assets/*): Cache con Network Fallback
+  if (url.pathname.includes('/assets/')) {
     event.respondWith(
       caches.match(event.request).then((cachedResponse) => {
-        const fetchPromise = fetch(event.request)
-          .then((networkResponse) => {
-            if (networkResponse && networkResponse.status === 200) {
-              const responseClone = networkResponse.clone();
-              caches.open(CACHE_NAME).then((cache) => cache.put(event.request, responseClone));
-            }
-            return networkResponse;
-          })
-          .catch(() => cachedResponse);
-
-        // Si ya está en caché, servirlo en <20ms mientras se actualiza en background
-        return cachedResponse || fetchPromise;
+        if (cachedResponse) {
+          return cachedResponse;
+        }
+        return fetch(event.request).then((networkResponse) => {
+          if (networkResponse && networkResponse.status === 200) {
+            const copy = networkResponse.clone();
+            caches.open(CACHE_NAME).then((cache) => cache.put(event.request, copy));
+          }
+          return networkResponse;
+        }).catch((err) => {
+          // Si el chunk falló por deploy nuevo, devolver error para que React.lazy haga reload
+          throw err;
+        });
       })
     );
     return;
   }
 
-  // Navegación SPA: Network First con fallback a caché de /index.html
+  // 3. Otros recursos
   event.respondWith(
-    fetch(event.request).catch(() => {
-      return caches.match(event.request).then((cached) => cached || caches.match('/index.html'));
-    })
+    fetch(event.request).catch(() => caches.match(event.request))
   );
 });
 
@@ -96,11 +106,7 @@ self.addEventListener('push', (event) => {
     vibrate: [200, 100, 200],
     requireInteraction: false,
     tag: 'parla-sport-' + Date.now(),
-    data: { url },
-    actions: [
-      { action: 'open', title: '📋 Ver' },
-      { action: 'close', title: 'Cerrar' }
-    ]
+    data: { url }
   };
 
   event.waitUntil(self.registration.showNotification(title, options));
@@ -109,7 +115,6 @@ self.addEventListener('push', (event) => {
 // ─── NOTIFICATIONCLICK ───────────────────────
 self.addEventListener('notificationclick', (event) => {
   event.notification.close();
-  if (event.action === 'close') return;
 
   const targetUrl = event.notification.data?.url || '/';
 
@@ -126,11 +131,4 @@ self.addEventListener('notificationclick', (event) => {
       }
     })
   );
-});
-
-// ─── MENSAJES ───────────────────────────────
-self.addEventListener('message', (event) => {
-  if (event.data && event.data.type === 'SKIP_WAITING') {
-    self.skipWaiting();
-  }
 });

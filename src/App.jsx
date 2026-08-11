@@ -13,14 +13,31 @@ import NotificationPermissionModal from './components/common/NotificationPermiss
 import { registerServiceWorker } from './services/pwaService';
 import { initOneSignal } from './services/oneSignalService';
 
-// ─── CARGA DIFERIDA (CODE SPLITTING) PARA MÁXIMA VELOCIDAD ───
-const DashboardOverview = lazy(() => import('./components/admin/DashboardOverview'));
-const PlayerManager = lazy(() => import('./components/admin/PlayerManager'));
-const CoachManager = lazy(() => import('./components/admin/CoachManager'));
-const SessionScheduler = lazy(() => import('./components/admin/SessionScheduler'));
-const CoachCalendar = lazy(() => import('./components/coach/CoachCalendar'));
-const AcademyCalendar = lazy(() => import('./components/coach/AcademyCalendar'));
-const NotificationDebugPanel = lazy(() => import('./components/common/NotificationDebugPanel'));
+// ─── CARGA SEGURA DE MÓDULOS CON AUTO-REINTENTO EN CASO DE DEPLOY NUEVO ───
+const lazyWithRetry = (componentImport) =>
+  lazy(async () => {
+    const hasBeenRefreshed = sessionStorage.getItem('parla_chunk_refreshed') === 'true';
+    try {
+      const component = await componentImport();
+      sessionStorage.removeItem('parla_chunk_refreshed');
+      return component;
+    } catch (error) {
+      if (!hasBeenRefreshed) {
+        sessionStorage.setItem('parla_chunk_refreshed', 'true');
+        window.location.reload();
+        return { default: () => null };
+      }
+      throw error;
+    }
+  });
+
+const DashboardOverview = lazyWithRetry(() => import('./components/admin/DashboardOverview'));
+const PlayerManager = lazyWithRetry(() => import('./components/admin/PlayerManager'));
+const CoachManager = lazyWithRetry(() => import('./components/admin/CoachManager'));
+const SessionScheduler = lazyWithRetry(() => import('./components/admin/SessionScheduler'));
+const CoachCalendar = lazyWithRetry(() => import('./components/coach/CoachCalendar'));
+const AcademyCalendar = lazyWithRetry(() => import('./components/coach/AcademyCalendar'));
+const NotificationDebugPanel = lazyWithRetry(() => import('./components/common/NotificationDebugPanel'));
 
 const ModuleLoadingFallback = () => (
   <div style={{
@@ -48,20 +65,72 @@ const ModuleLoadingFallback = () => (
 class ErrorBoundary extends Component {
   constructor(props) {
     super(props);
-    this.state = { hasError: false };
+    this.state = { hasError: false, error: null };
   }
 
-  static getDerivedStateFromError() {
-    return { hasError: true };
+  static getDerivedStateFromError(error) {
+    return { hasError: true, error };
   }
 
   componentDidCatch(error, errorInfo) {
-    console.error('[ErrorBoundary] Error capturado:', error, errorInfo);
+    console.error('[ErrorBoundary] Error en aplicación:', error, errorInfo);
   }
 
   render() {
     if (this.state.hasError) {
-      return <LoginScreen />;
+      return (
+        <div style={{
+          minHeight: '100vh',
+          backgroundColor: '#060D1E',
+          color: '#F8FAFC',
+          display: 'flex',
+          flexDirection: 'column',
+          alignItems: 'center',
+          justifyContent: 'center',
+          padding: '24px',
+          textAlign: 'center',
+          gap: '16px'
+        }}>
+          <div style={{
+            width: '64px',
+            height: '64px',
+            borderRadius: '50%',
+            background: 'rgba(212, 175, 55, 0.12)',
+            border: '2px solid #FBBF24',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            fontSize: '1.8rem'
+          }}>
+            ⚽
+          </div>
+          <h2 style={{ fontSize: '1.25rem', fontWeight: 800, margin: 0 }}>
+            Actualizando Parla Sport...
+          </h2>
+          <p style={{ fontSize: '0.85rem', color: '#94A3B8', maxWidth: '340px', margin: 0, lineHeight: 1.5 }}>
+            Se ha desplegado una nueva versión de la aplicación.
+          </p>
+          <button
+            onClick={() => {
+              sessionStorage.clear();
+              window.location.reload();
+            }}
+            style={{
+              padding: '12px 24px',
+              borderRadius: '12px',
+              border: 'none',
+              background: 'linear-gradient(135deg, #D4AF37, #FBBF24)',
+              color: '#000',
+              fontWeight: 800,
+              fontSize: '0.9rem',
+              cursor: 'pointer',
+              boxShadow: '0 4px 20px rgba(212,175,55,0.35)'
+            }}
+          >
+            🔄 Recargar Aplicación
+          </button>
+        </div>
+      );
     }
     return this.props.children;
   }
@@ -194,7 +263,7 @@ const MainContent = () => {
 
 export default function App() {
   useEffect(() => {
-    // 1. Registrar Service Worker unificado (OneSignalSDKWorker.js)
+    // 1. Registrar Service Worker unificado
     registerServiceWorker();
 
     // 2. Inicializar OneSignal de forma asíncrona no bloqueante
@@ -204,17 +273,17 @@ export default function App() {
   }, []);
 
   return (
-    <AuthProvider>
-      <NotificationProvider>
-        <DataProvider>
-          <ErrorBoundary>
+    <ErrorBoundary>
+      <AuthProvider>
+        <NotificationProvider>
+          <DataProvider>
             <MainContent />
-          </ErrorBoundary>
-        </DataProvider>
-      </NotificationProvider>
+          </DataProvider>
+        </NotificationProvider>
 
-      {/* Toast Container — montado globalmente */}
-      <ToastContainer />
-    </AuthProvider>
+        {/* Toast Container — montado globalmente */}
+        <ToastContainer />
+      </AuthProvider>
+    </ErrorBoundary>
   );
 }
