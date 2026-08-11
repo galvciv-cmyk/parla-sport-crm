@@ -5,10 +5,8 @@ import { logNotifEvent } from '../components/common/NotificationDebugPanel';
 const APP_ID = import.meta.env.VITE_ONESIGNAL_APP_ID || '1a53322b-aa05-442d-8b71-72c7bbaee998';
 const REST_API_KEY = import.meta.env.VITE_ONESIGNAL_REST_API_KEY || '';
 
-// Dominios donde OneSignal funciona (configurados en el dashboard de OneSignal)
 const ONESIGNAL_ALLOWED_ORIGINS = ['parlasport.netlify.app'];
 
-// Detectar si estamos en un entorno donde OneSignal puede operar
 const isOneSignalCompatibleOrigin = () => {
   const host = window.location.hostname;
   return ONESIGNAL_ALLOWED_ORIGINS.some(domain => host === domain || host.endsWith('.' + domain));
@@ -16,7 +14,6 @@ const isOneSignalCompatibleOrigin = () => {
 
 const IS_DEV = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
 
-// Estado de inicialización (promesa compartida para evitar race conditions)
 let _initPromise = null;
 let _isInitialized = false;
 
@@ -25,34 +22,29 @@ export const isOneSignalReady = () => _isInitialized;
 export const initOneSignal = async () => {
   if (_initPromise) return _initPromise;
 
-  // ─── En localhost/dev: omitir OneSignal, usar solo browser Notification API ───
   if (!isOneSignalCompatibleOrigin()) {
     _initPromise = Promise.resolve();
     logNotifEvent('onesignal',
       `⚠️ OneSignal omitido en ${window.location.hostname}`,
-      `OneSignal solo opera en: ${ONESIGNAL_ALLOWED_ORIGINS.join(', ')}. En local usamos Browser Notification API + Toasts in-app.`,
-    );
-    console.info(
-      `[OneSignal] ℹ️ Omitido en localhost. Las notificaciones in-app y toasts funcionan normalmente. ` +
-      `OneSignal estará activo en: ${ONESIGNAL_ALLOWED_ORIGINS.join(', ')}`
+      `OneSignal activo en: ${ONESIGNAL_ALLOWED_ORIGINS.join(', ')}. En local usamos Toasts y Browser Notification API.`,
     );
     return _initPromise;
   }
 
-  // ─── En producción: inicializar OneSignal normalmente ───
   _initPromise = (async () => {
     try {
       await OneSignal.init({
         appId: APP_ID,
         allowLocalhostAsSecureOrigin: false,
+        serviceWorkerPath: 'OneSignalSDKWorker.js',
         serviceWorkerParam: { scope: '/' },
-        notifyButton: { enable: false }, // Usamos nuestro propio modal in-app
+        notifyButton: { enable: false },
         promptOptions: {
           slidedown: {
             prompts: [
               {
                 type: 'push',
-                autoPrompt: false, // No mostrar automáticamente
+                autoPrompt: false,
               }
             ]
           }
@@ -63,18 +55,24 @@ export const initOneSignal = async () => {
       console.log('[OneSignal] ✅ Inicializado correctamente en producción');
       logNotifEvent('onesignal', '✅ OneSignal SDK inicializado (producción)', `Dominio: ${window.location.hostname}`);
 
-      // Escuchar cambios de permiso
-      OneSignal.Notifications.addEventListener('permissionChange', (hasPermission) => {
+      OneSignal.Notifications.addEventListener('permissionChange', async (hasPermission) => {
         console.log('[OneSignal] Permiso:', hasPermission ? 'Concedido' : 'Denegado');
         logNotifEvent('permission',
           `Permiso ${hasPermission ? '✅ Concedido' : '❌ Denegado'} via OneSignal`,
           `Notification.permission = "${hasPermission ? 'granted' : 'denied'}"`
         );
+        if (hasPermission) {
+          try {
+            await OneSignal.User.PushSubscription.optIn();
+            logNotifEvent('onesignal', '📱 PushSubscription vinculada con éxito');
+          } catch (e) {
+            console.warn('[OneSignal] Error en optIn:', e);
+          }
+        }
       });
 
-      // Escuchar notificaciones recibidas en primer plano → Toast in-app
       OneSignal.Notifications.addEventListener('foregroundWillDisplay', (event) => {
-        event.preventDefault(); // Suprimir la notificación nativa del OS
+        event.preventDefault();
         const notif = event.notification;
         logNotifEvent('onesignal',
           `📥 OneSignal foreground: ${notif.title || 'Sin título'}`,
@@ -91,7 +89,6 @@ export const initOneSignal = async () => {
 
     } catch (error) {
       const msg = error?.message || String(error);
-      // Silenciar el error de dominio no autorizado — es esperado fuera de producción
       if (msg.includes('Can only be used on')) {
         logNotifEvent('onesignal',
           `⚠️ OneSignal bloqueado por dominio`,
@@ -108,19 +105,36 @@ export const initOneSignal = async () => {
   return _initPromise;
 };
 
-export const loginToOneSignal = async (uid) => {
-  if (!uid) return;
-  // En desarrollo, omitir silenciosamente
+export const loginToOneSignal = async (primaryId, metadata = {}) => {
+  if (!primaryId) return;
   if (!isOneSignalCompatibleOrigin()) {
-    logNotifEvent('onesignal', `🔗 OneSignal login omitido en localhost`, `UID: ${uid}`);
+    logNotifEvent('onesignal', `🔗 OneSignal login omitido en localhost`, `ID: ${primaryId}`);
     return;
   }
   try {
     if (!_isInitialized) await initOneSignal();
-    if (!_isInitialized) return; // SDK no disponible
-    await OneSignal.login(String(uid));
-    console.log(`[OneSignal] 🔗 Usuario vinculado: ${uid}`);
-    logNotifEvent('onesignal', `🔗 Usuario vinculado: ${uid}`, 'Login OneSignal OK');
+    if (!_isInitialized) return;
+
+    await OneSignal.login(String(primaryId));
+    console.log(`[OneSignal] 🔗 Usuario vinculado: ${primaryId}`);
+    logNotifEvent('onesignal', `🔗 Usuario vinculado: ${primaryId}`, 'Login OneSignal OK');
+
+    // Registrar aliases y tags para garantizar entrega multidispositivo
+    if (metadata.coachId && String(metadata.coachId) !== String(primaryId)) {
+      await OneSignal.User.addAlias('coach_id', String(metadata.coachId)).catch(() => {});
+    }
+    if (metadata.email) {
+      await OneSignal.User.addAlias('email', String(metadata.email).toLowerCase()).catch(() => {});
+      await OneSignal.User.addTag('email', String(metadata.email).toLowerCase()).catch(() => {});
+    }
+    if (metadata.role) {
+      await OneSignal.User.addTag('role', String(metadata.role)).catch(() => {});
+    }
+
+    // Asegurar que la suscripción Push esté activa para este usuario
+    if (Notification.permission === 'granted') {
+      await OneSignal.User.PushSubscription.optIn().catch(() => {});
+    }
   } catch (error) {
     console.warn('[OneSignal] Error en login (no crítico):', error?.message || error);
     logNotifEvent('error', `Login OneSignal fallido`, error?.message || String(error));
@@ -138,7 +152,6 @@ export const logoutFromOneSignal = async () => {
 };
 
 export const requestOneSignalPermission = async () => {
-  // En desarrollo, usar la API nativa del browser directamente
   if (!isOneSignalCompatibleOrigin()) {
     if (!('Notification' in window)) return false;
     const perm = await Notification.requestPermission();
@@ -153,6 +166,9 @@ export const requestOneSignalPermission = async () => {
     if (!_isInitialized) return false;
     await OneSignal.Notifications.requestPermission();
     const granted = OneSignal.Notifications.permission;
+    if (granted) {
+      await OneSignal.User.PushSubscription.optIn().catch(() => {});
+    }
     logNotifEvent('permission', `Permiso ${granted ? '✅ Concedido' : '❌ Denegado'} (OneSignal)`, '');
     return granted;
   } catch (err) {
@@ -161,38 +177,67 @@ export const requestOneSignalPermission = async () => {
   }
 };
 
-export const sendOneSignalPush = async (title, message, externalUserId) => {
+/**
+ * Enviar Push remoto vía OneSignal REST API
+ * Soporta destinatario por ID de entrenador, Firebase UID o correo electrónico
+ */
+export const sendOneSignalPush = async ({
+  title,
+  message,
+  externalUserId = '',
+  recipientEmail = '',
+  url = '/'
+}) => {
   if (!REST_API_KEY) {
     logNotifEvent('onesignal',
       `⚠️ Push remoto no disponible`,
       IS_DEV
-        ? 'Estás en localhost — el push OneSignal solo funciona en producción (netlify.app)'
+        ? 'Estás en localhost — el push OneSignal se dispara en producción'
         : 'Falta VITE_ONESIGNAL_REST_API_KEY'
     );
     return { success: false, reason: 'no_api_key' };
   }
 
-  if (!externalUserId) {
-    console.warn('[OneSignal] ⚠️ externalUserId vacío — Push cancelado');
-    return { success: false, reason: 'no_user_id' };
+  const targetExternalIds = [];
+  if (externalUserId) targetExternalIds.push(String(externalUserId));
+
+  if (targetExternalIds.length === 0 && !recipientEmail) {
+    console.warn('[OneSignal] ⚠️ Sin destinatarios — Push cancelado');
+    return { success: false, reason: 'no_recipient' };
   }
 
   const payload = {
     app_id: APP_ID,
-    include_aliases: {
-      external_id: [String(externalUserId)]
-    },
     target_channel: 'push',
     headings: { en: title, es: title },
     contents: { en: message, es: message },
+    priority: 10, // Alta prioridad (despierta dispositivos en background)
+    ttl: 259200, // 3 días de vigencia si el dispositivo está apagado
     ios_badgeType: 'Increase',
-    ios_badgeCount: 1
+    ios_badgeCount: 1,
+    web_url: 'https://parlasport.netlify.app' + url,
+    url: 'https://parlasport.netlify.app' + url
   };
 
+  // Agregar aliases y external_ids para máxima compatibilidad
+  if (targetExternalIds.length > 0) {
+    payload.include_aliases = {
+      external_id: targetExternalIds
+    };
+    payload.include_external_user_ids = targetExternalIds;
+  }
+
+  // Si hay email, agregarlo como filtro alternativo
+  if (recipientEmail) {
+    payload.filters = [
+      { field: 'tag', key: 'email', relation: '=', value: String(recipientEmail).toLowerCase() }
+    ];
+  }
+
   logNotifEvent('onesignal',
-    `📤 Enviando Push → ${externalUserId}`,
+    `📤 Enviando Push → ${targetExternalIds.join(', ') || recipientEmail}`,
     title,
-    { externalUserId, title, message }
+    { targetExternalIds, recipientEmail, title, message }
   );
 
   try {
@@ -214,22 +259,19 @@ export const sendOneSignalPush = async (title, message, externalUserId) => {
         data.errors ? JSON.stringify(data.errors) : 'Error desconocido',
         data
       );
-      showToast(
-        'Error al enviar push',
-        `Código ${response.status}: ${data.errors ? JSON.stringify(data.errors) : 'Error desconocido'}`,
-        'error',
-        8000
-      );
       return { success: false, error: data };
     }
 
     console.log('[OneSignal] ✅ Push enviado:', data);
-    logNotifEvent('onesignal', `✅ Push enviado exitosamente`, `recipients: ${data.recipients || 0}`, data);
+    logNotifEvent('onesignal',
+      `✅ Push entregado`,
+      `Destinatarios alcanzados: ${data.recipients || 0}`,
+      data
+    );
     return { success: true, data };
   } catch (error) {
     console.error('[OneSignal] ❌ Error de red:', error);
     logNotifEvent('error', `❌ Error de red al enviar push`, error?.message || String(error));
-    showToast('Error de conexión', 'No se pudo enviar la notificación push remota.', 'error');
     return { success: false, error };
   }
 };

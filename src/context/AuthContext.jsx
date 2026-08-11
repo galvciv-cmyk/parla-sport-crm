@@ -143,9 +143,14 @@ export const AuthProvider = ({ children }) => {
           coachId: isMaster ? null : (profile.coachId || generatedCoachId)
         });
 
-        // Autenticar en OneSignal para vincular el dispositivo a este usuario
+        // Autenticar en OneSignal para vincular el dispositivo a este usuario con aliases y tags
         const oneSignalId = (isMaster ? firebaseUser.uid : (profile.coachId || generatedCoachId)) || firebaseUser.uid;
-        loginToOneSignal(oneSignalId);
+        loginToOneSignal(oneSignalId, {
+          uid: firebaseUser.uid,
+          email: cleanEmail,
+          role: profile.role || defaultRole,
+          coachId: profile.coachId || generatedCoachId
+        });
       } catch (err) {
         console.error('[Auth] Error en onAuthStateChanged:', err);
       } finally {

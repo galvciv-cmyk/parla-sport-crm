@@ -8,7 +8,12 @@ import { useNotifications } from './NotificationContext';
 const DataContext = createContext();
 
 export const DataProvider = ({ children }) => {
-  const { notifySessionAssignment, notifySessionCompleted, notifySessionPaid } = useNotifications();
+  const {
+    notifySessionAssignment,
+    notifySessionCompleted,
+    notifySessionPaid,
+    notifySessionDeleted
+  } = useNotifications();
 
   // 1. Estado de Jugadores
   const [players, setPlayers] = useState(() => {
@@ -237,10 +242,22 @@ export const DataProvider = ({ children }) => {
   };
 
   const deleteSession = async (sessionId) => {
+    const session = sessions.find(s => s.id === sessionId);
     setSessions(prev => prev.filter(s => s.id !== sessionId));
     await deleteDoc(doc(db, 'sessions', sessionId)).catch(err => {
       console.warn('[DataContext] Error al eliminar sesión en Firestore:', err);
     });
+
+    // Notificar al entrenador que su sesión fue eliminada / cancelada
+    if (session && notifySessionDeleted) {
+      const coach = coaches.find(c => c.id === session.entrenadorId);
+      const assignedPlayers = players.filter(p => Array.isArray(session.jugadoresIds) && session.jugadoresIds.includes(p.id));
+      await notifySessionDeleted({
+        session,
+        players: assignedPlayers,
+        coach
+      }).catch(() => {});
+    }
   };
 
   const reassignSession = (sessionId, newCoachId, reason = '') => {

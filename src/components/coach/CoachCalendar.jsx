@@ -2,8 +2,9 @@ import React, { useState } from 'react';
 import { Calendar as CalendarIcon, Clock, Eye, Sparkles, Settings, Plus, Trash2, User, Edit3 } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import { useData } from '../../context/DataContext';
+import { useNotifications } from '../../context/NotificationContext';
 import { STATUS_CONFIG } from '../../utils/mockData';
-import { formatTo12Hour } from '../../utils/scheduling';
+import { formatTo12Hour, isCoachAvailableBySchedule } from '../../utils/scheduling';
 import SessionDetailModal from './SessionDetailModal';
 import Modal from '../common/Modal';
 
@@ -20,6 +21,7 @@ const DAYS_BUTTONS = [
 const CoachCalendar = () => {
   const { activeCoachId, currentUser, updateUserProfile } = useAuth();
   const { coaches, sessions, players, updateCoach } = useData();
+  const { notifyCoachAvailabilityChanged } = useNotifications();
 
   const [isEditProfileModalOpen, setIsEditProfileModalOpen] = useState(false);
   const [editProfileData, setEditProfileData] = useState({
@@ -131,10 +133,40 @@ const CoachCalendar = () => {
     }));
   };
 
-  const handleSaveProfile = (e) => {
+  const handleSaveProfile = async (e) => {
     e.preventDefault();
     if (activeCoach) {
-      updateCoach(activeCoach.id, profileData);
+      const updatedCoachObj = {
+        ...activeCoach,
+        ...profileData,
+        bloquesDisponibilidad: profileData.bloquesDisponibilidad || []
+      };
+
+      // 1. Guardar en DataContext / Firestore
+      await updateCoach(activeCoach.id, profileData);
+
+      // 2. Comprobar si hay sesiones activas que ya no quedan cubiertas por el nuevo horario
+      const activeSessionsForCoach = (sessions || []).filter(s => {
+        if (!s || s.estado === 'cancelada' || s.estado === 'realizada' || s.estado === 'pagada') return false;
+        return (
+          s.entrenadorId === activeCoach.id ||
+          (userCoachId && s.entrenadorId === userCoachId) ||
+          (coachEmail && s.entrenadorEmail && s.entrenadorEmail.toLowerCase() === coachEmail)
+        );
+      });
+
+      const conflictedSessions = activeSessionsForCoach.filter(s => {
+        return !isCoachAvailableBySchedule(updatedCoachObj, s.fecha, s.horaInicio, s.horaFin);
+      });
+
+      // 3. Notificar al Administrador
+      if (notifyCoachAvailabilityChanged) {
+        await notifyCoachAvailabilityChanged({
+          coach: activeCoach,
+          affectedSessions: conflictedSessions,
+          players
+        });
+      }
     }
     setIsAvailabilityModalOpen(false);
   };

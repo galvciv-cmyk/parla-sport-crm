@@ -1,10 +1,10 @@
 /* =============================================
-   PARLA SPORT CRM — Service Worker v2.0
-   Maneja: Push en background, Cache offline,
-   y click en notificaciones del sistema.
+   PARLA SPORT CRM — Service Worker v2.1
+   Maneja: Cache offline, PWA install y soporte
+   de notificaciones de respaldo.
    ============================================= */
 
-const CACHE_NAME = 'parla-sport-v2';
+const CACHE_NAME = 'parla-sport-v2.1';
 const STATIC_ASSETS = ['/', '/index.html', '/manifest.json', '/favicon.png', '/logo.png'];
 
 // ─── INSTALL ─────────────────────────────────
@@ -12,7 +12,7 @@ self.addEventListener('install', (event) => {
   event.waitUntil(
     caches.open(CACHE_NAME).then((cache) => {
       return cache.addAll(STATIC_ASSETS).catch(() => {
-        // Si algún asset falla, no bloquear la instalación
+        // Ignorar si algún asset estático falla
       });
     })
   );
@@ -33,9 +33,8 @@ self.addEventListener('activate', (event) => {
   self.clients.claim();
 });
 
-// ─── FETCH (Cache First para assets estáticos) ───
+// ─── FETCH (Cache First con Network Fallback) ───
 self.addEventListener('fetch', (event) => {
-  // Solo cachear GET y evitar extensiones de terceros
   if (event.request.method !== 'GET') return;
   if (!event.request.url.startsWith(self.location.origin)) return;
 
@@ -46,13 +45,20 @@ self.addEventListener('fetch', (event) => {
   );
 });
 
-// ─── PUSH (Notificaciones del servidor cuando la app está cerrada) ───
+// ─── PUSH (Respaldo si no es manejado por OneSignal) ───
 self.addEventListener('push', (event) => {
+  if (!event.data) return;
+
   let data = {};
   try {
-    data = event.data ? event.data.json() : {};
+    data = event.data.json();
   } catch {
-    data = { title: 'Parla Sport', body: event.data ? event.data.text() : 'Nueva notificación' };
+    data = { title: 'Parla Sport', body: event.data.text() };
+  }
+
+  // Si ya fue procesado por OneSignal (contiene custom de OneSignal), no duplicar
+  if (data.custom && data.custom.i) {
+    return;
   }
 
   const title = data.title || data.headings?.es || data.headings?.en || '⚽ Parla Sport CRM';
@@ -79,21 +85,18 @@ self.addEventListener('push', (event) => {
 // ─── NOTIFICATIONCLICK ───────────────────────
 self.addEventListener('notificationclick', (event) => {
   event.notification.close();
-
   if (event.action === 'close') return;
 
   const targetUrl = event.notification.data?.url || '/';
 
   event.waitUntil(
     clients.matchAll({ type: 'window', includeUncontrolled: true }).then((clientList) => {
-      // Si ya hay una ventana abierta de la app, enfocarla
       for (const client of clientList) {
         if (client.url.includes(self.location.origin) && 'focus' in client) {
           client.postMessage({ type: 'NOTIFICATION_CLICK', url: targetUrl });
           return client.focus();
         }
       }
-      // Si no hay ventana abierta, abrir una nueva
       if (clients.openWindow) {
         return clients.openWindow(targetUrl);
       }
@@ -101,7 +104,7 @@ self.addEventListener('notificationclick', (event) => {
   );
 });
 
-// ─── MENSAJE desde la app principal ──────────
+// ─── MENSAJES ───────────────────────────────
 self.addEventListener('message', (event) => {
   if (event.data && event.data.type === 'SKIP_WAITING') {
     self.skipWaiting();

@@ -1,7 +1,15 @@
 import React, { useState } from 'react';
 import { CalendarPlus, RefreshCw, CheckCircle, Trash2 } from 'lucide-react';
 import { useData } from '../../context/DataContext';
-import { getAvailableCoaches, getSpanishDayName, formatTo12Hour, addOneHour, generateTimeOptions, hasPlayerSessionConflict } from '../../utils/scheduling';
+import {
+  getAvailableCoaches,
+  getSpanishDayName,
+  formatTo12Hour,
+  addOneHour,
+  generateTimeOptions,
+  hasPlayerSessionConflict,
+  hasPlayerDailySession
+} from '../../utils/scheduling';
 import { STATUS_CONFIG } from '../../utils/mockData';
 import Modal from '../common/Modal';
 
@@ -26,6 +34,21 @@ const SessionScheduler = () => {
   const [errorMessage, setErrorMessage] = useState('');
   const [successMessage, setSuccessMessage] = useState('');
   const timeOptions = generateTimeOptions(15);
+
+  const handleDateChange = (newDate) => {
+    setSessionData(prev => {
+      // Filtrar jugadores que ya tengan sesión en la nueva fecha
+      const validJugadores = prev.jugadoresIds.filter(
+        pId => !hasPlayerDailySession(sessions, pId, newDate).hasSession
+      );
+      return {
+        ...prev,
+        fecha: newDate,
+        entrenadorId: '',
+        jugadoresIds: validJugadores
+      };
+    });
+  };
 
   const handleHoraInicioChange = (newHoraInicio) => {
     const newHoraFin = addOneHour(newHoraInicio);
@@ -101,6 +124,17 @@ const SessionScheduler = () => {
     if (sessionData.jugadoresIds.length !== maxNeeded) {
       setErrorMessage(`Para la modalidad ${sessionData.tipo} debes seleccionar exactamente ${maxNeeded} jugador(es).`);
       return;
+    }
+
+    // Validación estricta: Máximo 1 sesión diaria por jugador
+    for (const pId of sessionData.jugadoresIds) {
+      const dailyCheck = hasPlayerDailySession(sessions, pId, sessionData.fecha);
+      if (dailyCheck.hasSession) {
+        const p = players.find(x => x.id === pId);
+        const hora = dailyCheck.existingSession ? formatTo12Hour(dailyCheck.existingSession.horaInicio) : '';
+        setErrorMessage(`El jugador ${p ? p.nombre : 'seleccionado'} ya tiene una sesión asignada el ${sessionData.fecha}${hora ? ` a las ${hora}` : ''}. Los jugadores solo pueden realizar 1 sesión diaria.`);
+        return;
+      }
     }
 
     if (!sessionData.entrenadorId) {
@@ -195,7 +229,7 @@ const SessionScheduler = () => {
                   required
                   className="input-field"
                   value={sessionData.fecha}
-                  onChange={(e) => setSessionData({ ...sessionData, fecha: e.target.value, entrenadorId: '' })}
+                  onChange={(e) => handleDateChange(e.target.value)}
                 />
               </div>
 
@@ -299,23 +333,19 @@ const SessionScheduler = () => {
               <label className="input-label">
                 Seleccionar Jugador(es) - Requeridos: {sessionData.tipo === '1-1' ? 1 : sessionData.tipo === '1-2' ? 2 : 3}
               </label>
-              <div style={{ maxHeight: '160px', overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: '6px', background: 'rgba(15,23,42,0.6)', padding: '10px', borderRadius: '10px' }}>
+              <div style={{ maxHeight: '180px', overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: '6px', background: 'rgba(15,23,42,0.6)', padding: '10px', borderRadius: '10px' }}>
                 {players.map(p => {
                   const isSelected = sessionData.jugadoresIds.includes(p.id);
-                  const playerConflict = hasPlayerSessionConflict(
-                    sessions,
-                    [p.id],
-                    sessionData.fecha,
-                    sessionData.horaInicio,
-                    sessionData.horaFin
-                  );
+                  const dailyCheck = hasPlayerDailySession(sessions, p.id, sessionData.fecha);
+                  const hasDailySession = dailyCheck.hasSession;
 
                   return (
                     <div
                       key={p.id}
                       onClick={() => {
-                        if (playerConflict.conflict && !isSelected) {
-                          alert(`⚠️ El jugador ${p.nombre} ya tiene otra clase agendada el ${sessionData.fecha} entre las ${formatTo12Hour(sessionData.horaInicio)} y ${formatTo12Hour(sessionData.horaFin)}.`);
+                        if (hasDailySession && !isSelected) {
+                          const hora = dailyCheck.existingSession ? formatTo12Hour(dailyCheck.existingSession.horaInicio) : '';
+                          alert(`⚠️ El jugador ${p.nombre} ya tiene una sesión agendada el ${sessionData.fecha}${hora ? ` a las ${hora}` : ''}.\n\nRegla: Los jugadores solo realizan máximo 1 sesión diaria. Cambia la fecha para agendarle otra clase.`);
                           return;
                         }
                         handlePlayerToggle(p.id);
@@ -324,28 +354,32 @@ const SessionScheduler = () => {
                         display: 'flex',
                         alignItems: 'center',
                         justifyContent: 'space-between',
-                        padding: '8px 12px',
+                        padding: '9px 12px',
                         borderRadius: '8px',
                         background: isSelected
                           ? 'rgba(16, 185, 129, 0.15)'
-                          : (playerConflict.conflict ? 'rgba(239, 68, 68, 0.12)' : 'transparent'),
+                          : (hasDailySession ? 'rgba(239, 68, 68, 0.08)' : 'transparent'),
                         border: isSelected
-                          ? '1px solid rgba(16, 185, 129, 0.4)'
-                          : (playerConflict.conflict ? '1px solid rgba(239, 68, 68, 0.35)' : '1px solid transparent'),
-                        cursor: playerConflict.conflict && !isSelected ? 'not-allowed' : 'pointer',
-                        opacity: playerConflict.conflict && !isSelected ? 0.65 : 1
+                          ? '1px solid rgba(16, 185, 129, 0.45)'
+                          : (hasDailySession ? '1px solid rgba(239, 68, 68, 0.25)' : '1px solid transparent'),
+                        cursor: hasDailySession && !isSelected ? 'not-allowed' : 'pointer',
+                        opacity: hasDailySession && !isSelected ? 0.55 : 1
                       }}
                     >
-                      <span style={{ fontSize: '0.85rem', color: isSelected ? '#F8FAFC' : (playerConflict.conflict ? '#F87171' : '#CBD5E1'), fontWeight: isSelected ? 700 : 400 }}>
-                        ⚽ {p.nombre} ({p.posicion})
-                      </span>
-
-                      {isSelected && <CheckCircle size={16} color="#10B981" />}
-                      {playerConflict.conflict && !isSelected && (
-                        <span className="badge badge-danger" style={{ fontSize: '0.65rem' }}>
-                          ⚠️ Choque de Horario
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                        <span style={{ fontSize: '0.85rem', color: isSelected ? '#F8FAFC' : (hasDailySession ? '#94A3B8' : '#CBD5E1'), fontWeight: isSelected ? 700 : 500 }}>
+                          ⚽ {p.nombre} ({p.posicion})
                         </span>
-                      )}
+                      </div>
+
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                        {isSelected && <CheckCircle size={16} color="#10B981" />}
+                        {hasDailySession && !isSelected && (
+                          <span className="badge badge-danger" style={{ fontSize: '0.65rem' }}>
+                            ⚠️ Ya tiene sesión hoy {dailyCheck.existingSession ? `(${formatTo12Hour(dailyCheck.existingSession.horaInicio)})` : ''}
+                          </span>
+                        )}
+                      </div>
                     </div>
                   );
                 })}

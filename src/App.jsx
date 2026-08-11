@@ -78,13 +78,12 @@ const NotificationSetupBanner = () => {
     if (!('Notification' in window)) return;
     if (Notification.permission !== 'default') return;
 
-    // Solo mostrar el modal si el usuario nunca lo ha visto (o no lo ha descartado en esta sesión)
     const alreadyAsked = sessionStorage.getItem('parla_notif_modal_shown');
     if (!alreadyAsked) {
       const timer = setTimeout(() => {
         setShowModal(true);
         sessionStorage.setItem('parla_notif_modal_shown', '1');
-      }, 3000); // Esperar 3 segundos para no interrumpir el login
+      }, 3000);
       return () => clearTimeout(timer);
     }
   }, [currentUser]);
@@ -104,6 +103,18 @@ const NotificationSetupBanner = () => {
       }}
     />
   );
+};
+
+// ─── Panel de Debug: Visible Únicamente para el Administrador ───
+const AdminOnlyDebugPanel = () => {
+  const { currentUser, role, isAdmin } = useAuth();
+  const isUserAdmin = isAdmin || role === 'admin' || currentUser?.role === 'admin';
+
+  if (!currentUser || !isUserAdmin) {
+    return null;
+  }
+
+  return <NotificationDebugPanel />;
 };
 
 const MainContent = () => {
@@ -146,18 +157,18 @@ const MainContent = () => {
   return (
     <>
       <MainLayout key={currentUser.uid || userRole} defaultTab={initialTab} />
-      {/* Banner de configuración de notificaciones — se muestra automáticamente si no hay permiso */}
       <NotificationSetupBanner />
+      <AdminOnlyDebugPanel />
     </>
   );
 };
 
 export default function App() {
   useEffect(() => {
-    // 1. Registrar Service Worker (sw.js) para PWA y push en background
+    // 1. Registrar Service Worker unificado (OneSignalSDKWorker.js)
     registerServiceWorker();
 
-    // 2. Inicializar OneSignal (asíncrono, no bloquea el render)
+    // 2. Inicializar OneSignal de forma asíncrona
     initOneSignal().catch((err) => {
       console.warn('[App] OneSignal init falló silenciosamente:', err);
     });
@@ -173,11 +184,8 @@ export default function App() {
         </DataProvider>
       </NotificationProvider>
 
-      {/* Toast Container — montado FUERA de ErrorBoundary para garantizar visibilidad global */}
+      {/* Toast Container — montado globalmente para alertas visuales inmediatas */}
       <ToastContainer />
-
-      {/* Panel de Debug de Notificaciones — visible siempre para monitorear el flujo */}
-      <NotificationDebugPanel />
     </AuthProvider>
   );
 }

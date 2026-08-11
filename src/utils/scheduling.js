@@ -94,7 +94,7 @@ export const isCoachAvailableBySchedule = (coach, dateStr, startTime, endTime) =
   const reqEnd = timeToMinutes(endTime);
 
   return coach.bloquesDisponibilidad.some(block => {
-    if (block.dia !== dayName) return false;
+    if (!block.dia || block.dia.toLowerCase() !== dayName.toLowerCase()) return false;
     const blockStart = timeToMinutes(block.horaInicio);
     const blockEnd = timeToMinutes(block.horaFin);
 
@@ -118,29 +118,43 @@ export const hasCoachSessionConflict = (sessions, coachId, dateStr, startTime, e
 };
 
 /**
- * Comprueba si alguno de los jugadores seleccionados YA TIENE otra sesión agendada que choque
+ * Comprueba si un jugador YA TIENE una sesión agendada en ese día
+ * REGLA ESTRICTA: Los jugadores solo realizan MÁXIMO 1 sesión por día.
  */
-export const hasPlayerSessionConflict = (sessions, playerIds, dateStr, startTime, endTime, excludeSessionId = null) => {
-  if (!playerIds || playerIds.length === 0) return { conflict: false, conflictingPlayerId: null };
+export const hasPlayerDailySession = (sessions, playerId, dateStr, excludeSessionId = null) => {
+  if (!playerId || !dateStr) return { hasSession: false, existingSession: null };
+
+  const existingSession = sessions.find(s => {
+    if (s.id === excludeSessionId) return false;
+    if (s.estado === 'cancelada') return false;
+    if (s.fecha !== dateStr) return false;
+    return Array.isArray(s.jugadoresIds) && s.jugadoresIds.includes(playerId);
+  });
+
+  return {
+    hasSession: !!existingSession,
+    existingSession: existingSession || null
+  };
+};
+
+/**
+ * Comprueba si alguno de los jugadores seleccionados ya tiene una sesión en ese día
+ */
+export const hasPlayerSessionConflict = (sessions, playerIds, dateStr, startTime = null, endTime = null, excludeSessionId = null) => {
+  if (!playerIds || playerIds.length === 0) return { conflict: false, conflictingPlayerId: null, existingSession: null };
 
   for (const pId of playerIds) {
-    const conflictFound = sessions.some(s => {
-      if (s.id === excludeSessionId) return false;
-      if (s.estado === 'cancelada') return false;
-      if (s.fecha !== dateStr) return false;
-
-      const playerInSession = s.jugadoresIds && s.jugadoresIds.includes(pId);
-      if (!playerInSession) return false;
-
-      return isTimeOverlapping(startTime, endTime, s.horaInicio, s.horaFin);
-    });
-
-    if (conflictFound) {
-      return { conflict: true, conflictingPlayerId: pId };
+    const check = hasPlayerDailySession(sessions, pId, dateStr, excludeSessionId);
+    if (check.hasSession) {
+      return {
+        conflict: true,
+        conflictingPlayerId: pId,
+        existingSession: check.existingSession
+      };
     }
   }
 
-  return { conflict: false, conflictingPlayerId: null };
+  return { conflict: false, conflictingPlayerId: null, existingSession: null };
 };
 
 /**

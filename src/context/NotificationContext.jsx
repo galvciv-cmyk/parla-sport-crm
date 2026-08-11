@@ -5,6 +5,7 @@ import { sendOneSignalPush } from '../services/oneSignalService';
 import { triggerLocalPushNotification } from '../services/pwaService';
 import { useAuth } from './AuthContext';
 import { logNotifEvent } from '../components/common/NotificationDebugPanel';
+import { formatTo12Hour } from '../utils/scheduling';
 
 const NotificationContext = createContext();
 
@@ -61,7 +62,7 @@ export const NotificationProvider = ({ children }) => {
           if (change.type === 'added') {
             const n = change.doc.data();
 
-            // Identificar si la notificación fue generada por el usuario actual en este dispositivo
+            // Identificar si la notificación fue originada por el usuario actual en este dispositivo
             const isSender = (
               (n.senderUid && currentUser?.uid && String(n.senderUid) === String(currentUser.uid)) ||
               (n.senderEmail && currentUser?.email && String(n.senderEmail).toLowerCase() === String(currentUser.email).toLowerCase())
@@ -90,7 +91,7 @@ export const NotificationProvider = ({ children }) => {
               shouldNotify = true;
             }
 
-            // Si es destinatario válido y NO es la persona que originó la acción
+            // Si es destinatario válido y NO es quien originó la acción
             if (shouldNotify && !isSender) {
               const notifType = n.type === 'warning' ? 'warning'
                 : n.type === 'success' ? 'success'
@@ -148,7 +149,7 @@ export const NotificationProvider = ({ children }) => {
     }
   };
 
-  // ─── Notificación de Asignación / Reasignación ───
+  // ─── 1. Notificación de Asignación / Reasignación ───
   const notifySessionAssignment = async ({
     coach,
     session,
@@ -163,14 +164,14 @@ export const NotificationProvider = ({ children }) => {
     const coachEmail = (coach?.email || session.entrenadorEmail || '').trim().toLowerCase();
     const coachId = String(coach?.id || session.entrenadorId || '');
 
-    // 1. Notificación para el ENTRENADOR
+    // Notificación para el ENTRENADOR
     const titleCoach = isReassignment
       ? `⚠️ Reasignación: Sesión ${session.tipo || '1-1'}`
       : `⚽ Nueva Sesión Asignada (${session.tipo || '1-1'})`;
 
     const messageCoach = isReassignment
-      ? `Se te ha reasignado la sesión del ${session.fecha} (${session.horaInicio}-${session.horaFin}) por ausencia de ${previousCoachName || 'profesor'}. Jugadores: ${playerNames.join(', ')}.`
-      : `Nueva sesión programada para el ${session.fecha} (${session.horaInicio}-${session.horaFin}). Jugadores: ${playerNames.join(', ')}.`;
+      ? `Se te ha reasignado la sesión del ${session.fecha} (${formatTo12Hour(session.horaInicio)} - ${formatTo12Hour(session.horaFin)}) por ausencia de ${previousCoachName || 'profesor'}. Jugadores: ${playerNames.join(', ')}.`
+      : `Nueva sesión programada para el ${session.fecha} (${formatTo12Hour(session.horaInicio)} - ${formatTo12Hour(session.horaFin)}). Jugadores: ${playerNames.join(', ')}.`;
 
     const notifCoach = {
       id: `notif-${Date.now()}-coach`,
@@ -186,14 +187,14 @@ export const NotificationProvider = ({ children }) => {
       type: isReassignment ? 'warning' : 'success'
     };
 
-    // 2. Notificación de confirmación para el ADMIN
+    // Notificación de confirmación para el ADMIN
     const titleAdmin = isReassignment
       ? `⚠️ Sesión Reasignada a ${coachName}`
       : `📋 Sesión Agendada Exitosamente`;
 
     const messageAdmin = isReassignment
-      ? `La sesión del ${session.fecha} (${session.horaInicio}-${session.horaFin}) fue reasignada a ${coachName}.`
-      : `Se agendó la clase ${session.tipo} con ${coachName} para el ${session.fecha} (${session.horaInicio}-${session.horaFin}). Jugadores: ${playerNames.join(', ')}.`;
+      ? `La sesión del ${session.fecha} (${formatTo12Hour(session.horaInicio)} - ${formatTo12Hour(session.horaFin)}) fue reasignada a ${coachName}.`
+      : `Se agendó la clase ${session.tipo} con ${coachName} para el ${session.fecha} (${formatTo12Hour(session.horaInicio)} - ${formatTo12Hour(session.horaFin)}). Jugadores: ${playerNames.join(', ')}.`;
 
     const notifAdmin = {
       id: `notif-${Date.now() + 1}-admin`,
@@ -209,28 +210,27 @@ export const NotificationProvider = ({ children }) => {
       type: 'info'
     };
 
-    // Guardar en Firestore (sincroniza en tiempo real con TODOS los dispositivos)
     await saveNotificationLocallyAndRemote([notifCoach, notifAdmin]);
 
-    // Push remoto via OneSignal al entrenador (cuando tenga la app cerrada)
-    if (coachId) {
-      logNotifEvent('onesignal',
-        `📤 Push OneSignal enviado → ${coachId}`,
-        titleCoach,
-        { coachId, title: titleCoach, message: messageCoach }
-      );
-      sendOneSignalPush(titleCoach, messageCoach, coachId);
+    if (coachId || coachEmail) {
+      sendOneSignalPush({
+        title: titleCoach,
+        message: messageCoach,
+        externalUserId: coachId,
+        recipientEmail: coachEmail,
+        url: '/#coach-calendar'
+      });
     }
   };
 
-  // ─── Notificación de Sesión Completada (para el Admin) ───
+  // ─── 2. Notificación de Sesión Completada (para el Admin) ───
   const notifySessionCompleted = async ({ session, coachName }) => {
     if (!session) return;
 
     const notifAdmin = {
       id: `notif-${Date.now()}-completed`,
       title: `🟠 Entrenamiento Finalizado`,
-      message: `El profesor ${coachName || 'asignado'} ha finalizado la sesión del ${session.fecha} (${session.horaInicio}-${session.horaFin}). Lista para revisión y pago.`,
+      message: `El profesor ${coachName || 'asignado'} ha finalizado la sesión del ${session.fecha} (${formatTo12Hour(session.horaInicio)} - ${formatTo12Hour(session.horaFin)}). Lista para revisión y pago.`,
       recipientRole: 'admin',
       recipientCoachId: '',
       recipientEmail: '',
@@ -244,7 +244,7 @@ export const NotificationProvider = ({ children }) => {
     await saveNotificationLocallyAndRemote([notifAdmin]);
   };
 
-  // ─── Notificación de Pago Registrado (para el Entrenador) ───
+  // ─── 3. Notificación de Pago Registrado (para el Entrenador) ───
   const notifySessionPaid = async ({ session, coach }) => {
     if (!session) return;
 
@@ -254,7 +254,7 @@ export const NotificationProvider = ({ children }) => {
     const notifCoach = {
       id: `notif-${Date.now()}-paid`,
       title: `🟢 Pago de Clase Registrado`,
-      message: `Se ha registrado el pago de tu clase del ${session.fecha} (${session.horaInicio}-${session.horaFin}).`,
+      message: `Se ha registrado el pago de tu clase del ${session.fecha} (${formatTo12Hour(session.horaInicio)} - ${formatTo12Hour(session.horaFin)}).`,
       recipientCoachId: coachId,
       recipientEmail: coachEmail,
       recipientRole: 'coach',
@@ -267,14 +267,99 @@ export const NotificationProvider = ({ children }) => {
 
     await saveNotificationLocallyAndRemote([notifCoach]);
 
-    // Push remoto al entrenador
-    if (coachId) {
-      logNotifEvent('onesignal',
-        `📤 Push OneSignal enviado → ${coachId} (pago)`,
-        notifCoach.title,
-        { coachId, title: notifCoach.title }
-      );
-      sendOneSignalPush(notifCoach.title, notifCoach.message, coachId);
+    if (coachId || coachEmail) {
+      sendOneSignalPush({
+        title: notifCoach.title,
+        message: notifCoach.message,
+        externalUserId: coachId,
+        recipientEmail: coachEmail,
+        url: '/#coach-calendar'
+      });
+    }
+  };
+
+  // ─── 4. Notificación al Admin por Cambio de Disponibilidad del Entrenador ───
+  const notifyCoachAvailabilityChanged = async ({ coach, affectedSessions = [], players = [] }) => {
+    if (!coach) return;
+    const coachName = coach.nombre || 'Un entrenador';
+
+    const notifs = [];
+
+    if (affectedSessions && affectedSessions.length > 0) {
+      // Caso A: Tiene sesiones activas en horarios que dejó de atender
+      for (const ses of affectedSessions) {
+        const sesPlayers = players.filter(p => Array.isArray(ses.jugadoresIds) && ses.jugadoresIds.includes(p.id));
+        const playerNamesStr = sesPlayers.map(p => p.nombre).join(', ') || 'jugador(es)';
+
+        notifs.push({
+          id: `notif-${Date.now()}-${ses.id}-avail-conflict`,
+          title: `⚠️ Reasignar Sesión: Cambio de Horario`,
+          message: `${coachName} ha cambiado su disponibilidad. Por favor reasignar la sesión de ${playerNamesStr} a las ${formatTo12Hour(ses.horaInicio)} (${ses.fecha}).`,
+          recipientRole: 'admin',
+          recipientCoachId: '',
+          recipientEmail: '',
+          senderUid: currentUser?.uid || coach.id || 'coach',
+          senderEmail: currentUser?.email || coach.email || '',
+          timestamp: new Date().toISOString(),
+          read: false,
+          type: 'warning'
+        });
+      }
+    } else {
+      // Caso B: Cambio estándar de disponibilidad sin choque
+      notifs.push({
+        id: `notif-${Date.now()}-avail-update`,
+        title: `📅 Disponibilidad Actualizada`,
+        message: `${coachName} ha cambiado su disponibilidad.`,
+        recipientRole: 'admin',
+        recipientCoachId: '',
+        recipientEmail: '',
+        senderUid: currentUser?.uid || coach.id || 'coach',
+        senderEmail: currentUser?.email || coach.email || '',
+        timestamp: new Date().toISOString(),
+        read: false,
+        type: 'info'
+      });
+    }
+
+    await saveNotificationLocallyAndRemote(notifs);
+  };
+
+  // ─── 5. Notificación al Entrenador por Cancelación / Eliminación de Sesión ───
+  const notifySessionDeleted = async ({ session, players = [], coach = null }) => {
+    if (!session) return;
+
+    const coachId = String(coach?.id || session.entrenadorId || '');
+    const coachEmail = (coach?.email || session.entrenadorEmail || '').trim().toLowerCase();
+    const playerNames = (players || []).map(p => p.nombre || 'Jugador').filter(Boolean);
+
+    const titleCoach = `❌ Sesión Cancelada (${session.tipo || '1-1'})`;
+    const messageCoach = `La sesión del ${session.fecha} (${formatTo12Hour(session.horaInicio)} - ${formatTo12Hour(session.horaFin)})${playerNames.length > 0 ? ` con ${playerNames.join(', ')}` : ''} ha sido cancelada o eliminada por la administración.`;
+
+    const notifCoach = {
+      id: `notif-${Date.now()}-deleted`,
+      title: titleCoach,
+      message: messageCoach,
+      recipientCoachId: coachId,
+      recipientEmail: coachEmail,
+      recipientRole: 'coach',
+      senderUid: currentUser?.uid || 'admin',
+      senderEmail: currentUser?.email || '',
+      timestamp: new Date().toISOString(),
+      read: false,
+      type: 'warning'
+    };
+
+    await saveNotificationLocallyAndRemote([notifCoach]);
+
+    if (coachId || coachEmail) {
+      sendOneSignalPush({
+        title: titleCoach,
+        message: messageCoach,
+        externalUserId: coachId,
+        recipientEmail: coachEmail,
+        url: '/#coach-calendar'
+      });
     }
   };
 
@@ -312,6 +397,8 @@ export const NotificationProvider = ({ children }) => {
       notifySessionAssignment,
       notifySessionCompleted,
       notifySessionPaid,
+      notifyCoachAvailabilityChanged,
+      notifySessionDeleted,
       markAsRead,
       markAllAsRead,
       clearNotifications

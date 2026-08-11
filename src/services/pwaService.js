@@ -8,23 +8,21 @@ export const registerServiceWorker = () => {
 
   window.addEventListener('load', async () => {
     try {
-      // Registrar el service worker principal de Parla Sport
-      const registration = await navigator.serviceWorker.register('/sw.js', { scope: '/' });
+      // Registrar el Worker unificado (OneSignal SDK + Cache PWA)
+      const registration = await navigator.serviceWorker.register('/OneSignalSDKWorker.js', { scope: '/' });
       console.log('[PWA] ✅ Service Worker registrado:', registration.scope);
 
-      // Escuchar mensajes del SW (ej: click en notificación cuando app estaba cerrada)
       navigator.serviceWorker.addEventListener('message', (event) => {
         if (event.data?.type === 'NOTIFICATION_CLICK') {
           console.log('[PWA] Notificación clickeada desde background:', event.data.url);
         }
       });
 
-      // Detectar actualización disponible
       registration.addEventListener('updatefound', () => {
         const newWorker = registration.installing;
         newWorker?.addEventListener('statechange', () => {
           if (newWorker.state === 'installed' && navigator.serviceWorker.controller) {
-            console.log('[PWA] Nueva versión disponible');
+            console.log('[PWA] Nueva versión de Service Worker disponible');
           }
         });
       });
@@ -75,7 +73,7 @@ export const requestNotificationPermission = async () => {
 
   try {
     const permission = await Notification.requestPermission();
-    return permission; // 'granted' | 'denied' | 'default'
+    return permission;
   } catch (e) {
     console.warn('[PWA] Error al solicitar permiso:', e);
     return 'error';
@@ -105,22 +103,18 @@ const playNotificationSound = () => {
     gainNode.connect(audioCtx.destination);
     osc.start(audioCtx.currentTime);
     osc.stop(audioCtx.currentTime + 0.4);
-  } catch (e) {
-    // Silencioso — el sonido es opcional
+  } catch {
+    // Silencioso
   }
 };
 
 /**
- * Dispara una notificación.
- * Si la app está en PRIMER PLANO → muestra un Toast in-app.
- * Si la app está en BACKGROUND → muestra una notificación nativa del OS via Service Worker.
+ * Dispara una notificación local (Toast in-app + notificación de sistema si tiene permiso)
  */
 export const triggerLocalPushNotification = (title, body, type = 'notification') => {
-  // SIEMPRE mostrar toast in-app (la app siempre puede estar activa)
   showToast(title, body, type, 6000);
   playNotificationSound();
 
-  // Intentar también notificación del SO (útil si el Service Worker la captura en background)
   if (!('Notification' in window)) return;
 
   const showSystemNotif = () => {
@@ -136,9 +130,7 @@ export const triggerLocalPushNotification = (title, body, type = 'notification')
             requireInteraction: false,
             silent: false
           });
-        }).catch(() => {
-          // Fallback silencioso
-        });
+        }).catch(() => {});
       }
     } catch {
       // Silencioso
@@ -148,5 +140,4 @@ export const triggerLocalPushNotification = (title, body, type = 'notification')
   if (Notification.permission === 'granted') {
     showSystemNotif();
   }
-  // Si no hay permisos, el toast in-app ya fue mostrado — no pedir permisos aquí
 };
