@@ -1,19 +1,37 @@
 // PWA Service Worker & Push Notification Utilities
+import { showToast } from '../components/common/ToastNotification';
 
 let deferredInstallPrompt = null;
 
 export const registerServiceWorker = () => {
-  if ('serviceWorker' in navigator) {
-    window.addEventListener('load', () => {
-      navigator.serviceWorker.register('/sw.js')
-        .then((registration) => {
-          console.log('[PWA] Service Worker registrado exitosamente:', registration.scope);
-        })
-        .catch((error) => {
-          console.error('[PWA] Fallo al registrar Service Worker:', error);
+  if (!('serviceWorker' in navigator)) return;
+
+  window.addEventListener('load', async () => {
+    try {
+      // Registrar el service worker principal de Parla Sport
+      const registration = await navigator.serviceWorker.register('/sw.js', { scope: '/' });
+      console.log('[PWA] ✅ Service Worker registrado:', registration.scope);
+
+      // Escuchar mensajes del SW (ej: click en notificación cuando app estaba cerrada)
+      navigator.serviceWorker.addEventListener('message', (event) => {
+        if (event.data?.type === 'NOTIFICATION_CLICK') {
+          console.log('[PWA] Notificación clickeada desde background:', event.data.url);
+        }
+      });
+
+      // Detectar actualización disponible
+      registration.addEventListener('updatefound', () => {
+        const newWorker = registration.installing;
+        newWorker?.addEventListener('statechange', () => {
+          if (newWorker.state === 'installed' && navigator.serviceWorker.controller) {
+            console.log('[PWA] Nueva versión disponible');
+          }
         });
-    });
-  }
+      });
+    } catch (error) {
+      console.warn('[PWA] Fallo al registrar Service Worker:', error);
+    }
+  });
 
   // Capturar evento antes de instalar PWA
   window.addEventListener('beforeinstallprompt', (e) => {
@@ -25,13 +43,18 @@ export const registerServiceWorker = () => {
 
 export const promptPwaInstall = async () => {
   if (!deferredInstallPrompt) {
-    alert('La PWA ya está instalada o tu navegador la gestiona directamente.');
+    showToast(
+      'Aplicación ya instalada',
+      'La PWA ya está instalada o tu navegador la gestiona directamente.',
+      'info',
+      4000
+    );
     return false;
   }
 
   deferredInstallPrompt.prompt();
   const { outcome } = await deferredInstallPrompt.userChoice;
-  console.log(`[PWA] Respuesta del usuario a la instalación: ${outcome}`);
+  console.log(`[PWA] Respuesta de instalación: ${outcome}`);
   deferredInstallPrompt = null;
   return outcome === 'accepted';
 };
@@ -39,97 +62,91 @@ export const promptPwaInstall = async () => {
 export const requestNotificationPermission = async () => {
   if (!('Notification' in window)) {
     console.warn('[PWA] Este navegador no soporta notificaciones push.');
-    return false;
+    return 'not-supported';
   }
 
   if (Notification.permission === 'granted') {
-    return true;
+    return 'granted';
   }
 
-  if (Notification.permission !== 'denied') {
-    try {
-      const permission = await Notification.requestPermission();
-      return permission === 'granted';
-    } catch (e) {
-      console.warn('[PWA] Error al solicitar permiso de notificación:', e);
-      return false;
-    }
+  if (Notification.permission === 'denied') {
+    return 'denied';
   }
 
-  return false;
+  try {
+    const permission = await Notification.requestPermission();
+    return permission; // 'granted' | 'denied' | 'default'
+  } catch (e) {
+    console.warn('[PWA] Error al solicitar permiso:', e);
+    return 'error';
+  }
 };
 
 const playNotificationSound = () => {
   try {
     const AudioContext = window.AudioContext || window.webkitAudioContext;
     if (!AudioContext) return;
-    
+
     const audioCtx = new AudioContext();
-    if (audioCtx.state === 'suspended') {
-      audioCtx.resume();
-    }
-    
-    // Generar un sonido de "Ding" agradable para la notificación
+    if (audioCtx.state === 'suspended') audioCtx.resume();
+
     const osc = audioCtx.createOscillator();
     const gainNode = audioCtx.createGain();
-    
+
     osc.type = 'sine';
     osc.frequency.setValueAtTime(587.33, audioCtx.currentTime); // D5
     osc.frequency.exponentialRampToValueAtTime(880, audioCtx.currentTime + 0.1); // A5
-    
+
     gainNode.gain.setValueAtTime(0, audioCtx.currentTime);
-    gainNode.gain.linearRampToValueAtTime(0.3, audioCtx.currentTime + 0.05);
-    gainNode.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.5);
-    
+    gainNode.gain.linearRampToValueAtTime(0.25, audioCtx.currentTime + 0.05);
+    gainNode.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.4);
+
     osc.connect(gainNode);
     gainNode.connect(audioCtx.destination);
-    
     osc.start(audioCtx.currentTime);
-    osc.stop(audioCtx.currentTime + 0.5);
+    osc.stop(audioCtx.currentTime + 0.4);
   } catch (e) {
-    console.warn('[PWA] Fallo al reproducir sonido:', e);
+    // Silencioso — el sonido es opcional
   }
 };
 
-export const triggerLocalPushNotification = (title, body) => {
-  if (!('Notification' in window)) return;
-
-  // Reproducir sonido nativo si la app está en primer plano
+/**
+ * Dispara una notificación.
+ * Si la app está en PRIMER PLANO → muestra un Toast in-app.
+ * Si la app está en BACKGROUND → muestra una notificación nativa del OS via Service Worker.
+ */
+export const triggerLocalPushNotification = (title, body, type = 'notification') => {
+  // SIEMPRE mostrar toast in-app (la app siempre puede estar activa)
+  showToast(title, body, type, 6000);
   playNotificationSound();
 
-  const dispatchNotification = () => {
+  // Intentar también notificación del SO (útil si el Service Worker la captura en background)
+  if (!('Notification' in window)) return;
+
+  const showSystemNotif = () => {
     try {
-      // Intentar primero con Service Worker para soporte PWA/Móvil
       if ('serviceWorker' in navigator && navigator.serviceWorker.controller) {
         navigator.serviceWorker.ready.then((reg) => {
           reg.showNotification(title, {
             body,
-            icon: '/favicon.svg',
-            badge: '/favicon.svg',
-            vibrate: [200, 100, 200, 100, 200],
-            silent: false,
-            requireInteraction: true,
-            tag: 'parla-sport-notice-' + Date.now()
+            icon: '/favicon.png',
+            badge: '/favicon.png',
+            vibrate: [200, 100, 200],
+            tag: 'parla-' + Date.now(),
+            requireInteraction: false,
+            silent: false
           });
         }).catch(() => {
-          new Notification(title, { body, icon: '/favicon.svg', silent: false });
+          // Fallback silencioso
         });
-      } else {
-        // Notificación estándar web/escritorio
-        new Notification(title, { body, icon: '/favicon.svg', silent: false });
       }
-    } catch (err) {
-      console.warn('[PWA] Fallo al mostrar notificación push:', err);
+    } catch {
+      // Silencioso
     }
   };
 
   if (Notification.permission === 'granted') {
-    dispatchNotification();
-  } else if (Notification.permission !== 'denied') {
-    Notification.requestPermission().then((perm) => {
-      if (perm === 'granted') {
-        dispatchNotification();
-      }
-    });
+    showSystemNotif();
   }
+  // Si no hay permisos, el toast in-app ya fue mostrado — no pedir permisos aquí
 };

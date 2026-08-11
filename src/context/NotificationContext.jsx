@@ -4,6 +4,7 @@ import { db } from '../services/firebase';
 import { sendOneSignalPush } from '../services/oneSignalService';
 import { triggerLocalPushNotification } from '../services/pwaService';
 import { useAuth } from './AuthContext';
+import { logNotifEvent } from '../components/common/NotificationDebugPanel';
 
 const NotificationContext = createContext();
 
@@ -19,7 +20,7 @@ export const NotificationProvider = ({ children }) => {
 
   const { currentUser, role, activeCoachId } = useAuth() || {};
 
-  // Escuchar notificaciones en tiempo real desde Firestore con respaldo en LocalStorage
+  // ─── Escuchar notificaciones en tiempo real desde Firestore ───
   useEffect(() => {
     let isInitialLoad = true;
 
@@ -27,20 +28,41 @@ export const NotificationProvider = ({ children }) => {
       const firestoreNotifs = snapshot.docs.map(d => ({ id: d.id, ...d.data() }));
       firestoreNotifs.sort((a, b) => new Date(b.timestamp || 0) - new Date(a.timestamp || 0));
       setNotifications(firestoreNotifs);
-      
+
       try {
         localStorage.setItem('parla_notifications_store', JSON.stringify(firestoreNotifs));
       } catch (e) {
         console.warn(e);
       }
 
+      // Log del snapshot de Firestore
+      if (!isInitialLoad) {
+        const added = snapshot.docChanges().filter(c => c.type === 'added').length;
+        const modified = snapshot.docChanges().filter(c => c.type === 'modified').length;
+        if (added > 0 || modified > 0) {
+          logNotifEvent('firestore',
+            `📥 Firestore: ${added} nueva${added !== 1 ? 's' : ''}, ${modified} modificada${modified !== 1 ? 's' : ''}`,
+            `Total en colección: ${firestoreNotifs.length}`,
+            { added, modified, total: firestoreNotifs.length }
+          );
+        }
+      } else {
+        logNotifEvent('firestore',
+          `🔌 Firestore conectado — ${firestoreNotifs.length} notificaciones cargadas`,
+          `Escuchando colección: notifications`,
+          { count: firestoreNotifs.length }
+        );
+      }
+
+      // Solo procesar cambios DESPUÉS de la carga inicial (evitar notificaciones duplicadas al abrir la app)
       if (!isInitialLoad) {
         snapshot.docChanges().forEach((change) => {
           if (change.type === 'added') {
             const n = change.doc.data();
-            // Evitar notificar si fue creada por este mismo dispositivo en los últimos 5 segundos
+
+            // Ignorar notificaciones creadas por ESTE dispositivo en los últimos 5 segundos
             const isVeryRecent = (new Date() - new Date(n.timestamp)) < 5000;
-            
+
             let shouldNotify = false;
             const notifCoachId = String(n.recipientCoachId || '');
             const notifEmail = String(n.recipientEmail || '').trim().toLowerCase();
@@ -51,7 +73,11 @@ export const NotificationProvider = ({ children }) => {
               shouldNotify = true;
             } else if (n.recipientRole === 'all') {
               shouldNotify = true;
-            } else if (notifCoachId && (notifCoachId === String(userCoachId) || notifCoachId === String(currentUser?.uid) || notifCoachId.includes(String(currentUser?.uid)))) {
+            } else if (notifCoachId && (
+              notifCoachId === String(userCoachId) ||
+              notifCoachId === String(currentUser?.uid) ||
+              notifCoachId.includes(String(currentUser?.uid))
+            )) {
               shouldNotify = true;
             } else if (userEmail && notifEmail && notifEmail === userEmail) {
               shouldNotify = true;
@@ -59,15 +85,30 @@ export const NotificationProvider = ({ children }) => {
               shouldNotify = true;
             }
 
+            // Mostrar toast in-app (y notificación del OS si hay permisos)
             if (shouldNotify && !isVeryRecent) {
-              triggerLocalPushNotification(n.title, n.message);
+              const notifType = n.type === 'warning' ? 'warning'
+                : n.type === 'success' ? 'success'
+                : 'notification';
+              logNotifEvent('toast',
+                `🔔 Notificación entregada: ${n.title}`,
+                n.message,
+                { id: n.id, type: n.type, recipientRole: n.recipientRole, recipientCoachId: n.recipientCoachId }
+              );
+              triggerLocalPushNotification(n.title, n.message, notifType);
+            } else if (shouldNotify && isVeryRecent) {
+              logNotifEvent('info',
+                `⏭️ Notificación propia omitida (muy reciente)`,
+                n.title
+              );
             }
           }
         });
       }
+
       isInitialLoad = false;
     }, () => {
-      // Manejo silencioso y elegante del respaldo en almacenamiento local
+      // Fallback local si Firestore falla
       try {
         const saved = localStorage.getItem('parla_notifications_store');
         if (saved) setNotifications(JSON.parse(saved));
@@ -94,12 +135,12 @@ export const NotificationProvider = ({ children }) => {
       try {
         await setDoc(doc(db, 'notifications', notif.id), notif);
       } catch (err) {
-        console.warn('[NotificationContext] No se pudo guardar la notificación en Firestore (usando respaldo local):', err.message);
+        console.warn('[NotificationContext] No se pudo guardar en Firestore (respaldo local activo):', err.message);
       }
     }
   };
 
-  // Notificación de Asignación / Reasignación de Sesión (para el Entrenador Y para el Admin)
+  // ─── Notificación de Asignación / Reasignación ───
   const notifySessionAssignment = async ({
     coach,
     session,
@@ -114,7 +155,7 @@ export const NotificationProvider = ({ children }) => {
     const coachEmail = (coach?.email || session.entrenadorEmail || '').trim().toLowerCase();
     const coachId = String(coach?.id || session.entrenadorId || '');
 
-    // 1. Notificación para el ENTRENADOR
+    // Notificación para el ENTRENADOR
     const titleCoach = isReassignment
       ? `⚠️ Reasignación: Sesión ${session.tipo || '1-1'}`
       : `⚽ Nueva Sesión Asignada (${session.tipo || '1-1'})`;
@@ -135,7 +176,7 @@ export const NotificationProvider = ({ children }) => {
       type: isReassignment ? 'warning' : 'success'
     };
 
-    // 2. Notificación para el ADMINISTRADOR
+    // Notificación para el ADMINISTRADOR
     const titleAdmin = isReassignment
       ? `⚠️ Sesión Reasignada a ${coachName}`
       : `📋 Sesión Agendada Exitosamente`;
@@ -145,7 +186,7 @@ export const NotificationProvider = ({ children }) => {
       : `Se agendó la clase ${session.tipo} con ${coachName} para el ${session.fecha} (${session.horaInicio}-${session.horaFin}). Jugadores: ${playerNames.join(', ')}.`;
 
     const notifAdmin = {
-      id: `notif-${Date.now()}-admin`,
+      id: `notif-${Date.now() + 1}-admin`,
       title: titleAdmin,
       message: messageAdmin,
       recipientRole: 'admin',
@@ -156,20 +197,25 @@ export const NotificationProvider = ({ children }) => {
       type: 'info'
     };
 
-    // Guardar localmente e intentar remoto sin bloquear
+    // 1. Guardar en Firestore (esto disparará el onSnapshot en TODOS los dispositivos conectados)
     await saveNotificationLocallyAndRemote([notifCoach, notifAdmin]);
 
-    // Disparar Push remoto vía OneSignal
+    // 2. Enviar Push remoto via OneSignal al entrenador (para cuando tiene la app CERRADA)
     if (coachId) {
+      logNotifEvent('onesignal',
+        `📤 Push OneSignal enviado → ${coachId}`,
+        titleCoach,
+        { coachId, title: titleCoach, message: messageCoach }
+      );
       sendOneSignalPush(titleCoach, messageCoach, coachId);
-    } else {
-      triggerLocalPushNotification(titleCoach, messageCoach);
     }
+    // El admin recibirá el toast in-app vía el onSnapshot listener
   };
 
-  // Notificación de Clase Finalizada por el Entrenador (dirigida al Admin)
+  // ─── Notificación de Sesión Completada (para el Admin) ───
   const notifySessionCompleted = async ({ session, coachName }) => {
     if (!session) return;
+
     const notifAdmin = {
       id: `notif-${Date.now()}-completed`,
       title: `🟠 Entrenamiento Finalizado`,
@@ -183,14 +229,13 @@ export const NotificationProvider = ({ children }) => {
     };
 
     await saveNotificationLocallyAndRemote([notifAdmin]);
-    // Asumimos que los Admins pueden estar suscritos bajo un tag o ID específico
-    // Para simplificar, usamos notificación local si el Admin está usando la app
-    triggerLocalPushNotification(notifAdmin.title, notifAdmin.message);
+    // El Admin recibirá el toast vía onSnapshot
   };
 
-  // Notificación de Clase Pagada por el Admin (dirigida al Entrenador)
+  // ─── Notificación de Pago Registrado (para el Entrenador) ───
   const notifySessionPaid = async ({ session, coach }) => {
     if (!session) return;
+
     const coachId = String(coach?.id || session.entrenadorId || '');
     const coachEmail = (coach?.email || session.entrenadorEmail || '').trim().toLowerCase();
 
@@ -207,19 +252,22 @@ export const NotificationProvider = ({ children }) => {
     };
 
     await saveNotificationLocallyAndRemote([notifCoach]);
+
+    // Push remoto al entrenador si tiene la app cerrada
     if (coachId) {
+      logNotifEvent('onesignal',
+        `📤 Push OneSignal enviado → ${coachId} (pago)`,
+        notifCoach.title,
+        { coachId, title: notifCoach.title }
+      );
       sendOneSignalPush(notifCoach.title, notifCoach.message, coachId);
-    } else {
-      triggerLocalPushNotification(notifCoach.title, notifCoach.message);
     }
   };
 
   const markAsRead = (id) => {
     setNotifications(prev => {
       const updated = prev.map(n => n.id === id ? { ...n, read: true } : n);
-      try {
-        localStorage.setItem('parla_notifications_store', JSON.stringify(updated));
-      } catch (e) { console.warn(e); }
+      try { localStorage.setItem('parla_notifications_store', JSON.stringify(updated)); } catch (e) { console.warn(e); }
       return updated;
     });
     setDoc(doc(db, 'notifications', id), { read: true }, { merge: true }).catch(() => {});
@@ -228,9 +276,7 @@ export const NotificationProvider = ({ children }) => {
   const markAllAsRead = () => {
     setNotifications(prev => {
       const updated = prev.map(n => ({ ...n, read: true }));
-      try {
-        localStorage.setItem('parla_notifications_store', JSON.stringify(updated));
-      } catch (e) { console.warn(e); }
+      try { localStorage.setItem('parla_notifications_store', JSON.stringify(updated)); } catch (e) { console.warn(e); }
       return updated;
     });
     notifications.forEach(n => {
@@ -240,9 +286,7 @@ export const NotificationProvider = ({ children }) => {
 
   const clearNotifications = () => {
     setNotifications([]);
-    try {
-      localStorage.removeItem('parla_notifications_store');
-    } catch (e) { console.warn(e); }
+    try { localStorage.removeItem('parla_notifications_store'); } catch (e) { console.warn(e); }
     notifications.forEach(n => {
       deleteDoc(doc(db, 'notifications', n.id)).catch(() => {});
     });
