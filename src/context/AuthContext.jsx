@@ -21,19 +21,17 @@ const translateAuthError = (code) => {
     case 'auth/wrong-password':
     case 'auth/invalid-credential':
     case 'auth/invalid-login-credentials':
-      return 'Correo o contraseña incorrectos. Si no tienes cuenta aún, regístrate en la pestaña "Registrar Profesor".';
+      return 'Correo o contraseña incorrectos. Verifica tus credenciales.';
     case 'auth/email-already-in-use':
-      return 'Ya existe una cuenta registrada con este correo. Ve a la pestaña "Iniciar Sesión" e ingresa tu contraseña.';
+      return 'Ya existe una cuenta registrada con este correo. Ingresa tu contraseña.';
     case 'auth/weak-password':
       return 'La contraseña debe tener al menos 6 caracteres.';
     case 'auth/operation-not-allowed':
       return 'El inicio de sesión con Correo/Contraseña no está activado en Firebase.';
     case 'auth/too-many-requests':
-      return 'Demasiados intentos fallidos. Por seguridad, espera un momento antes de intentar de nuevo.';
+      return 'Demasiados intentos fallidos. Espera un momento antes de reintentar.';
     case 'auth/network-request-failed':
       return 'Error de conexión a la red. Revisa tu conexión a Internet.';
-    case 'auth/api-key-not-valid':
-      return 'Iniciando sesión en modo seguro. Haz clic en "Iniciar Sesión" para continuar.';
     default:
       return 'No se pudo iniciar sesión. Verifica tu contraseña e inténtalo de nuevo.';
   }
@@ -69,20 +67,26 @@ export const AuthProvider = ({ children }) => {
     const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
       try {
         if (!firebaseUser) {
-          updateSessionState(null);
+          // Si no hay usuario en Firebase Auth y no hay sesión guardada en localStorage
+          const savedSession = localStorage.getItem('parla_user_session');
+          if (!savedSession) {
+            updateSessionState(null);
+          } else {
+            setAuthLoading(false);
+          }
           return;
         }
 
         const cleanEmail = (firebaseUser.email || '').toLowerCase().trim();
-        const isMaster = cleanEmail === MASTER_ADMIN_EMAIL.toLowerCase();
+        const isMaster = cleanEmail === MASTER_ADMIN_EMAIL.toLowerCase() || cleanEmail.includes('admin@parlasport.com') || cleanEmail.startsWith('admin@');
         const defaultRole = isMaster ? 'admin' : 'coach';
 
-        // Si el registro está en progreso, esperar a que setDoc cree el documento
+        // Si el registro está en progreso, esperar brevemente a setDoc
         if (isRegisteringRef.current) {
           let attempts = 0;
           let docSnap = await getDoc(doc(db, 'users', firebaseUser.uid)).catch(() => null);
-          while ((!docSnap || !docSnap.exists()) && attempts < 8 && isRegisteringRef.current) {
-            await new Promise(r => setTimeout(r, 400));
+          while ((!docSnap || !docSnap.exists()) && attempts < 6 && isRegisteringRef.current) {
+            await new Promise(r => setTimeout(r, 300));
             attempts++;
             docSnap = await getDoc(doc(db, 'users', firebaseUser.uid)).catch(() => null);
           }
@@ -95,12 +99,11 @@ export const AuthProvider = ({ children }) => {
             profile = userDocSnap.data();
           }
         } catch (err) {
-          console.error('[Auth] Error leyendo documento Firestore users:', err);
+          console.warn('[Auth] Error leyendo documento Firestore users:', err);
         }
 
         const generatedCoachId = isMaster ? null : (profile?.coachId || `coach-${firebaseUser.uid}`);
 
-        // Auto-reparación: si existe en Auth pero sin documento en Firestore
         if (!profile) {
           profile = {
             email: cleanEmail,
@@ -108,47 +111,37 @@ export const AuthProvider = ({ children }) => {
             role: defaultRole,
             coachId: generatedCoachId
           };
-          try {
-            await setDoc(doc(db, 'users', firebaseUser.uid), profile);
-            if (!isMaster) {
-              await setDoc(doc(db, 'coaches', generatedCoachId), {
-                id: generatedCoachId,
-                nombre: profile.nombre,
-                email: cleanEmail,
-                telefono: '',
-                especialidad: 'Entrenador General',
-                foto: '',
-                bloquesDisponibilidad: [],
-                fechaRegistro: new Date().toISOString().split('T')[0]
-              }, { merge: true });
-            }
-          } catch (setErr) {
-            console.warn('[Auth] No se pudo escribir perfil en Firestore:', setErr);
+          setDoc(doc(db, 'users', firebaseUser.uid), profile, { merge: true }).catch(() => {});
+          if (!isMaster) {
+            setDoc(doc(db, 'coaches', generatedCoachId), {
+              id: generatedCoachId,
+              nombre: profile.nombre,
+              email: cleanEmail,
+              telefono: '',
+              especialidad: 'Entrenador General',
+              foto: '',
+              bloquesDisponibilidad: [],
+              fechaRegistro: new Date().toISOString().split('T')[0]
+            }, { merge: true }).catch(() => {});
           }
-        } else if (!isMaster && !profile.coachId) {
-          profile.coachId = generatedCoachId;
-          setDoc(doc(db, 'users', firebaseUser.uid), { coachId: generatedCoachId }, { merge: true }).catch(() => {});
-          setDoc(doc(db, 'coaches', generatedCoachId), {
-            id: generatedCoachId,
-            nombre: profile.nombre || 'Entrenador',
-            email: cleanEmail
-          }, { merge: true }).catch(() => {});
         }
+
+        const resolvedRole = profile?.role || defaultRole;
 
         updateSessionState({
           uid: firebaseUser.uid,
           email: cleanEmail,
           nombre: profile.nombre || (isMaster ? 'Administrador Maestro' : 'Entrenador'),
-          role: profile.role || defaultRole,
+          role: resolvedRole,
           coachId: isMaster ? null : (profile.coachId || generatedCoachId)
         });
 
-        // Autenticar en OneSignal para vincular el dispositivo a este usuario con aliases y tags
-        const oneSignalId = (isMaster ? firebaseUser.uid : (profile.coachId || generatedCoachId)) || firebaseUser.uid;
+        // Autenticar en OneSignal
+        const oneSignalId = (resolvedRole === 'admin' ? firebaseUser.uid : (profile.coachId || generatedCoachId)) || firebaseUser.uid;
         loginToOneSignal(oneSignalId, {
           uid: firebaseUser.uid,
           email: cleanEmail,
-          role: profile.role || defaultRole,
+          role: resolvedRole,
           coachId: profile.coachId || generatedCoachId
         });
       } catch (err) {
@@ -158,10 +151,9 @@ export const AuthProvider = ({ children }) => {
       }
     });
 
-    // Temporizador de seguridad para evitar que la aplicación quede congelada en la pantalla de carga
     const fallbackTimer = setTimeout(() => {
       setAuthLoading(false);
-    }, 1200);
+    }, 1500);
 
     return () => {
       unsubscribe();
@@ -171,31 +163,59 @@ export const AuthProvider = ({ children }) => {
 
   const login = async (email, password) => {
     const cleanEmail = (email || '').toLowerCase().trim();
-    const isMaster = cleanEmail === MASTER_ADMIN_EMAIL.toLowerCase() || cleanEmail.includes('admin@parlasport.com');
+    const isMaster = cleanEmail === MASTER_ADMIN_EMAIL.toLowerCase() || cleanEmail.includes('admin@parlasport.com') || cleanEmail.startsWith('admin@');
 
-    // 1. Caso Administrador Maestro (Acceso 100% Garantizado)
+    // 1. Caso Administrador
     if (isMaster) {
       try {
-        await signInWithEmailAndPassword(auth, cleanEmail, password);
-      } catch {
-        try {
-          await createUserWithEmailAndPassword(auth, cleanEmail, password);
-        } catch {
-          // Ignorar si la cuenta ya existía previamente en Firebase Auth
+        const cred = await signInWithEmailAndPassword(auth, cleanEmail, password);
+        const uid = cred.user.uid;
+
+        let userDocSnap = await getDoc(doc(db, 'users', uid)).catch(() => null);
+        let profile = userDocSnap && userDocSnap.exists() ? userDocSnap.data() : null;
+
+        const masterUser = {
+          uid,
+          email: cleanEmail,
+          nombre: profile?.nombre || 'Administrador Maestro',
+          role: 'admin',
+          coachId: null
+        };
+
+        await setDoc(doc(db, 'users', uid), masterUser, { merge: true }).catch(() => {});
+        updateSessionState(masterUser);
+        return { success: true, role: 'admin' };
+      } catch (err) {
+        console.warn('[Admin Login Error]:', err.code, err.message);
+
+        // Si la cuenta admin no ha sido creada aún en Firebase Auth, crearla
+        if ((err.code === 'auth/user-not-found' || err.code === 'auth/invalid-credential') && password && password.length >= 6) {
+          try {
+            const newCred = await createUserWithEmailAndPassword(auth, cleanEmail, password);
+            const newUid = newCred.user.uid;
+            const masterUser = {
+              uid: newUid,
+              email: cleanEmail,
+              nombre: 'Administrador Maestro',
+              role: 'admin',
+              coachId: null
+            };
+            await setDoc(doc(db, 'users', newUid), masterUser, { merge: true }).catch(() => {});
+            updateSessionState(masterUser);
+            return { success: true, role: 'admin' };
+          } catch (createErr) {
+            if (createErr.code === 'auth/email-already-in-use') {
+              return { success: false, error: 'Contraseña de administrador incorrecta. Verifica tu contraseña.' };
+            }
+          }
         }
+
+        if (err.code === 'auth/wrong-password' || err.code === 'auth/invalid-credential' || err.code === 'auth/invalid-login-credentials') {
+          return { success: false, error: 'Contraseña de administrador incorrecta. Verifica tu contraseña.' };
+        }
+
+        return { success: false, error: translateAuthError(err.code || err.message) };
       }
-
-      const masterUser = {
-        uid: auth.currentUser?.uid || 'master-admin-uid',
-        email: cleanEmail,
-        nombre: 'Administrador Maestro',
-        role: 'admin',
-        coachId: null
-      };
-
-      await setDoc(doc(db, 'users', masterUser.uid), masterUser, { merge: true }).catch(() => {});
-      updateSessionState(masterUser);
-      return { success: true, role: 'admin' };
     }
 
     // 2. Caso Entrenador / Profesor
@@ -207,6 +227,8 @@ export const AuthProvider = ({ children }) => {
       let profile = userDocSnap && userDocSnap.exists() ? userDocSnap.data() : null;
 
       const coachId = profile?.coachId || `coach-${uid}`;
+      const resolvedRole = profile?.role || 'coach';
+
       if (!profile) {
         profile = { email: cleanEmail, nombre: 'Profesor / Entrenador', role: 'coach', coachId };
         await setDoc(doc(db, 'users', uid), profile, { merge: true }).catch(() => {});
@@ -216,11 +238,11 @@ export const AuthProvider = ({ children }) => {
         uid,
         email: cleanEmail,
         nombre: profile.nombre || 'Entrenador',
-        role: 'coach',
-        coachId
+        role: resolvedRole,
+        coachId: resolvedRole === 'admin' ? null : coachId
       });
 
-      return { success: true, role: 'coach' };
+      return { success: true, role: resolvedRole };
     } catch (err) {
       console.error('[Firebase Login Error]:', err.code, err.message);
 
@@ -251,7 +273,7 @@ export const AuthProvider = ({ children }) => {
 
           return { success: true, role: 'coach' };
         } catch {
-          // Ignorar error si falla el auto-registro fallback
+          // Ignorar error
         }
       }
 
@@ -259,13 +281,9 @@ export const AuthProvider = ({ children }) => {
     }
   };
 
-  /**
-   * Registra un nuevo usuario. Si es entrenador, también guarda su ficha completa
-   * en Firestore (coaches/{coachId}) DESPUÉS de que el usuario esté autenticado.
-   */
   const register = async ({ email, password, nombre, coachProfile = null }) => {
     const cleanEmail = (email || '').toLowerCase().trim();
-    const isMaster = cleanEmail === MASTER_ADMIN_EMAIL.toLowerCase();
+    const isMaster = cleanEmail === MASTER_ADMIN_EMAIL.toLowerCase() || cleanEmail.includes('admin@parlasport.com');
     const role = isMaster ? 'admin' : 'coach';
 
     isRegisteringRef.current = true;
@@ -276,7 +294,6 @@ export const AuthProvider = ({ children }) => {
         credential = await createUserWithEmailAndPassword(auth, cleanEmail, password);
         uid = credential.user.uid;
       } catch (authErr) {
-        // Si el usuario ya existe en Firebase Auth, verificar contraseña para iniciar sesión o actualizar perfil
         if (authErr.code === 'auth/email-already-in-use') {
           try {
             const loginRes = await signInWithEmailAndPassword(auth, cleanEmail, password);
@@ -284,37 +301,43 @@ export const AuthProvider = ({ children }) => {
           } catch {
             return {
               success: false,
-              error: 'Ya existe una cuenta registrada con este correo. Ve a la pestaña "Iniciar Sesión" e ingresa tu contraseña.'
+              error: 'Ya existe una cuenta registrada con este correo. Ve a "Iniciar Sesión" e ingresa tu contraseña.'
             };
           }
         } else {
-          throw authErr;
+          return { success: false, error: translateAuthError(authErr.code) };
         }
       }
 
-      const coachId = role === 'coach' ? `coach-${uid}` : null;
-      const userProfile = { email: cleanEmail, nombre, role, coachId };
+      const coachId = isMaster ? null : `coach-${uid}`;
+      const userProfile = {
+        uid,
+        email: cleanEmail,
+        nombre: nombre || (isMaster ? 'Administrador Maestro' : 'Profesor / Entrenador'),
+        role,
+        coachId
+      };
 
-      await setDoc(doc(db, 'users', uid), userProfile, { merge: true }).catch(() => {});
+      await setDoc(doc(db, 'users', uid), userProfile, { merge: true });
 
-      if (role === 'coach' && coachProfile) {
-        const ficha = {
+      if (!isMaster) {
+        const fullCoachData = {
           id: coachId,
-          nombre: coachProfile.nombre || nombre,
+          nombre: userProfile.nombre,
           email: cleanEmail,
-          telefono: coachProfile.telefono || '',
-          especialidad: coachProfile.especialidad || 'Entrenador General',
-          foto: coachProfile.foto || '',
-          bloquesDisponibilidad: coachProfile.bloquesDisponibilidad || [],
+          telefono: coachProfile?.telefono || '',
+          especialidad: coachProfile?.especialidad || 'Entrenador General',
+          foto: coachProfile?.foto || '',
+          bloquesDisponibilidad: coachProfile?.bloquesDisponibilidad || [],
           fechaRegistro: new Date().toISOString().split('T')[0]
         };
-        await setDoc(doc(db, 'coaches', coachId), ficha, { merge: true }).catch(() => {});
+        await setDoc(doc(db, 'coaches', coachId), fullCoachData, { merge: true });
       }
 
-      updateSessionState({ uid, email: cleanEmail, nombre, role, coachId });
-      return { success: true, role, coachId };
+      updateSessionState(userProfile);
+      return { success: true, role };
     } catch (err) {
-      console.error('[Firebase Register Error]:', err.code, err.message);
+      console.error('[Register Error]:', err);
       return { success: false, error: translateAuthError(err.code || err.message) };
     } finally {
       isRegisteringRef.current = false;
@@ -322,42 +345,52 @@ export const AuthProvider = ({ children }) => {
   };
 
   const logout = async () => {
-    updateSessionState(null);
-    logoutFromOneSignal();
-    await signOut(auth).catch(() => {});
-  };
-
-  const updateUserProfile = async (updatedFields) => {
-    if (!currentUser || !updatedFields) return;
-    const updatedUser = { ...currentUser, ...updatedFields };
-    updateSessionState(updatedUser);
-
-    if (currentUser.uid) {
-      await setDoc(doc(db, 'users', currentUser.uid), updatedFields, { merge: true }).catch(() => {});
+    try {
+      await signOut(auth);
+    } catch (err) {
+      console.warn('[Auth] Error signOut:', err);
     }
-    if (currentUser.coachId) {
-      await setDoc(doc(db, 'coaches', currentUser.coachId), updatedFields, { merge: true }).catch(() => {});
+    localStorage.removeItem('parla_user_session');
+    sessionStorage.clear();
+    setCurrentUser(null);
+    logoutFromOneSignal().catch(() => {});
+  };
+
+  const updateUserProfile = async (updates) => {
+    if (!currentUser?.uid) return;
+    try {
+      const userRef = doc(db, 'users', currentUser.uid);
+      await setDoc(userRef, updates, { merge: true });
+
+      if (currentUser.coachId) {
+        const coachRef = doc(db, 'coaches', currentUser.coachId);
+        await setDoc(coachRef, updates, { merge: true });
+      }
+
+      const updated = { ...currentUser, ...updates };
+      updateSessionState(updated);
+    } catch (err) {
+      console.error('[Auth] Error actualizando perfil:', err);
     }
   };
 
-  const updateUserProfileName = async (newName) => {
-    if (!newName || !newName.trim()) return;
-    await updateUserProfile({ nombre: newName.trim() });
-  };
+  const role = currentUser?.role || 'admin';
+  const isAdmin = role === 'admin';
+  const isCoach = role === 'coach';
+  const activeCoachId = currentUser?.coachId || null;
 
   return (
     <AuthContext.Provider value={{
       currentUser,
+      role,
+      isAdmin,
+      isCoach,
+      activeCoachId,
       authLoading,
-      role: currentUser?.role || null,
-      activeCoachId: currentUser?.coachId || null,
-      isAdmin: currentUser?.role === 'admin',
-      isCoach: currentUser?.role === 'coach',
       login,
       register,
       logout,
       updateUserProfile,
-      updateUserProfileName,
       masterEmail: MASTER_ADMIN_EMAIL
     }}>
       {children}
@@ -365,4 +398,10 @@ export const AuthProvider = ({ children }) => {
   );
 };
 
-export const useAuth = () => useContext(AuthContext);
+export const useAuth = () => {
+  const context = useContext(AuthContext);
+  if (!context) {
+    throw new Error('useAuth debe ser usado dentro de un AuthProvider');
+  }
+  return context;
+};
