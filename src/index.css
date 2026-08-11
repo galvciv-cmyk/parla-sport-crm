@@ -360,20 +360,27 @@ select option {
   }
 
   .glass-modal {
-    width: 94% !important;
     max-width: 100% !important;
-    padding: 24px 18px !important;
-    margin: 12px auto !important;
   }
 
-  .notification-dropdown {
+  .modal-overlay-wrapper {
+    padding: 10px !important;
+  }
+
+  .modal-content-box {
+    width: 100% !important;
+    max-width: calc(100vw - 20px) !important;
+    max-height: calc(100dvh - 24px) !important;
+  }
+
+  .notification-dropdown-panel {
     position: fixed !important;
-    top: 65px !important;
-    left: 5vw !important;
-    right: auto !important;
-    width: 90vw !important;
-    max-width: 90vw !important;
-    z-index: 9999 !important;
+    top: 60px !important;
+    left: 10px !important;
+    right: 10px !important;
+    width: calc(100vw - 20px) !important;
+    max-width: 400px !important;
+    margin: 0 auto !important;
   }
 
   /* Grids responsivos de 1 sola columna en dispositivos móviles */

@@ -153,19 +153,19 @@ const NotificationBell = () => {
         {/* ─── Panel de Notificaciones ─── */}
         {isOpen && (
           <div
-            className="animate-fade-in"
+            className="notification-dropdown-panel animate-fade-in"
             style={{
               position: 'absolute',
               right: 0,
               top: 'calc(100% + 10px)',
-              width: '370px',
+              width: 'min(370px, calc(100vw - 24px))',
               backgroundColor: 'rgba(10, 18, 40, 0.98)',
               backdropFilter: 'blur(24px)',
               WebkitBackdropFilter: 'blur(24px)',
               border: '1px solid rgba(255, 255, 255, 0.1)',
-              borderRadius: '18px',
+              borderRadius: '16px',
               boxShadow: '0 24px 60px rgba(0, 0, 0, 0.7), 0 0 40px rgba(212,175,55,0.1)',
-              zIndex: 200,
+              zIndex: 9999,
               overflow: 'hidden'
             }}
           >

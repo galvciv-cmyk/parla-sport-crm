@@ -1,13 +1,11 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { X, Bell, BellOff, CheckCircle, AlertTriangle, Info, Zap } from 'lucide-react';
+import { X, Bell, BellOff, CheckCircle, AlertTriangle, Info } from 'lucide-react';
 
 /* =============================================
    ToastNotification — Sistema de Toasts In-App
-   Reemplaza las notificaciones nativas del
-   navegador cuando la app está en primer plano.
+   Totalmente responsivo y centrado en móviles.
    ============================================= */
 
-// ─── STORE SINGLETON (fuera del componente para que sea global) ───
 let toastListeners = [];
 let toastIdCounter = 0;
 
@@ -18,46 +16,44 @@ export const showToast = (title, message, type = 'info', duration = 5000) => {
   return id;
 };
 
-// ─── TIPOS DE TOAST ───────────────────────────
 const TOAST_CONFIG = {
   success: {
     icon: CheckCircle,
     color: '#10B981',
-    bg: 'rgba(16, 185, 129, 0.12)',
-    border: 'rgba(16, 185, 129, 0.4)',
+    bg: 'rgba(16, 185, 129, 0.15)',
+    border: 'rgba(16, 185, 129, 0.45)',
     glow: 'rgba(16, 185, 129, 0.25)'
   },
   warning: {
     icon: AlertTriangle,
     color: '#F59E0B',
-    bg: 'rgba(245, 158, 11, 0.12)',
-    border: 'rgba(245, 158, 11, 0.4)',
+    bg: 'rgba(245, 158, 11, 0.15)',
+    border: 'rgba(245, 158, 11, 0.45)',
     glow: 'rgba(245, 158, 11, 0.25)'
   },
   error: {
     icon: BellOff,
     color: '#EF4444',
-    bg: 'rgba(239, 68, 68, 0.12)',
-    border: 'rgba(239, 68, 68, 0.4)',
+    bg: 'rgba(239, 68, 68, 0.15)',
+    border: 'rgba(239, 68, 68, 0.45)',
     glow: 'rgba(239, 68, 68, 0.25)'
   },
   info: {
     icon: Info,
     color: '#3B82F6',
-    bg: 'rgba(59, 130, 246, 0.12)',
-    border: 'rgba(59, 130, 246, 0.4)',
+    bg: 'rgba(59, 130, 246, 0.15)',
+    border: 'rgba(59, 130, 246, 0.45)',
     glow: 'rgba(59, 130, 246, 0.25)'
   },
   notification: {
     icon: Bell,
     color: '#FBBF24',
-    bg: 'rgba(251, 191, 36, 0.10)',
-    border: 'rgba(251, 191, 36, 0.4)',
-    glow: 'rgba(251, 191, 36, 0.2)'
+    bg: 'rgba(251, 191, 36, 0.14)',
+    border: 'rgba(251, 191, 36, 0.45)',
+    glow: 'rgba(251, 191, 36, 0.25)'
   }
 };
 
-// ─── COMPONENTE INDIVIDUAL DE TOAST ──────────
 const Toast = ({ toast, onRemove }) => {
   const [visible, setVisible] = useState(false);
   const [exiting, setExiting] = useState(false);
@@ -67,14 +63,11 @@ const Toast = ({ toast, onRemove }) => {
 
   const handleClose = useCallback(() => {
     setExiting(true);
-    setTimeout(() => onRemove(toast.id), 350);
+    setTimeout(() => onRemove(toast.id), 300);
   }, [toast.id, onRemove]);
 
   useEffect(() => {
-    // Entrada
     const enterTimer = setTimeout(() => setVisible(true), 20);
-
-    // Auto-dismiss
     const exitTimer = setTimeout(() => handleClose(), toast.duration || 5000);
 
     return () => {
@@ -85,26 +78,25 @@ const Toast = ({ toast, onRemove }) => {
 
   return (
     <div
+      className="toast-card-item"
       style={{
         display: 'flex',
         alignItems: 'flex-start',
-        gap: '12px',
-        padding: '14px 16px',
+        gap: '10px',
+        padding: '12px 14px',
         borderRadius: '14px',
-        background: config.bg,
+        background: '#0F1A3A',
         border: `1px solid ${config.border}`,
         backdropFilter: 'blur(20px)',
         WebkitBackdropFilter: 'blur(20px)',
-        boxShadow: `0 8px 32px rgba(0,0,0,0.5), 0 0 20px ${config.glow}`,
-        minWidth: '300px',
-        maxWidth: '380px',
+        boxShadow: `0 8px 30px rgba(0,0,0,0.7), 0 0 20px ${config.glow}`,
         width: '100%',
+        maxWidth: '380px',
         position: 'relative',
-        transform: visible && !exiting ? 'translateX(0) scale(1)' : 'translateX(120%) scale(0.92)',
+        transform: visible && !exiting ? 'translateY(0) scale(1)' : 'translateY(20px) scale(0.95)',
         opacity: visible && !exiting ? 1 : 0,
-        transition: 'all 0.35s cubic-bezier(0.34, 1.56, 0.64, 1)',
-        cursor: 'default',
-        userSelect: 'none'
+        transition: 'all 0.3s cubic-bezier(0.34, 1.56, 0.64, 1)',
+        overflow: 'hidden'
       }}
     >
       {/* Barra de progreso */}
@@ -116,7 +108,7 @@ const Toast = ({ toast, onRemove }) => {
           height: '3px',
           borderRadius: '0 0 14px 14px',
           background: config.color,
-          opacity: 0.6,
+          opacity: 0.8,
           animation: `toast-progress ${toast.duration || 5000}ms linear forwards`
         }}
       />
@@ -124,9 +116,9 @@ const Toast = ({ toast, onRemove }) => {
       {/* Ícono */}
       <div style={{
         flexShrink: 0,
-        width: '36px',
-        height: '36px',
-        borderRadius: '10px',
+        width: '32px',
+        height: '32px',
+        borderRadius: '8px',
         background: `${config.color}22`,
         border: `1px solid ${config.color}44`,
         display: 'flex',
@@ -134,24 +126,24 @@ const Toast = ({ toast, onRemove }) => {
         justifyContent: 'center',
         marginTop: '1px'
       }}>
-        <Icon size={18} color={config.color} />
+        <Icon size={16} color={config.color} />
       </div>
 
       {/* Contenido */}
       <div style={{ flex: 1, minWidth: 0 }}>
         <div style={{
           fontWeight: 700,
-          fontSize: '0.85rem',
+          fontSize: '0.82rem',
           color: '#F8FAFC',
-          marginBottom: '3px',
+          marginBottom: '2px',
           lineHeight: 1.3
         }}>
           {toast.title}
         </div>
         <div style={{
-          fontSize: '0.78rem',
+          fontSize: '0.75rem',
           color: '#94A3B8',
-          lineHeight: 1.45,
+          lineHeight: 1.4,
           wordBreak: 'break-word'
         }}>
           {toast.message}
@@ -165,34 +157,28 @@ const Toast = ({ toast, onRemove }) => {
           flexShrink: 0,
           background: 'rgba(255,255,255,0.06)',
           border: '1px solid rgba(255,255,255,0.1)',
-          borderRadius: '8px',
-          color: '#64748B',
+          borderRadius: '6px',
+          color: '#94A3B8',
           cursor: 'pointer',
           padding: '4px',
           display: 'flex',
           alignItems: 'center',
-          justifyContent: 'center',
-          transition: 'all 0.2s',
-          marginTop: '1px'
+          justifyContent: 'center'
         }}
-        onMouseEnter={(e) => { e.currentTarget.style.color = '#F8FAFC'; e.currentTarget.style.background = 'rgba(255,255,255,0.12)'; }}
-        onMouseLeave={(e) => { e.currentTarget.style.color = '#64748B'; e.currentTarget.style.background = 'rgba(255,255,255,0.06)'; }}
       >
-        <X size={14} />
+        <X size={12} />
       </button>
     </div>
   );
 };
 
-// ─── CONTENEDOR GLOBAL DE TOASTS ─────────────
 const ToastContainer = () => {
   const [toasts, setToasts] = useState([]);
 
   useEffect(() => {
     const listener = (toast) => {
       setToasts((prev) => {
-        // Máximo 4 toasts visibles
-        const trimmed = prev.length >= 4 ? prev.slice(1) : prev;
+        const trimmed = prev.length >= 3 ? prev.slice(1) : prev;
         return [...trimmed, toast];
       });
     };
@@ -216,22 +202,35 @@ const ToastContainer = () => {
           from { width: 100%; }
           to { width: 0%; }
         }
+        .toast-wrapper-container {
+          position: fixed;
+          bottom: 20px;
+          right: 20px;
+          z-index: 999999;
+          display: flex;
+          flex-direction: column;
+          gap: 8px;
+          align-items: flex-end;
+          pointer-events: none;
+          max-width: calc(100vw - 32px);
+        }
+        @media (max-width: 640px) {
+          .toast-wrapper-container {
+            bottom: 16px;
+            left: 16px;
+            right: 16px;
+            align-items: center;
+            max-width: 100%;
+          }
+          .toast-card-item {
+            max-width: 100% !important;
+            width: 100% !important;
+          }
+        }
       `}</style>
-      <div
-        style={{
-          position: 'fixed',
-          bottom: '24px',
-          right: '24px',
-          zIndex: 99999,
-          display: 'flex',
-          flexDirection: 'column',
-          gap: '10px',
-          alignItems: 'flex-end',
-          pointerEvents: 'none'
-        }}
-      >
+      <div className="toast-wrapper-container">
         {toasts.map((toast) => (
-          <div key={toast.id} style={{ pointerEvents: 'auto' }}>
+          <div key={toast.id} style={{ pointerEvents: 'auto', width: '100%', display: 'flex', justifyContent: 'center' }}>
             <Toast toast={toast} onRemove={removeToast} />
           </div>
         ))}

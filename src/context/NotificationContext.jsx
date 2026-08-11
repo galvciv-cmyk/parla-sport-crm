@@ -37,31 +37,35 @@ export const NotificationProvider = ({ children }) => {
 
       // Log del snapshot de Firestore
       if (!isInitialLoad) {
-        const added = snapshot.docChanges().filter(c => c.type === 'added').length;
-        const modified = snapshot.docChanges().filter(c => c.type === 'modified').length;
-        if (added > 0 || modified > 0) {
+        const addedDocs = snapshot.docChanges().filter(c => c.type === 'added');
+        const modifiedDocs = snapshot.docChanges().filter(c => c.type === 'modified');
+        
+        if (addedDocs.length > 0 || modifiedDocs.length > 0) {
           logNotifEvent('firestore',
-            `📥 Firestore: ${added} nueva${added !== 1 ? 's' : ''}, ${modified} modificada${modified !== 1 ? 's' : ''}`,
+            `📥 Firestore: ${addedDocs.length} nueva(s), ${modifiedDocs.length} modif.`,
             `Total en colección: ${firestoreNotifs.length}`,
-            { added, modified, total: firestoreNotifs.length }
+            { added: addedDocs.length, modified: modifiedDocs.length, total: firestoreNotifs.length }
           );
         }
       } else {
         logNotifEvent('firestore',
-          `🔌 Firestore conectado — ${firestoreNotifs.length} notificaciones cargadas`,
+          `🔌 Firestore conectado — ${firestoreNotifs.length} notificaciones`,
           `Escuchando colección: notifications`,
           { count: firestoreNotifs.length }
         );
       }
 
-      // Solo procesar cambios DESPUÉS de la carga inicial (evitar notificaciones duplicadas al abrir la app)
+      // Procesar cambios en tiempo real (después de la carga inicial)
       if (!isInitialLoad) {
         snapshot.docChanges().forEach((change) => {
           if (change.type === 'added') {
             const n = change.doc.data();
 
-            // Ignorar notificaciones creadas por ESTE dispositivo en los últimos 5 segundos
-            const isVeryRecent = (new Date() - new Date(n.timestamp)) < 5000;
+            // Identificar si la notificación fue generada por el usuario actual en este dispositivo
+            const isSender = (
+              (n.senderUid && currentUser?.uid && String(n.senderUid) === String(currentUser.uid)) ||
+              (n.senderEmail && currentUser?.email && String(n.senderEmail).toLowerCase() === String(currentUser.email).toLowerCase())
+            );
 
             let shouldNotify = false;
             const notifCoachId = String(n.recipientCoachId || '');
@@ -70,35 +74,38 @@ export const NotificationProvider = ({ children }) => {
             const userCoachId = activeCoachId || (currentUser?.uid ? `coach-${currentUser.uid}` : '');
 
             if (role === 'admin') {
-              shouldNotify = true;
+              shouldNotify = (n.recipientRole === 'admin' || n.recipientRole === 'all');
             } else if (n.recipientRole === 'all') {
               shouldNotify = true;
             } else if (notifCoachId && (
               notifCoachId === String(userCoachId) ||
               notifCoachId === String(currentUser?.uid) ||
-              notifCoachId.includes(String(currentUser?.uid))
+              notifCoachId.includes(String(currentUser?.uid)) ||
+              (userCoachId && notifCoachId.includes(String(userCoachId)))
             )) {
               shouldNotify = true;
             } else if (userEmail && notifEmail && notifEmail === userEmail) {
               shouldNotify = true;
-            } else if (n.recipientRole === 'coach' && !notifCoachId && !notifEmail) {
+            } else if (n.recipientRole === 'coach' && (!notifCoachId || !notifEmail)) {
               shouldNotify = true;
             }
 
-            // Mostrar toast in-app (y notificación del OS si hay permisos)
-            if (shouldNotify && !isVeryRecent) {
+            // Si es destinatario válido y NO es la persona que originó la acción
+            if (shouldNotify && !isSender) {
               const notifType = n.type === 'warning' ? 'warning'
                 : n.type === 'success' ? 'success'
                 : 'notification';
+
               logNotifEvent('toast',
-                `🔔 Notificación entregada: ${n.title}`,
+                `🔔 ¡Notificación recibida! ${n.title}`,
                 n.message,
                 { id: n.id, type: n.type, recipientRole: n.recipientRole, recipientCoachId: n.recipientCoachId }
               );
+
               triggerLocalPushNotification(n.title, n.message, notifType);
-            } else if (shouldNotify && isVeryRecent) {
+            } else if (isSender) {
               logNotifEvent('info',
-                `⏭️ Notificación propia omitida (muy reciente)`,
+                `✅ Notificación enviada por ti registrada en el sistema`,
                 n.title
               );
             }
@@ -107,8 +114,9 @@ export const NotificationProvider = ({ children }) => {
       }
 
       isInitialLoad = false;
-    }, () => {
-      // Fallback local si Firestore falla
+    }, (error) => {
+      console.warn('[NotificationContext] Error en snapshot Firestore:', error);
+      logNotifEvent('error', 'Error en conexión Firestore notifications', error?.message);
       try {
         const saved = localStorage.getItem('parla_notifications_store');
         if (saved) setNotifications(JSON.parse(saved));
@@ -155,7 +163,7 @@ export const NotificationProvider = ({ children }) => {
     const coachEmail = (coach?.email || session.entrenadorEmail || '').trim().toLowerCase();
     const coachId = String(coach?.id || session.entrenadorId || '');
 
-    // Notificación para el ENTRENADOR
+    // 1. Notificación para el ENTRENADOR
     const titleCoach = isReassignment
       ? `⚠️ Reasignación: Sesión ${session.tipo || '1-1'}`
       : `⚽ Nueva Sesión Asignada (${session.tipo || '1-1'})`;
@@ -171,12 +179,14 @@ export const NotificationProvider = ({ children }) => {
       recipientCoachId: coachId,
       recipientEmail: coachEmail,
       recipientRole: 'coach',
+      senderUid: currentUser?.uid || 'admin',
+      senderEmail: currentUser?.email || '',
       timestamp: new Date().toISOString(),
       read: false,
       type: isReassignment ? 'warning' : 'success'
     };
 
-    // Notificación para el ADMINISTRADOR
+    // 2. Notificación de confirmación para el ADMIN
     const titleAdmin = isReassignment
       ? `⚠️ Sesión Reasignada a ${coachName}`
       : `📋 Sesión Agendada Exitosamente`;
@@ -192,15 +202,17 @@ export const NotificationProvider = ({ children }) => {
       recipientRole: 'admin',
       recipientCoachId: '',
       recipientEmail: '',
+      senderUid: currentUser?.uid || 'admin',
+      senderEmail: currentUser?.email || '',
       timestamp: new Date().toISOString(),
       read: false,
       type: 'info'
     };
 
-    // 1. Guardar en Firestore (esto disparará el onSnapshot en TODOS los dispositivos conectados)
+    // Guardar en Firestore (sincroniza en tiempo real con TODOS los dispositivos)
     await saveNotificationLocallyAndRemote([notifCoach, notifAdmin]);
 
-    // 2. Enviar Push remoto via OneSignal al entrenador (para cuando tiene la app CERRADA)
+    // Push remoto via OneSignal al entrenador (cuando tenga la app cerrada)
     if (coachId) {
       logNotifEvent('onesignal',
         `📤 Push OneSignal enviado → ${coachId}`,
@@ -209,7 +221,6 @@ export const NotificationProvider = ({ children }) => {
       );
       sendOneSignalPush(titleCoach, messageCoach, coachId);
     }
-    // El admin recibirá el toast in-app vía el onSnapshot listener
   };
 
   // ─── Notificación de Sesión Completada (para el Admin) ───
@@ -223,13 +234,14 @@ export const NotificationProvider = ({ children }) => {
       recipientRole: 'admin',
       recipientCoachId: '',
       recipientEmail: '',
+      senderUid: currentUser?.uid || 'coach',
+      senderEmail: currentUser?.email || '',
       timestamp: new Date().toISOString(),
       read: false,
       type: 'warning'
     };
 
     await saveNotificationLocallyAndRemote([notifAdmin]);
-    // El Admin recibirá el toast vía onSnapshot
   };
 
   // ─── Notificación de Pago Registrado (para el Entrenador) ───
@@ -246,6 +258,8 @@ export const NotificationProvider = ({ children }) => {
       recipientCoachId: coachId,
       recipientEmail: coachEmail,
       recipientRole: 'coach',
+      senderUid: currentUser?.uid || 'admin',
+      senderEmail: currentUser?.email || '',
       timestamp: new Date().toISOString(),
       read: false,
       type: 'success'
@@ -253,7 +267,7 @@ export const NotificationProvider = ({ children }) => {
 
     await saveNotificationLocallyAndRemote([notifCoach]);
 
-    // Push remoto al entrenador si tiene la app cerrada
+    // Push remoto al entrenador
     if (coachId) {
       logNotifEvent('onesignal',
         `📤 Push OneSignal enviado → ${coachId} (pago)`,
