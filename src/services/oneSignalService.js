@@ -55,8 +55,18 @@ export const initOneSignal = async () => {
       console.log('[OneSignal] ✅ Inicializado correctamente en producción');
       logNotifEvent('onesignal', '✅ OneSignal SDK inicializado (producción)', `Dominio: ${window.location.hostname}`);
 
+      // Suscribir automáticamente si el permiso ya fue concedido previamente
+      if (Notification.permission === 'granted') {
+        try {
+          await OneSignal.User.PushSubscription.optIn();
+          console.log('[OneSignal] 📱 PushSubscription optIn activo');
+        } catch (e) {
+          console.warn('[OneSignal] Error optIn inicial:', e);
+        }
+      }
+
       OneSignal.Notifications.addEventListener('permissionChange', async (hasPermission) => {
-        console.log('[OneSignal] Permiso:', hasPermission ? 'Concedido' : 'Denegado');
+        console.log('[OneSignal] Permiso cambiado:', hasPermission ? 'Concedido' : 'Denegado');
         logNotifEvent('permission',
           `Permiso ${hasPermission ? '✅ Concedido' : '❌ Denegado'} via OneSignal`,
           `Notification.permission = "${hasPermission ? 'granted' : 'denied'}"`
@@ -119,9 +129,10 @@ export const loginToOneSignal = async (primaryId, metadata = {}) => {
     console.log(`[OneSignal] 🔗 Usuario vinculado: ${primaryId}`);
     logNotifEvent('onesignal', `🔗 Usuario vinculado: ${primaryId}`, 'Login OneSignal OK');
 
-    // Registrar aliases y tags para garantizar entrega multidispositivo
+    // Registrar aliases y tags
     if (metadata.coachId && String(metadata.coachId) !== String(primaryId)) {
       await OneSignal.User.addAlias('coach_id', String(metadata.coachId)).catch(() => {});
+      await OneSignal.User.addTag('coach_id', String(metadata.coachId)).catch(() => {});
     }
     if (metadata.email) {
       await OneSignal.User.addAlias('email', String(metadata.email).toLowerCase()).catch(() => {});
@@ -130,8 +141,11 @@ export const loginToOneSignal = async (primaryId, metadata = {}) => {
     if (metadata.role) {
       await OneSignal.User.addTag('role', String(metadata.role)).catch(() => {});
     }
+    if (metadata.uid && String(metadata.uid) !== String(primaryId)) {
+      await OneSignal.User.addAlias('firebase_uid', String(metadata.uid)).catch(() => {});
+    }
 
-    // Asegurar que la suscripción Push esté activa para este usuario
+    // Asegurar optIn
     if (Notification.permission === 'granted') {
       await OneSignal.User.PushSubscription.optIn().catch(() => {});
     }
@@ -164,10 +178,12 @@ export const requestOneSignalPermission = async () => {
   try {
     if (!_isInitialized) await initOneSignal();
     if (!_isInitialized) return false;
+
     await OneSignal.Notifications.requestPermission();
     const granted = OneSignal.Notifications.permission;
     if (granted) {
       await OneSignal.User.PushSubscription.optIn().catch(() => {});
+      logNotifEvent('onesignal', '📱 PushSubscription optIn activado tras permiso');
     }
     logNotifEvent('permission', `Permiso ${granted ? '✅ Concedido' : '❌ Denegado'} (OneSignal)`, '');
     return granted;
@@ -178,8 +194,7 @@ export const requestOneSignalPermission = async () => {
 };
 
 /**
- * Enviar Push remoto vía OneSignal REST API
- * Soporta destinatario por ID de entrenador, Firebase UID o correo electrónico
+ * Enviar Push remoto vía OneSignal REST API con entrega en segundo plano
  */
 export const sendOneSignalPush = async ({
   title,
@@ -198,10 +213,13 @@ export const sendOneSignalPush = async ({
     return { success: false, reason: 'no_api_key' };
   }
 
-  const targetExternalIds = [];
-  if (externalUserId) targetExternalIds.push(String(externalUserId));
+  const targetIds = [];
+  if (externalUserId) targetIds.push(String(externalUserId));
+  if (recipientEmail && !targetIds.includes(String(recipientEmail).toLowerCase())) {
+    targetIds.push(String(recipientEmail).toLowerCase());
+  }
 
-  if (targetExternalIds.length === 0 && !recipientEmail) {
+  if (targetIds.length === 0) {
     console.warn('[OneSignal] ⚠️ Sin destinatarios — Push cancelado');
     return { success: false, reason: 'no_recipient' };
   }
@@ -211,33 +229,24 @@ export const sendOneSignalPush = async ({
     target_channel: 'push',
     headings: { en: title, es: title },
     contents: { en: message, es: message },
-    priority: 10, // Alta prioridad (despierta dispositivos en background)
-    ttl: 259200, // 3 días de vigencia si el dispositivo está apagado
+    priority: 10, // Máxima prioridad: despierta la pantalla en segundo plano
+    ttl: 259200, // 3 días de persistencia si el móvil está sin cobertura o dormido
     ios_badgeType: 'Increase',
     ios_badgeCount: 1,
+    ios_sound: 'default',
+    android_sound: 'notification',
     web_url: 'https://parlasport.netlify.app' + url,
-    url: 'https://parlasport.netlify.app' + url
+    url: 'https://parlasport.netlify.app' + url,
+    include_aliases: {
+      external_id: targetIds
+    },
+    include_external_user_ids: targetIds
   };
 
-  // Agregar aliases y external_ids para máxima compatibilidad
-  if (targetExternalIds.length > 0) {
-    payload.include_aliases = {
-      external_id: targetExternalIds
-    };
-    payload.include_external_user_ids = targetExternalIds;
-  }
-
-  // Si hay email, agregarlo como filtro alternativo
-  if (recipientEmail) {
-    payload.filters = [
-      { field: 'tag', key: 'email', relation: '=', value: String(recipientEmail).toLowerCase() }
-    ];
-  }
-
   logNotifEvent('onesignal',
-    `📤 Enviando Push → ${targetExternalIds.join(', ') || recipientEmail}`,
+    `📤 Enviando Push → ${targetIds.join(', ')}`,
     title,
-    { targetExternalIds, recipientEmail, title, message }
+    { targetIds, title, message }
   );
 
   try {

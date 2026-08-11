@@ -1,10 +1,11 @@
 import React, { useState, useEffect } from 'react';
-import { Bell, BellOff, Shield, Smartphone, X, CheckCircle, ChevronRight, Share2, PlusSquare } from 'lucide-react';
+import { Bell, BellOff, Shield, Smartphone, X, CheckCircle, ChevronRight, Share2 } from 'lucide-react';
+import { requestOneSignalPermission } from '../../services/oneSignalService';
 
 /* =============================================
    NotificationPermissionModal — Modal In-App
    Totalmente centralizado y responsivo en móviles.
-   Incluye soporte específico para Safari / iOS.
+   Vincula OneSignal PushSubscription directamente.
    ============================================= */
 
 const isIOS = () => {
@@ -49,29 +50,20 @@ const NotificationPermissionModal = ({ isOpen, onClose, onGranted }) => {
     setStep('activating');
 
     try {
-      if (window.OneSignal) {
-        try {
-          await window.OneSignal.Notifications.requestPermission();
-          const granted = window.OneSignal.Notifications.permission;
-          if (granted) {
-            setStep('granted');
-            onGranted && onGranted(true);
-            return;
-          }
-        } catch {
-          // Fallback a API nativa
-        }
-      }
+      // Solicitar permisos vinculando OneSignal SDK y PushSubscription
+      const granted = await requestOneSignalPermission();
 
-      const permission = await Notification.requestPermission();
-      if (permission === 'granted') {
+      if (granted) {
         setStep('granted');
         onGranted && onGranted(true);
-      } else if (permission === 'denied') {
-        setStep('blocked');
-        onGranted && onGranted(false);
       } else {
-        setStep('prompt');
+        const perm = ('Notification' in window) ? Notification.permission : 'denied';
+        if (perm === 'denied') {
+          setStep('blocked');
+          onGranted && onGranted(false);
+        } else {
+          setStep('prompt');
+        }
       }
     } catch (err) {
       console.warn('[NotificationModal] Error al solicitar permisos:', err);
@@ -208,7 +200,7 @@ const NotificationPermissionModal = ({ isOpen, onClose, onGranted }) => {
                   margin: 0,
                   lineHeight: 1.45
                 }}>
-                  Alertas en tiempo real sobre entrenamientos, reasignaciones y pagos.
+                  Alertas inmediatas en pantalla y notificaciones con la app cerrada.
                 </p>
               </div>
 
@@ -250,7 +242,7 @@ const NotificationPermissionModal = ({ isOpen, onClose, onGranted }) => {
                 {[
                   { icon: '⚽', text: 'Sesiones asignadas y reasignaciones' },
                   { icon: '💰', text: 'Registro de pagos de clases' },
-                  { icon: '📱', text: 'Toasts en pantalla y alertas sonoras' }
+                  { icon: '📱', text: 'Alertas en segundo plano (app cerrada)' }
                 ].map((item, i) => (
                   <div key={i} style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                     <span style={{ fontSize: '0.95rem' }}>{item.icon}</span>
@@ -326,7 +318,7 @@ const NotificationPermissionModal = ({ isOpen, onClose, onGranted }) => {
                 Configurando notificaciones...
               </h2>
               <p style={{ fontSize: '0.8rem', color: '#94A3B8' }}>
-                Si aparece un cuadro de permiso, pulsa "Permitir".
+                Si aparece un cuadro de permiso del sistema, pulsa "Permitir".
               </p>
             </div>
           )}
@@ -352,7 +344,7 @@ const NotificationPermissionModal = ({ isOpen, onClose, onGranted }) => {
                 ¡Notificaciones Activas!
               </h2>
               <p style={{ fontSize: '0.82rem', color: '#94A3B8', marginBottom: '16px' }}>
-                Este dispositivo recibirá alertas en tiempo real.
+                Este dispositivo recibirá alertas en tiempo real incluso con la app cerrada.
               </p>
               <button
                 onClick={handleClose}
@@ -394,7 +386,7 @@ const NotificationPermissionModal = ({ isOpen, onClose, onGranted }) => {
                 Notificaciones Bloqueadas
               </h2>
               <p style={{ fontSize: '0.78rem', color: '#94A3B8', marginBottom: '14px', lineHeight: 1.45 }}>
-                Las notificaciones están desactivadas en la configuración de este navegador.
+                Las notificaciones están desactivadas en la configuración de este dispositivo.
               </p>
               <div style={{
                 background: 'rgba(255,255,255,0.04)',
@@ -405,8 +397,8 @@ const NotificationPermissionModal = ({ isOpen, onClose, onGranted }) => {
                 textAlign: 'left'
               }}>
                 <p style={{ fontSize: '0.72rem', color: '#94A3B8', margin: 0, lineHeight: 1.45 }}>
-                  <strong style={{ color: '#F8FAFC' }}>Para desbloquear:</strong><br />
-                  Haz clic en el icono 🔒 en la barra de direcciones → Permisos del sitio → Notificaciones → Permitir
+                  <strong style={{ color: '#F8FAFC' }}>En iPhone/iPad:</strong><br />
+                  Abre <strong>Ajustes</strong> → Busca <strong>Parla Sport</strong> → <strong>Notificaciones</strong> → Activa <strong>"Permitir notificaciones"</strong>.
                 </p>
               </div>
               <button
