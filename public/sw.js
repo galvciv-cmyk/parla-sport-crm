@@ -78,19 +78,29 @@ self.addEventListener('fetch', (event) => {
   );
 });
 
-// ─── PUSH (Respaldo si no es manejado por OneSignal) ───
+// ─── PUSH (Recepción y Respaldo de Notificaciones en Segundo Plano) ───
 self.addEventListener('push', (event) => {
-  if (!event.data) return;
+  console.log('[SW] 🔔 Push recibido en segundo plano:', event);
+
+  if (!event.data) {
+    console.warn('[SW] Push recibido sin datos (payload vacío)');
+    return;
+  }
 
   let data = {};
   try {
     data = event.data.json();
-  } catch {
-    data = { title: 'Parla Sport', body: event.data.text() };
+    console.log('[SW] 📦 Payload JSON parseado:', data);
+  } catch (err) {
+    console.warn('[SW] Error al parsear JSON push, usando texto plano:', err);
+    data = { title: '⚽ Parla Sport CRM', body: event.data.text() };
   }
 
-  // ESTO ES CLAVE: Ignora la notificación si viene de OneSignal
+  // Si la notificación trae la marca oficial de OneSignal, OneSignalSDK.sw.js la gestionará.
+  // Pero si OneSignalSDK.sw.js no la procesara, este bloque garantiza el showNotification.
   if (data.custom && data.custom.i) {
+    console.log('[SW] ℹ️ Push originado por OneSignal con ID:', data.custom.i);
+    // Dejar que OneSignalSDK.sw.js la muestre; logueamos para tracking
     return;
   }
 
@@ -108,11 +118,17 @@ self.addEventListener('push', (event) => {
     data: { url }
   };
 
-  event.waitUntil(self.registration.showNotification(title, options));
+  console.log('[SW] 🚀 Mostrando notificación en segundo plano:', title, options);
+  event.waitUntil(
+    self.registration.showNotification(title, options)
+      .then(() => console.log('[SW] ✅ Notificación mostrada con éxito en pantalla'))
+      .catch((err) => console.error('[SW] ❌ Error al mostrar notificación:', err))
+  );
 });
 
-// ─── NOTIFICATIONCLICK ───────────────────────
+// ─── NOTIFICATIONCLICK (Manejo de toque en la notificación del sistema) ───
 self.addEventListener('notificationclick', (event) => {
+  console.log('[SW] 👆 Notificación clickeada:', event.notification?.data);
   event.notification.close();
 
   const targetUrl = event.notification.data?.url || '/';
