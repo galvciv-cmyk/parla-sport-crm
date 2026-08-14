@@ -121,12 +121,7 @@ self.addEventListener('push', (event) => {
     body,
     icon: '/favicon.png',
     badge: '/favicon.png',
-    vibrate: [300, 100, 300, 100, 300],
-    visibility: 'public',       // Fuerza al OS a mostrar el contenido en la pantalla de bloqueo
-    requireInteraction: true,   // Evita que iOS/Android descarte la notificación rápidamente
-    silent: false,              // Obliga a ejecutar el sonido/vibración para despertar la pantalla
     tag: notificationTag,
-    renotify: true,
     data: { url }
   };
 

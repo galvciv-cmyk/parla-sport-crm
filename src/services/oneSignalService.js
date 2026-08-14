@@ -279,6 +279,10 @@ export const sendOneSignalPush = async ({
     ios_badgeType: 'Increase',
     ios_badgeCount: 1,
     ios_sound: 'default',
+    apns_alert: {
+      title: title,
+      body: message
+    },
     android_sound: 'notification',
     android_visibility: 1, // 1 = Public en pantalla de bloqueo
     chrome_web_icon: `${originUrl}/favicon.png`,

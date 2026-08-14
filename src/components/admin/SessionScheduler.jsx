@@ -312,17 +312,24 @@ const SessionScheduler = () => {
               </div>
             </div>
 
-            {/* Horario inicio / fin en formato 12h (AM/PM) - Solo Horas en Punto */}
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(130px, 100%), 1fr))', gap: '12px' }}>
-              <div>
-                <label className="input-label" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                  <span>Hora Inicio (En Punto)</span>
+            {/* Horario inicio / fin en formato 12h (AM/PM) - Solo Horas en Punto - Perfectamente Alineados */}
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px', alignItems: 'start' }}>
+              <div style={{ minWidth: 0 }}>
+                <label className="input-label" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', minHeight: '20px', marginBottom: '6px' }}>
+                  <span>Hora Inicio</span>
                   <span style={{ color: '#10B981', fontWeight: 700, fontSize: '0.75rem' }}>
                     {formatTo12Hour(sessionData.horaInicio)}
                   </span>
                 </label>
                 <select
                   className="input-field"
+                  style={{
+                    height: '42px',
+                    boxSizing: 'border-box',
+                    width: '100%',
+                    padding: '0 12px',
+                    fontSize: '0.88rem'
+                  }}
                   value={sessionData.horaInicio}
                   onChange={(e) => handleHoraInicioChange(e.target.value)}
                 >
@@ -338,8 +345,8 @@ const SessionScheduler = () => {
                 </select>
               </div>
 
-              <div>
-                <label className="input-label" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <div style={{ minWidth: 0 }}>
+                <label className="input-label" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', minHeight: '20px', marginBottom: '6px' }}>
                   <span>Hora Fin (Auto +1h)</span>
                   <span style={{ color: '#FBBF24', fontWeight: 700, fontSize: '0.75rem' }}>
                     {formatTo12Hour(sessionData.horaFin)}
@@ -350,6 +357,11 @@ const SessionScheduler = () => {
                   readOnly
                   className="input-field"
                   style={{
+                    height: '42px',
+                    boxSizing: 'border-box',
+                    width: '100%',
+                    padding: '0 12px',
+                    fontSize: '0.88rem',
                     color: '#FBBF24',
                     fontWeight: 700,
                     background: 'rgba(15,23,42,0.6)',
