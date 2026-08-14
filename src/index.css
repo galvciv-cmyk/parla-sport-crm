@@ -561,3 +561,28 @@ select option {
   }
 }
 
+/* 4. Contenedor padre de bloques (Nueva Sesión + Sesiones Agendadas) */
+.contenedor-padre {
+  display: flex;
+  flex-direction: column; /* Apila en vertical para móviles */
+  gap: 20px;
+  width: 100%;
+}
+
+@media (min-width: 1024px) {
+  .contenedor-padre {
+    flex-direction: row; /* Vuelve a ponerlos lado a lado en PC / laptop */
+  }
+
+  .contenedor-padre > :first-child {
+    flex: 1;
+    min-width: 360px;
+  }
+
+  .contenedor-padre > :last-child {
+    flex: 1.2;
+    min-width: 400px;
+  }
+}
+
+
