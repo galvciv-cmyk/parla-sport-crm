@@ -27,7 +27,7 @@ const SessionScheduler = () => {
     tipo: '1-1',
     entrenadorId: '',
     jugadoresIds: [],
-    estado: 'sin_confirmar', // Blanco por defecto
+    estado: 'confirmada', // Nace confirmada para notificar de inmediato al entrenador
     notas: ''
   });
 
@@ -158,7 +158,7 @@ const SessionScheduler = () => {
         tipo: '1-1',
         entrenadorId: '',
         jugadoresIds: [],
-        estado: 'sin_confirmar',
+        estado: 'confirmada',
         notas: ''
       });
     } catch (err) {

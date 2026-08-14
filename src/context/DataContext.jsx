@@ -214,7 +214,7 @@ export const DataProvider = ({ children }) => {
       entrenadorEmail: (coach.email || '').trim().toLowerCase(),
       entrenadorNombre: coach.nombre || '',
       jugadoresIds: Array.isArray(jugadoresIds) ? jugadoresIds : [],
-      estado: estado || 'sin_confirmar',
+      estado: estado || 'confirmada',
       notas: notas || ''
     };
 
@@ -226,15 +226,15 @@ export const DataProvider = ({ children }) => {
       console.warn('[DataContext] Error al guardar sesión en Firestore:', err);
     });
 
-    // REGLA CLAVE: Solo notificar al profesor si la sesión está en estado CONFIRMADA ('confirmada')
-    if (cleanSession.estado === 'confirmada' && notifySessionAssignment) {
+    // Notificar al profesor asignado de inmediato
+    if (cleanSession.estado !== 'cancelada' && notifySessionAssignment) {
       const assignedPlayers = players.filter(p => cleanSession.jugadoresIds.includes(p.id));
       notifySessionAssignment({
         coach,
         session: cleanSession,
         players: assignedPlayers,
         isReassignment: false
-      }).catch(() => {});
+      }).catch(err => console.warn('[DataContext] Error al notificar asignación:', err));
     }
 
     return cleanSession;

@@ -72,7 +72,9 @@ export const NotificationProvider = ({ children }) => {
             const notifCoachId = String(n.recipientCoachId || '');
             const notifEmail = String(n.recipientEmail || '').trim().toLowerCase();
             const userEmail = (currentUser?.email || '').trim().toLowerCase();
-            const userCoachId = activeCoachId || (currentUser?.uid ? `coach-${currentUser.uid}` : '');
+            const userCoachId = activeCoachId || currentUser?.coachId || (currentUser?.uid ? `coach-${currentUser.uid}` : '');
+            const rawUid = String(currentUser?.uid || '');
+            const coachProfileId = String(currentUser?.coachId || '');
 
             const isUserAdmin = role === 'admin' || currentUser?.role === 'admin';
 
@@ -87,10 +89,12 @@ export const NotificationProvider = ({ children }) => {
                 shouldNotify = true;
               } else if (notifCoachId && (
                 notifCoachId === String(userCoachId) ||
-                notifCoachId === String(currentUser?.uid) ||
-                notifCoachId === `coach-${currentUser?.uid}` ||
+                notifCoachId === rawUid ||
+                notifCoachId === `coach-${rawUid}` ||
+                notifCoachId === coachProfileId ||
+                (coachProfileId && notifCoachId.replace('coach-', '') === coachProfileId.replace('coach-', '')) ||
                 (activeCoachId && (notifCoachId === String(activeCoachId) || notifCoachId === `coach-${activeCoachId}` || notifCoachId.replace('coach-', '') === String(activeCoachId).replace('coach-', ''))) ||
-                (currentUser?.uid && notifCoachId.replace('coach-', '') === String(currentUser.uid))
+                (rawUid && notifCoachId.replace('coach-', '') === rawUid)
               )) {
                 shouldNotify = true;
               } else if (userEmail && notifEmail && notifEmail === userEmail) {
