@@ -280,6 +280,9 @@ export const sendOneSignalPush = async ({
     ios_badgeCount: 1,
     ios_sound: 'default',
     android_sound: 'notification',
+    chrome_web_icon: `${originUrl}/favicon.png`,
+    chrome_web_badge: `${originUrl}/favicon.png`,
+    firefox_icon: `${originUrl}/favicon.png`,
     web_url: targetUrl,
     url: targetUrl
   };
@@ -315,13 +318,20 @@ export const sendOneSignalPush = async ({
 
   for (const endpoint of endpoints) {
     try {
+      // Ajuste para endpoint v1 si incluye external_user_ids
+      const requestPayload = { ...payload };
+      if (endpoint.includes('/v1/') && targetIds.length > 0) {
+        requestPayload.include_external_user_ids = targetIds;
+        requestPayload.channel_for_external_user_ids = 'push';
+      }
+
       const response = await fetch(endpoint, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
           'Authorization': authHeader
         },
-        body: JSON.stringify(payload)
+        body: JSON.stringify(requestPayload)
       });
 
       const data = await response.json();
