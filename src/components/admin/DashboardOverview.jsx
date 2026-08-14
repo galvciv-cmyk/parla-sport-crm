@@ -1,6 +1,6 @@
 import React, { useState, useMemo } from 'react';
 import {
-  Award, CreditCard,
+  Award, CreditCard, CalendarCheck, Settings, ChevronLeft, ChevronRight,
   CheckCircle2, Clock, DollarSign,
   Calendar as CalendarIcon
 } from 'lucide-react';
@@ -35,7 +35,7 @@ const formatSpanishDate = (date) => {
   return date.toLocaleDateString('es-ES', { day: 'numeric', month: 'short' });
 };
 
-const DashboardOverview = ({ setActiveTab: _setActiveTab }) => {
+const DashboardOverview = ({ setActiveTab }) => {
   const { coaches, sessions, paymentRates, updatePaymentRates, updateSessionStatus } = useData();
 
   // ─── Estados de Navegación y Filtros ───

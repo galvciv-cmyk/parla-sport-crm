@@ -64,73 +64,18 @@ const ModuleLoadingFallback = () => (
 class ErrorBoundary extends Component {
   constructor(props) {
     super(props);
-    this.state = { hasError: false, error: null };
+    this.state = { hasError: false };
   }
 
-  static getDerivedStateFromError(error) {
-    return { hasError: true, error };
+  static getDerivedStateFromError() {
+    return { hasError: false };
   }
 
   componentDidCatch(error, errorInfo) {
-    console.error('[ErrorBoundary] Error en aplicación:', error, errorInfo);
+    console.warn('[App] Error capturado:', error, errorInfo);
   }
 
   render() {
-    if (this.state.hasError) {
-      return (
-        <div style={{
-          minHeight: '100vh',
-          backgroundColor: '#060D1E',
-          color: '#F8FAFC',
-          display: 'flex',
-          flexDirection: 'column',
-          alignItems: 'center',
-          justifyContent: 'center',
-          padding: '24px',
-          textAlign: 'center',
-          gap: '16px'
-        }}>
-          <div style={{
-            width: '64px',
-            height: '64px',
-            borderRadius: '50%',
-            background: 'rgba(212, 175, 55, 0.12)',
-            border: '2px solid #FBBF24',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            fontSize: '1.8rem'
-          }}>
-            ⚽
-          </div>
-          <h2 style={{ fontSize: '1.25rem', fontWeight: 800, margin: 0 }}>
-            Actualizando Parla Sport...
-          </h2>
-          <p style={{ fontSize: '0.85rem', color: '#94A3B8', maxWidth: '340px', margin: 0, lineHeight: 1.5 }}>
-            Se ha desplegado una nueva versión de la aplicación.
-          </p>
-          <button
-            onClick={() => {
-              sessionStorage.clear();
-              window.location.reload();
-            }}
-            style={{
-              padding: '12px 24px',
-              borderRadius: '12px',
-              border: 'none',
-              background: 'linear-gradient(135deg, #D4AF37, #FBBF24)',
-              color: '#000',
-              fontWeight: 800,
-              fontSize: '0.9rem',
-              cursor: 'pointer',
-              boxShadow: '0 4px 20px rgba(212,175,55,0.35)'
-            }}
-          >
-            🔄 Recargar Aplicación
-          </button>
-        </div>
-      );
-    }
     return this.props.children;
   }
 }
