@@ -207,6 +207,20 @@ export const NotificationProvider = ({ children }) => {
       ? `La sesión del ${session.fecha} (${formatTo12Hour(session.horaInicio)} - ${formatTo12Hour(session.horaFin)}) fue reasignada a ${coachName}.`
       : `Se agendó la clase ${session.tipo} con ${coachName} para el ${session.fecha} (${formatTo12Hour(session.horaInicio)} - ${formatTo12Hour(session.horaFin)}). Jugadores: ${playerNames.join(', ')}.`;
 
+    const notifAdmin = {
+      id: `notif-${Date.now()}-admin`,
+      title: titleAdmin,
+      message: messageAdmin,
+      recipientCoachId: '',
+      recipientEmail: '',
+      recipientRole: 'admin',
+      senderUid: currentUser?.uid || 'admin',
+      senderEmail: currentUser?.email || '',
+      timestamp: new Date().toISOString(),
+      read: false,
+      type: isReassignment ? 'warning' : 'info'
+    };
+
     // Disparar Push remoto a OneSignal INMEDIATAMENTE en paralelo (0ms bloqueo)
     if (coachId || coachEmail) {
       sendOneSignalPush({
