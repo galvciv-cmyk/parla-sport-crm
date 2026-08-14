@@ -121,7 +121,7 @@ const SessionDetailModal = ({ isOpen, onClose, session, players, coach }) => {
             </div>
           ) : (
             /* Vista y Acciones Exclusivas del Administrador */
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(130px, 1fr))', gap: '8px' }}>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(110px, 100%), 1fr))', gap: '8px' }}>
               <button
                 onClick={() => handleStatusChange('sin_confirmar')}
                 style={{
@@ -204,7 +204,7 @@ const SessionDetailModal = ({ isOpen, onClose, session, players, coach }) => {
             <Award size={18} color="#F59E0B" /> Fichas Técnicas de los Jugadores ({players.length})
           </h4>
 
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))', gap: '16px' }}>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(240px, 100%), 1fr))', gap: '14px' }}>
             {players.map(player => (
               <div
                 key={player.id}

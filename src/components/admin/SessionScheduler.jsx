@@ -221,7 +221,7 @@ const SessionScheduler = () => {
           <form onSubmit={handleCreateSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
             
             {/* Fecha y Día */}
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(130px, 100%), 1fr))', gap: '12px' }}>
               <div>
                 <label className="input-label">Fecha de la Sesión</label>
                 <input
@@ -246,7 +246,7 @@ const SessionScheduler = () => {
             </div>
 
             {/* Horario inicio / fin en formato 12h (AM/PM) */}
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(130px, 100%), 1fr))', gap: '12px' }}>
               <div>
                 <label className="input-label" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                   <span>Hora Inicio</span>
@@ -306,7 +306,7 @@ const SessionScheduler = () => {
             {/* Tipo de Formato 1-1, 1-2, 1-3 */}
             <div>
               <label className="input-label">Formato de Entrenamiento</label>
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '8px' }}>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(80px, 100%), 1fr))', gap: '8px' }}>
                 {['1-1', '1-2', '1-3'].map(tipo => (
                   <button
                     key={tipo}
@@ -319,10 +319,11 @@ const SessionScheduler = () => {
                       background: sessionData.tipo === tipo ? 'rgba(16, 185, 129, 0.15)' : 'rgba(15,23,42,0.6)',
                       color: sessionData.tipo === tipo ? '#34D399' : '#94A3B8',
                       fontWeight: 700,
-                      cursor: 'pointer'
+                      cursor: 'pointer',
+                      fontSize: '0.82rem'
                     }}
                   >
-                    {tipo} Personalizado
+                    {tipo} Personal
                   </button>
                 ))}
               </div>

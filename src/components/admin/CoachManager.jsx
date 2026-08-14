@@ -42,7 +42,7 @@ const CoachManager = () => {
       </div>
 
       {/* Grid de Fichas de Entrenadores */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(320px, 1fr))', gap: '18px' }}>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(min(280px, 100%), 1fr))', gap: '18px' }}>
         {filteredCoaches.length === 0 ? (
           <div className="glass-panel" style={{ padding: '40px', textAlign: 'center', gridColumn: '1 / -1' }}>
             <p style={{ color: '#94A3B8' }}>No se encontraron entrenadores con los criterios de búsqueda.</p>

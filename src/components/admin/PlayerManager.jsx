@@ -159,7 +159,7 @@ const PlayerManager = () => {
       {/* Grid de Carnets / Fichas de Jugadores */}
       <div style={{
         display: 'grid',
-        gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))',
+        gridTemplateColumns: 'repeat(auto-fill, minmax(min(270px, 100%), 1fr))',
         gap: '18px'
       }}>
         {filteredPlayers.map((player) => (
@@ -250,7 +250,7 @@ const PlayerManager = () => {
       widthPx="700px"
     >
       <form onSubmit={handleSave} style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(220px, 100%), 1fr))', gap: '12px' }}>
           <div>
             <label className="input-label">Nombre Completo del Jugador</label>
             <input
@@ -276,7 +276,7 @@ const PlayerManager = () => {
           </div>
         </div>
 
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '12px' }}>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(140px, 100%), 1fr))', gap: '12px' }}>
           <div>
             <label className="input-label">Edad (Cálculo Automático)</label>
             <input

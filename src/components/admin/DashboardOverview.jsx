@@ -37,68 +37,68 @@ const DashboardOverview = ({ setActiveTab }) => {
       {/* Tarjetas de Métricas */}
       <div style={{
         display: 'grid',
-        gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))',
-        gap: '16px'
+        gridTemplateColumns: 'repeat(auto-fit, minmax(min(140px, 100%), 1fr))',
+        gap: '14px'
       }}>
         {/* Jugadores */}
-        <div className="glass-panel" style={{ padding: '20px' }}>
+        <div className="glass-panel" style={{ padding: '16px' }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-            <span style={{ fontSize: '0.8rem', fontWeight: 600, color: '#94A3B8', textTransform: 'uppercase' }}>Jugadores Activos</span>
-            <div style={{ background: 'rgba(16, 185, 129, 0.15)', padding: '8px', borderRadius: '10px' }}>
-              <Users size={20} color="#10B981" />
+            <span style={{ fontSize: '0.75rem', fontWeight: 600, color: '#94A3B8', textTransform: 'uppercase' }}>Jugadores</span>
+            <div style={{ background: 'rgba(16, 185, 129, 0.15)', padding: '6px', borderRadius: '8px' }}>
+              <Users size={18} color="#10B981" />
             </div>
           </div>
-          <div style={{ fontSize: '2rem', fontWeight: 800, color: '#F8FAFC', margin: '12px 0 4px' }}>
+          <div style={{ fontSize: '1.8rem', fontWeight: 800, color: '#F8FAFC', margin: '8px 0 2px' }}>
             {totalPlayers}
           </div>
-          <span style={{ fontSize: '0.75rem', color: '#10B981' }}>Fichas técnicas al día</span>
+          <span style={{ fontSize: '0.72rem', color: '#10B981' }}>Fichas técnicas al día</span>
         </div>
 
         {/* Entrenadores */}
-        <div className="glass-panel" style={{ padding: '20px' }}>
+        <div className="glass-panel" style={{ padding: '16px' }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-            <span style={{ fontSize: '0.8rem', fontWeight: 600, color: '#94A3B8', textTransform: 'uppercase' }}>Entrenadores</span>
-            <div style={{ background: 'rgba(59, 130, 246, 0.15)', padding: '8px', borderRadius: '10px' }}>
-              <UserCheck size={20} color="#3B82F6" />
+            <span style={{ fontSize: '0.75rem', fontWeight: 600, color: '#94A3B8', textTransform: 'uppercase' }}>Profesores</span>
+            <div style={{ background: 'rgba(59, 130, 246, 0.15)', padding: '6px', borderRadius: '8px' }}>
+              <UserCheck size={18} color="#3B82F6" />
             </div>
           </div>
-          <div style={{ fontSize: '2rem', fontWeight: 800, color: '#F8FAFC', margin: '12px 0 4px' }}>
+          <div style={{ fontSize: '1.8rem', fontWeight: 800, color: '#F8FAFC', margin: '8px 0 2px' }}>
             {totalCoaches}
           </div>
-          <span style={{ fontSize: '0.75rem', color: '#3B82F6' }}>Bloques disponibles activos</span>
+          <span style={{ fontSize: '0.72rem', color: '#3B82F6' }}>Bloques activos</span>
         </div>
 
         {/* Sesiones Programadas */}
-        <div className="glass-panel" style={{ padding: '20px' }}>
+        <div className="glass-panel" style={{ padding: '16px' }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-            <span style={{ fontSize: '0.8rem', fontWeight: 600, color: '#94A3B8', textTransform: 'uppercase' }}>Sesiones Activas</span>
-            <div style={{ background: 'rgba(245, 158, 11, 0.15)', padding: '8px', borderRadius: '10px' }}>
-              <Activity size={20} color="#F59E0B" />
+            <span style={{ fontSize: '0.75rem', fontWeight: 600, color: '#94A3B8', textTransform: 'uppercase' }}>Sesiones</span>
+            <div style={{ background: 'rgba(245, 158, 11, 0.15)', padding: '6px', borderRadius: '8px' }}>
+              <Activity size={18} color="#F59E0B" />
             </div>
           </div>
-          <div style={{ fontSize: '2rem', fontWeight: 800, color: '#F8FAFC', margin: '12px 0 4px' }}>
+          <div style={{ fontSize: '1.8rem', fontWeight: 800, color: '#F8FAFC', margin: '8px 0 2px' }}>
             {activeSessions.length}
           </div>
-          <span style={{ fontSize: '0.75rem', color: '#F59E0B' }}>1-1, 1-2, 1-3 agendadas</span>
+          <span style={{ fontSize: '0.72rem', color: '#F59E0B' }}>1-1, 1-2, 1-3 agendadas</span>
         </div>
 
         {/* Sesiones Completadas */}
-        <div className="glass-panel" style={{ padding: '20px' }}>
+        <div className="glass-panel" style={{ padding: '16px' }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-            <span style={{ fontSize: '0.8rem', fontWeight: 600, color: '#94A3B8', textTransform: 'uppercase' }}>Completadas</span>
-            <div style={{ background: 'rgba(139, 92, 246, 0.15)', padding: '8px', borderRadius: '10px' }}>
-              <Award size={20} color="#A78BFA" />
+            <span style={{ fontSize: '0.75rem', fontWeight: 600, color: '#94A3B8', textTransform: 'uppercase' }}>Realizadas</span>
+            <div style={{ background: 'rgba(139, 92, 246, 0.15)', padding: '6px', borderRadius: '8px' }}>
+              <Award size={18} color="#A78BFA" />
             </div>
           </div>
-          <div style={{ fontSize: '2rem', fontWeight: 800, color: '#F8FAFC', margin: '12px 0 4px' }}>
+          <div style={{ fontSize: '1.8rem', fontWeight: 800, color: '#F8FAFC', margin: '8px 0 2px' }}>
             {completedCount}
           </div>
-          <span style={{ fontSize: '0.75rem', color: '#A78BFA' }}>Entrenamientos finalizados</span>
+          <span style={{ fontSize: '0.72rem', color: '#A78BFA' }}>Finalizadas</span>
         </div>
       </div>
 
       {/* Grid de Rendimiento por Entrenador + Módulo de Pagos preparado */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: '20px' }}>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(280px, 100%), 1fr))', gap: '20px' }}>
         
         {/* Rendimiento / Carga por Entrenador */}
         <div className="glass-panel" style={{ padding: '20px' }}>

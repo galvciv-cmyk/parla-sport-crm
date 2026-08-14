@@ -23,7 +23,7 @@ const Modal = ({ isOpen, onClose, title, children, widthPx = '680px' }) => {
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'center',
-        padding: '12px',
+        padding: '10px',
         backgroundColor: 'rgba(4, 9, 23, 0.85)',
         backdropFilter: 'blur(16px)',
         WebkitBackdropFilter: 'blur(16px)',
@@ -40,8 +40,8 @@ const Modal = ({ isOpen, onClose, title, children, widthPx = '680px' }) => {
         className="glass-modal modal-content-box"
         style={{
           width: '100%',
-          maxWidth: widthPx,
-          maxHeight: 'min(90dvh, 90vh)',
+          maxWidth: `min(${widthPx}, calc(100vw - 20px))`,
+          maxHeight: 'min(92dvh, 92vh)',
           backgroundColor: '#0A1633',
           border: '1px solid rgba(212, 175, 55, 0.5)',
           borderRadius: '16px',
@@ -57,7 +57,7 @@ const Modal = ({ isOpen, onClose, title, children, widthPx = '680px' }) => {
         {/* Encabezado Fijo del Modal */}
         <div
           style={{
-            padding: '14px 18px',
+            padding: '12px 16px',
             borderBottom: '1px solid rgba(212, 175, 55, 0.25)',
             display: 'flex',
             alignItems: 'center',
@@ -67,11 +67,12 @@ const Modal = ({ isOpen, onClose, title, children, widthPx = '680px' }) => {
           }}
         >
           <h3 style={{
-            fontSize: '1.05rem',
+            fontSize: '1rem',
             fontWeight: 800,
             color: '#F8FAFC',
             margin: 0,
-            lineHeight: 1.3
+            lineHeight: 1.3,
+            paddingRight: '8px'
           }}>
             {title}
           </h3>
@@ -79,6 +80,7 @@ const Modal = ({ isOpen, onClose, title, children, widthPx = '680px' }) => {
           <button
             type="button"
             onClick={onClose}
+            aria-label="Cerrar modal"
             style={{
               background: 'rgba(255, 255, 255, 0.08)',
               border: '1px solid rgba(255, 255, 255, 0.15)',
@@ -105,7 +107,7 @@ const Modal = ({ isOpen, onClose, title, children, widthPx = '680px' }) => {
         {/* Cuerpo del Modal con Scroll Suave */}
         <div
           style={{
-            padding: '16px 18px',
+            padding: '14px 16px',
             overflowY: 'auto',
             WebkitOverflowScrolling: 'touch',
             display: 'flex',

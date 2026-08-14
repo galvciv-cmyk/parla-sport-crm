@@ -248,6 +248,14 @@ export const NotificationProvider = ({ children }) => {
     };
 
     await saveNotificationLocallyAndRemote([notifAdmin]);
+
+    // Disparar Push remoto al Administrador (App cerrada)
+    sendOneSignalPush({
+      title: notifAdmin.title,
+      message: notifAdmin.message,
+      recipientRole: 'admin',
+      url: '/#scheduler'
+    });
   };
 
   // ─── 3. Notificación de Pago Registrado (para el Entrenador) ───
@@ -316,7 +324,7 @@ export const NotificationProvider = ({ children }) => {
       notifs.push({
         id: `notif-${Date.now()}-avail-update`,
         title: `📅 Disponibilidad Actualizada`,
-        message: `${coachName} ha cambiado su disponibilidad.`,
+        message: `${coachName} ha cambiado su disponibilidad semanal.`,
         recipientRole: 'admin',
         recipientCoachId: '',
         recipientEmail: '',
@@ -329,6 +337,16 @@ export const NotificationProvider = ({ children }) => {
     }
 
     await saveNotificationLocallyAndRemote(notifs);
+
+    // Disparar Push remoto a Administradores (App cerrada)
+    if (notifs.length > 0) {
+      sendOneSignalPush({
+        title: notifs[0].title,
+        message: notifs[0].message,
+        recipientRole: 'admin',
+        url: '/#scheduler'
+      });
+    }
   };
 
   // ─── 5. Notificación al Entrenador por Cancelación / Eliminación de Sesión ───

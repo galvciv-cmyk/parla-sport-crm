@@ -137,10 +137,11 @@ const LoginScreen = () => {
   return (
     <div style={{
       minHeight: '100vh',
+      minHeight: '100dvh',
       display: 'flex',
       alignItems: 'center',
       justifyContent: 'center',
-      padding: '24px',
+      padding: '16px 12px',
       backgroundColor: '#060D1E',
       backgroundImage: `
         radial-gradient(circle at 50% 20%, rgba(212, 175, 55, 0.15) 0%, transparent 50%),
@@ -152,10 +153,10 @@ const LoginScreen = () => {
         style={{
           width: '100%',
           maxWidth: activeTab === 'register' ? '540px' : '440px',
-          padding: '36px 32px',
+          padding: '28px 20px',
           display: 'flex',
           flexDirection: 'column',
-          gap: '22px',
+          gap: '20px',
           transition: 'all 0.3s ease'
         }}
       >
@@ -289,7 +290,7 @@ const LoginScreen = () => {
               />
             </div>
 
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(160px, 100%), 1fr))', gap: '10px' }}>
               <div>
                 <label className="input-label">Contraseña</label>
                 <input

@@ -237,11 +237,11 @@ const NotificationDebugPanel = () => {
         title="Panel de Debug — Notificaciones"
         style={{
           position: 'fixed',
-          bottom: '24px',
-          left: '24px',
+          bottom: 'calc(72px + var(--sab))',
+          left: '14px',
           zIndex: 99998,
-          width: '48px',
-          height: '48px',
+          width: '44px',
+          height: '44px',
           borderRadius: '50%',
           border: `2px solid ${newCount > 0 ? 'rgba(251,191,36,0.7)' : 'rgba(255,255,255,0.12)'}`,
           background: newCount > 0
@@ -260,7 +260,7 @@ const NotificationDebugPanel = () => {
           animation: newCount > 0 ? 'debug-pulse 2s ease-in-out infinite' : 'none'
         }}
       >
-        <Activity size={20} />
+        <Activity size={18} />
         {newCount > 0 && (
           <span style={{
             position: 'absolute',
@@ -289,9 +289,9 @@ const NotificationDebugPanel = () => {
         <div
           style={{
             position: 'fixed',
-            bottom: isPinned ? 0 : '80px',
-            left: isPinned ? 0 : '16px',
-            width: isPinned ? '100%' : '420px',
+            bottom: isPinned ? 0 : 'calc(75px + var(--sab))',
+            left: isPinned ? 0 : '12px',
+            width: isPinned ? '100%' : 'min(420px, calc(100vw - 24px))',
             height: isPinned ? '45vh' : 'min(500px, 70vh)',
             background: 'rgba(8, 15, 35, 0.98)',
             backdropFilter: 'blur(24px)',

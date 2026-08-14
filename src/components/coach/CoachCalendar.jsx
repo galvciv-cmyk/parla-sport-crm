@@ -296,8 +296,8 @@ const CoachCalendar = () => {
       {/* Grid de Tarjetas de Sesión Interactivas */}
       <div style={{
         display: 'grid',
-        gridTemplateColumns: 'repeat(auto-fill, minmax(320px, 1fr))',
-        gap: '20px'
+        gridTemplateColumns: 'repeat(auto-fill, minmax(min(280px, 100%), 1fr))',
+        gap: '18px'
       }}>
         {coachSessions.length === 0 ? (
           <div className="glass-panel" style={{ padding: '40px', textAlign: 'center', gridColumn: '1 / -1' }}>
