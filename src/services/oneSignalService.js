@@ -280,6 +280,7 @@ export const sendOneSignalPush = async ({
     ios_badgeCount: 1,
     ios_sound: 'default',
     android_sound: 'notification',
+    android_visibility: 1, // 1 = Public en pantalla de bloqueo
     chrome_web_icon: `${originUrl}/favicon.png`,
     chrome_web_badge: `${originUrl}/favicon.png`,
     firefox_icon: `${originUrl}/favicon.png`,

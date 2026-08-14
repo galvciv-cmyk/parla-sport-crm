@@ -126,9 +126,11 @@ export const triggerLocalPushNotification = (title, body, type = 'notification')
             icon: '/favicon.png',
             badge: '/favicon.png',
             vibrate: [200, 100, 200],
+            visibility: 'public',
+            requireInteraction: true,
+            silent: false,
             tag: 'parla-' + Date.now(),
-            requireInteraction: false,
-            silent: false
+            data: { url: window.location.href }
           });
         }).catch(() => {});
       }
