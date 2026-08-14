@@ -240,6 +240,41 @@ export const DataProvider = ({ children }) => {
     return cleanSession;
   };
 
+  const addPlayerObservation = async (playerId, observation) => {
+    const player = players.find(p => p.id === playerId);
+    if (!player) return;
+
+    const newObs = {
+      id: `obs-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`,
+      texto: (observation.texto || '').trim(),
+      autorNombre: observation.autorNombre || 'Entrenador',
+      autorId: observation.autorId || '',
+      sessionId: observation.sessionId || '',
+      fecha: observation.fecha || new Date().toISOString().split('T')[0],
+      timestamp: new Date().toISOString()
+    };
+
+    const currentHistory = Array.isArray(player.historialObservaciones) ? player.historialObservaciones : [];
+    const updatedHistory = [newObs, ...currentHistory];
+    const updatedObservacionesTecnicas = newObs.texto || player.observacionesTecnicas || '';
+
+    const updatedPlayer = {
+      ...player,
+      observacionesTecnicas: updatedObservacionesTecnicas,
+      historialObservaciones: updatedHistory
+    };
+
+    setPlayers(prev => prev.map(p => p.id === playerId ? updatedPlayer : p));
+    await setDoc(doc(db, 'players', playerId), {
+      observacionesTecnicas: updatedObservacionesTecnicas,
+      historialObservaciones: updatedHistory
+    }, { merge: true }).catch(err => {
+      console.warn('[DataContext] Error al guardar observación del jugador en Firestore:', err);
+    });
+
+    return updatedPlayer;
+  };
+
   const updateSessionStatus = async (sessionId, newStatus, userRole = 'admin') => {
     const session = sessions.find(s => s.id === sessionId);
     if (!session) return;
@@ -272,11 +307,18 @@ export const DataProvider = ({ children }) => {
     });
 
     // Disparar notificaciones correspondientes según el cambio
-    const coach = coaches.find(c => c.id === session.entrenadorId);
+    const coach = coaches.find(c =>
+      c.id === session.entrenadorId ||
+      (session.entrenadorEmail && c.email && c.email.trim().toLowerCase() === session.entrenadorEmail.trim().toLowerCase())
+    ) || {
+      id: session.entrenadorId,
+      nombre: session.entrenadorNombre || 'Entrenador',
+      email: session.entrenadorEmail || ''
+    };
     const assignedPlayers = players.filter(p => Array.isArray(session.jugadoresIds) && session.jugadoresIds.includes(p.id));
 
-    // Si cambió de 'sin_confirmar' a 'confirmada', notificar ahora al entrenador
-    if (previousStatus === 'sin_confirmar' && newStatus === 'confirmada' && notifySessionAssignment && coach) {
+    // Si cambió a 'confirmada', notificar de inmediato al entrenador
+    if (newStatus === 'confirmada' && previousStatus !== 'confirmada' && notifySessionAssignment) {
       notifySessionAssignment({
         coach,
         session: { ...session, estado: newStatus },
@@ -395,7 +437,8 @@ export const DataProvider = ({ children }) => {
       updateSessionStatus,
       deleteSession,
       reassignSession,
-      cancelSession
+      cancelSession,
+      addPlayerObservation
     }}>
       {children}
     </DataContext.Provider>

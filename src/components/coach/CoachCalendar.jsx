@@ -7,6 +7,7 @@ import { STATUS_CONFIG } from '../../utils/mockData';
 import { formatTo12Hour, isCoachAvailableBySchedule, getSpanishDayName, groupAvailabilityBlocks } from '../../utils/scheduling';
 import SessionDetailModal from './SessionDetailModal';
 import Modal from '../common/Modal';
+import { showToast } from '../common/ToastNotification';
 
 const DAYS_BUTTONS = [
   { code: 'L', name: 'Lunes' },
@@ -118,7 +119,12 @@ const CoachCalendar = () => {
 
   const handleAddMultipleBlocks = () => {
     if (selectedDays.length === 0) {
-      alert('Por favor selecciona al menos un día de la semana (L, M, MI, J, V, S, D).');
+      showToast(
+        'Selección Requerida',
+        'Por favor selecciona al menos un día de la semana (L, M, MI, J, V, S, D).',
+        'warning',
+        4000
+      );
       return;
     }
 
@@ -498,7 +504,7 @@ const CoachCalendar = () => {
                 <label className="input-label" style={{ marginBottom: '8px', display: 'block' }}>
                   1. Selecciona los Días de la Semana:
                 </label>
-                <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+                <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap' }}>
                   {DAYS_BUTTONS.map(d => {
                     const isSelected = selectedDays.includes(d.code);
                     return (
@@ -511,10 +517,13 @@ const CoachCalendar = () => {
                           );
                         }}
                         style={{
-                          padding: '8px 14px',
-                          borderRadius: '10px',
+                          flex: '1 1 calc(14.28% - 6px)',
+                          minWidth: '36px',
+                          padding: '8px 4px',
+                          textAlign: 'center',
+                          borderRadius: '8px',
                           fontWeight: 800,
-                          fontSize: '0.85rem',
+                          fontSize: '0.8rem',
                           cursor: 'pointer',
                           border: isSelected ? '2px solid #FBBF24' : '1px solid rgba(255, 255, 255, 0.15)',
                           background: isSelected ? 'rgba(245, 158, 11, 0.25)' : 'rgba(15, 23, 42, 0.8)',
@@ -530,34 +539,48 @@ const CoachCalendar = () => {
                 </div>
               </div>
 
-              {/* Horas Inicio y Fin Separadas para Pantallas Móviles */}
+              {/* Selectores de Horas Compactos para Móvil (Lado a Lado Sin Montarse) */}
               <div style={{
                 display: 'grid',
-                gridTemplateColumns: 'repeat(auto-fit, minmax(min(140px, 100%), 1fr))',
-                gap: '16px',
-                marginTop: '10px'
+                gridTemplateColumns: '1fr 1fr',
+                gap: '10px',
+                marginTop: '6px',
+                width: '100%',
+                boxSizing: 'border-box'
               }}>
-                <div>
-                  <label className="input-label" style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                    <Clock size={14} color="#10B981" /> Hora Inicio
+                <div style={{ minWidth: 0 }}>
+                  <label className="input-label" style={{ display: 'flex', alignItems: 'center', gap: '4px', fontSize: '0.75rem', marginBottom: '4px' }}>
+                    <Clock size={13} color="#10B981" /> Hora Inicio
                   </label>
                   <input
                     type="time"
                     className="input-field"
-                    style={{ width: '100%', padding: '10px 12px' }}
+                    style={{
+                      width: '100%',
+                      boxSizing: 'border-box',
+                      padding: '8px 10px',
+                      fontSize: '0.85rem',
+                      height: '38px'
+                    }}
                     value={timeRange.horaInicio}
                     onChange={(e) => setTimeRange({ ...timeRange, horaInicio: e.target.value })}
                   />
                 </div>
 
-                <div>
-                  <label className="input-label" style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                    <Clock size={14} color="#FBBF24" /> Hora Fin
+                <div style={{ minWidth: 0 }}>
+                  <label className="input-label" style={{ display: 'flex', alignItems: 'center', gap: '4px', fontSize: '0.75rem', marginBottom: '4px' }}>
+                    <Clock size={13} color="#FBBF24" /> Hora Fin
                   </label>
                   <input
                     type="time"
                     className="input-field"
-                    style={{ width: '100%', padding: '10px 12px' }}
+                    style={{
+                      width: '100%',
+                      boxSizing: 'border-box',
+                      padding: '8px 10px',
+                      fontSize: '0.85rem',
+                      height: '38px'
+                    }}
                     value={timeRange.horaFin}
                     onChange={(e) => setTimeRange({ ...timeRange, horaFin: e.target.value })}
                   />

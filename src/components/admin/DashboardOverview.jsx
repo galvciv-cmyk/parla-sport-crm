@@ -1,12 +1,18 @@
 import React, { useState, useMemo } from 'react';
 import {
-  Users, UserCheck, CalendarCheck, Award, CreditCard, Activity,
-  Settings, ChevronLeft, ChevronRight, CheckCircle2, Clock, DollarSign,
-  Calendar as CalendarIcon, TrendingUp, AlertCircle
+  Award, CreditCard,
+  CheckCircle2, Clock, DollarSign,
+  Calendar as CalendarIcon
 } from 'lucide-react';
 import { useData } from '../../context/DataContext';
 import Modal from '../common/Modal';
-import { formatTo12Hour } from '../../utils/scheduling';
+import { showToast } from '../common/ToastNotification';
+
+// ─── Utilidad para Formatear Montos en Dólares con soporte de decimales ───
+const formatAmount = (val) => {
+  const num = Number(val || 0);
+  return num.toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 2 });
+};
 
 // ─── Utilidades de Fechas para Semanas (Lunes a Domingo) y Meses ───
 const getMondayOfCurrentWeek = (d = new Date()) => {
@@ -29,8 +35,8 @@ const formatSpanishDate = (date) => {
   return date.toLocaleDateString('es-ES', { day: 'numeric', month: 'short' });
 };
 
-const DashboardOverview = ({ setActiveTab }) => {
-  const { players, coaches, sessions, paymentRates, updatePaymentRates, updateSessionStatus } = useData();
+const DashboardOverview = ({ setActiveTab: _setActiveTab }) => {
+  const { coaches, sessions, paymentRates, updatePaymentRates, updateSessionStatus } = useData();
 
   // ─── Estados de Navegación y Filtros ───
   const [viewMode, setViewMode] = useState('weekly'); // 'weekly' | 'monthly'
@@ -44,6 +50,10 @@ const DashboardOverview = ({ setActiveTab }) => {
   const [isRatesModalOpen, setIsRatesModalOpen] = useState(false);
   const [tempRates, setTempRates] = useState(paymentRates);
   const [savingRates, setSavingRates] = useState(false);
+
+  // Modal Nativo de Liquidación
+  const [coachToSettle, setCoachToSettle] = useState(null);
+  const [isSettling, setIsSettling] = useState(false);
 
   // ─── Rango de la Semana Activa (Lunes a Domingo) ───
   const currentWeekRange = useMemo(() => {
@@ -82,9 +92,9 @@ const DashboardOverview = ({ setActiveTab }) => {
 
   // ─── Cálculos de Liquidación por Entrenador ───
   const coachSettlements = useMemo(() => {
-    const rate11 = Number(paymentRates['1-1']) || 15;
-    const rate12 = Number(paymentRates['1-2']) || 20;
-    const rate13 = Number(paymentRates['1-3']) || 25;
+    const rate11 = parseFloat(paymentRates['1-1']) || 15;
+    const rate12 = parseFloat(paymentRates['1-2']) || 20;
+    const rate13 = parseFloat(paymentRates['1-3']) || 25;
 
     return coaches.map(coach => {
       // Sesiones del entrenador en el período
@@ -140,31 +150,58 @@ const DashboardOverview = ({ setActiveTab }) => {
     return { totalRealized, totalGenerated, totalPending, totalPaid };
   }, [coachSettlements]);
 
-  // ─── Acción: Marcar todas las sesiones pendientes de un entrenador como Pagadas ───
-  const handleSettleCoachPending = async (coachItem) => {
+  // ─── Acción: Abrir Modal Nativo para Liquidar Sesiones Pendientes ───
+  const handleSettleCoachPending = (coachItem) => {
     if (coachItem.pendingSessions.length === 0) return;
-    const confirmMsg = `¿Deseas marcar como PAGADAS las ${coachItem.pendingSessions.length} sesiones pendientes de ${coachItem.coach.nombre} (Total: $${coachItem.pendingAmount})?`;
-    if (!window.confirm(confirmMsg)) return;
+    setCoachToSettle(coachItem);
+  };
 
-    for (const ses of coachItem.pendingSessions) {
+  const handleConfirmSettleCoach = async () => {
+    if (!coachToSettle || coachToSettle.pendingSessions.length === 0) return;
+    setIsSettling(true);
+
+    let count = 0;
+    for (const ses of coachToSettle.pendingSessions) {
       try {
         await updateSessionStatus(ses.id, 'pagada', 'admin');
+        count++;
       } catch (err) {
         console.warn('Error al liquidar sesión:', err);
       }
     }
+
+    setIsSettling(false);
+    const coachName = coachToSettle.coach.nombre;
+    const totalSettled = coachToSettle.pendingAmount;
+    setCoachToSettle(null);
+
+    showToast(
+      'Liquidación Confirmada',
+      `Se han liquidado ${count} clases a ${coachName} por un total de $${formatAmount(totalSettled)}.`,
+      'success',
+      5000
+    );
   };
 
   const handleSaveRates = async (e) => {
     e.preventDefault();
     setSavingRates(true);
+    const parsed11 = parseFloat(tempRates['1-1']);
+    const parsed12 = parseFloat(tempRates['1-2']);
+    const parsed13 = parseFloat(tempRates['1-3']);
+
     await updatePaymentRates({
-      '1-1': Number(tempRates['1-1']) || 0,
-      '1-2': Number(tempRates['1-2']) || 0,
-      '1-3': Number(tempRates['1-3']) || 0
+      '1-1': isNaN(parsed11) ? 0 : parsed11,
+      '1-2': isNaN(parsed12) ? 0 : parsed12,
+      '1-3': isNaN(parsed13) ? 0 : parsed13
     });
     setSavingRates(false);
     setIsRatesModalOpen(false);
+    showToast(
+      'Tarifas Actualizadas',
+      'Las nuevas tarifas de pago por formato han sido guardadas correctamente.',
+      'success'
+    );
   };
 
   return (
@@ -326,10 +363,10 @@ const DashboardOverview = ({ setActiveTab }) => {
             </div>
           </div>
           <div style={{ fontSize: '1.8rem', fontWeight: 800, color: '#FBBF24', margin: '8px 0 2px' }}>
-            ${totals.totalGenerated}
+            ${formatAmount(totals.totalGenerated)}
           </div>
           <span style={{ fontSize: '0.72rem', color: '#FBBF24' }}>
-            Tarifas: 1:1 (${paymentRates['1-1'] || 15}) • 1:2 (${paymentRates['1-2'] || 20}) • 1:3 (${paymentRates['1-3'] || 25})
+            Tarifas: 1:1 (${formatAmount(paymentRates['1-1'] || 15)}) • 1:2 (${formatAmount(paymentRates['1-2'] || 20)}) • 1:3 (${formatAmount(paymentRates['1-3'] || 25)})
           </span>
         </div>
 
@@ -342,7 +379,7 @@ const DashboardOverview = ({ setActiveTab }) => {
             </div>
           </div>
           <div style={{ fontSize: '1.8rem', fontWeight: 800, color: '#FB923C', margin: '8px 0 2px' }}>
-            ${totals.totalPending}
+            ${formatAmount(totals.totalPending)}
           </div>
           <span style={{ fontSize: '0.72rem', color: '#FB923C' }}>Listas para liquidación</span>
         </div>
@@ -356,7 +393,7 @@ const DashboardOverview = ({ setActiveTab }) => {
             </div>
           </div>
           <div style={{ fontSize: '1.8rem', fontWeight: 800, color: '#10B981', margin: '8px 0 2px' }}>
-            ${totals.totalPaid}
+            ${formatAmount(totals.totalPaid)}
           </div>
           <span style={{ fontSize: '0.72rem', color: '#10B981' }}>Pagos confirmados</span>
         </div>
@@ -412,10 +449,10 @@ const DashboardOverview = ({ setActiveTab }) => {
                   {/* Estado de Pagos */}
                   <div style={{ display: 'flex', gap: '12px', fontSize: '0.8rem', marginTop: '6px', flexWrap: 'wrap' }}>
                     <span style={{ color: item.pendingAmount > 0 ? '#FB923C' : '#64748B', fontWeight: 600 }}>
-                      ⏳ Pendiente: ${item.pendingAmount} ({item.pendingSessions.length} clases)
+                      ⏳ Pendiente: ${formatAmount(item.pendingAmount)} ({item.pendingSessions.length} clases)
                     </span>
                     <span style={{ color: item.paidAmount > 0 ? '#34D399' : '#64748B', fontWeight: 600 }}>
-                      ✅ Pagado: ${item.paidAmount} ({item.paidSessions.length} clases)
+                      ✅ Pagado: ${formatAmount(item.paidAmount)} ({item.paidSessions.length} clases)
                     </span>
                   </div>
                 </div>
@@ -427,7 +464,7 @@ const DashboardOverview = ({ setActiveTab }) => {
                       Total Honorarios
                     </div>
                     <div style={{ fontSize: '1.4rem', fontWeight: 800, color: '#FBBF24' }}>
-                      ${item.totalAmount}
+                      ${formatAmount(item.totalAmount)}
                     </div>
                   </div>
 
@@ -438,7 +475,7 @@ const DashboardOverview = ({ setActiveTab }) => {
                       onClick={() => handleSettleCoachPending(item)}
                       title="Liquidar todas las sesiones pendientes de este profesor"
                     >
-                      <CheckCircle2 size={16} /> Liquidar ${item.pendingAmount}
+                      <CheckCircle2 size={16} /> Liquidar ${formatAmount(item.pendingAmount)}
                     </button>
                   ) : item.realizedCount > 0 ? (
                     <span className="badge badge-emerald" style={{ padding: '6px 12px', fontSize: '0.78rem' }}>
@@ -456,7 +493,7 @@ const DashboardOverview = ({ setActiveTab }) => {
         </div>
       </div>
 
-      {/* ─── Modal de Configuración de Tarifas de Pago ─── */}
+      {/* ─── Modal de Configuración de Tarifas de Pago (Soporta Decimales) ─── */}
       <Modal
         isOpen={isRatesModalOpen}
         onClose={() => setIsRatesModalOpen(false)}
@@ -465,7 +502,7 @@ const DashboardOverview = ({ setActiveTab }) => {
       >
         <form onSubmit={handleSaveRates} style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
           <p style={{ fontSize: '0.85rem', color: '#CBD5E1' }}>
-            Establece el monto en dólares ($) a pagar al profesor por cada clase realizada según el formato de entrenamiento:
+            Establece el monto en dólares ($) a pagar al profesor por cada clase realizada según el formato de entrenamiento (permite decimales, ej. 15.50):
           </p>
 
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(130px, 100%), 1fr))', gap: '14px' }}>
@@ -474,12 +511,12 @@ const DashboardOverview = ({ setActiveTab }) => {
               <input
                 type="number"
                 min="0"
-                step="1"
+                step="0.01"
                 required
                 className="input-field"
-                value={tempRates['1-1'] || ''}
+                value={tempRates['1-1'] !== undefined ? tempRates['1-1'] : ''}
                 onChange={(e) => setTempRates({ ...tempRates, '1-1': e.target.value })}
-                placeholder="Ej. 15"
+                placeholder="Ej. 15.00"
               />
             </div>
 
@@ -488,12 +525,12 @@ const DashboardOverview = ({ setActiveTab }) => {
               <input
                 type="number"
                 min="0"
-                step="1"
+                step="0.01"
                 required
                 className="input-field"
-                value={tempRates['1-2'] || ''}
+                value={tempRates['1-2'] !== undefined ? tempRates['1-2'] : ''}
                 onChange={(e) => setTempRates({ ...tempRates, '1-2': e.target.value })}
-                placeholder="Ej. 20"
+                placeholder="Ej. 20.00"
               />
             </div>
 
@@ -502,12 +539,12 @@ const DashboardOverview = ({ setActiveTab }) => {
               <input
                 type="number"
                 min="0"
-                step="1"
+                step="0.01"
                 required
                 className="input-field"
-                value={tempRates['1-3'] || ''}
+                value={tempRates['1-3'] !== undefined ? tempRates['1-3'] : ''}
                 onChange={(e) => setTempRates({ ...tempRates, '1-3': e.target.value })}
-                placeholder="Ej. 25"
+                placeholder="Ej. 25.00"
               />
             </div>
           </div>
@@ -521,6 +558,62 @@ const DashboardOverview = ({ setActiveTab }) => {
             </button>
           </div>
         </form>
+      </Modal>
+
+      {/* ─── Modal Nativo de Confirmación de Liquidación ─── */}
+      <Modal
+        isOpen={!!coachToSettle}
+        onClose={() => setCoachToSettle(null)}
+        title="💳 Confirmar Liquidación de Pago"
+        widthPx="520px"
+      >
+        {coachToSettle && (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+            <div style={{
+              background: 'rgba(16, 185, 129, 0.12)',
+              border: '1px solid rgba(16, 185, 129, 0.35)',
+              padding: '16px',
+              borderRadius: '12px',
+              display: 'flex',
+              flexDirection: 'column',
+              gap: '8px'
+            }}>
+              <div style={{ fontSize: '1rem', fontWeight: 800, color: '#34D399' }}>
+                ¿Deseas liquidar las clases de {coachToSettle.coach.nombre}?
+              </div>
+              <div style={{ fontSize: '0.85rem', color: '#CBD5E1', lineHeight: '1.5' }}>
+                Se marcarán como <strong>PAGADAS</strong> las <strong>{coachToSettle.pendingSessions.length}</strong> sesiones completadas por un monto total de:
+              </div>
+              <div style={{ fontSize: '1.6rem', fontWeight: 800, color: '#FBBF24', marginTop: '4px' }}>
+                ${formatAmount(coachToSettle.pendingAmount)} USD
+              </div>
+            </div>
+
+            <p style={{ fontSize: '0.8rem', color: '#94A3B8', margin: 0 }}>
+              Esta acción actualizará el estado en Firestore y notificará automáticamente al profesor en su dispositivo.
+            </p>
+
+            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px', marginTop: '8px' }}>
+              <button
+                type="button"
+                className="btn-secondary"
+                disabled={isSettling}
+                onClick={() => setCoachToSettle(null)}
+              >
+                Cancelar
+              </button>
+              <button
+                type="button"
+                className="btn-primary"
+                disabled={isSettling}
+                style={{ background: 'linear-gradient(135deg, #10B981, #059669)', fontWeight: 800 }}
+                onClick={handleConfirmSettleCoach}
+              >
+                {isSettling ? 'Procesando...' : `Confirmar y Pagar $${formatAmount(coachToSettle.pendingAmount)}`}
+              </button>
+            </div>
+          </div>
+        )}
       </Modal>
 
     </div>

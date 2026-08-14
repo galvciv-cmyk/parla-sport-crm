@@ -37,7 +37,6 @@ const CoachManager = lazyWithRetry(() => import('./components/admin/CoachManager
 const SessionScheduler = lazyWithRetry(() => import('./components/admin/SessionScheduler'));
 const CoachCalendar = lazyWithRetry(() => import('./components/coach/CoachCalendar'));
 const AcademyCalendar = lazyWithRetry(() => import('./components/coach/AcademyCalendar'));
-const NotificationDebugPanel = lazyWithRetry(() => import('./components/common/NotificationDebugPanel'));
 
 const ModuleLoadingFallback = () => (
   <div style={{
@@ -199,22 +198,6 @@ const NotificationSetupBanner = () => {
   );
 };
 
-// ─── Panel de Debug: Visible Únicamente para el Administrador ───
-const AdminOnlyDebugPanel = () => {
-  const { currentUser, role, isAdmin } = useAuth();
-  const isUserAdmin = isAdmin || role === 'admin' || currentUser?.role === 'admin';
-
-  if (!currentUser || !isUserAdmin) {
-    return null;
-  }
-
-  return (
-    <Suspense fallback={null}>
-      <NotificationDebugPanel />
-    </Suspense>
-  );
-};
-
 const MainContent = () => {
   const { currentUser, role, authLoading } = useAuth();
 
@@ -256,7 +239,6 @@ const MainContent = () => {
     <>
       <MainLayout key={currentUser.uid || userRole} defaultTab={initialTab} />
       <NotificationSetupBanner />
-      <AdminOnlyDebugPanel />
     </>
   );
 };

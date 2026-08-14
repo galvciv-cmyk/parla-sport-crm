@@ -241,9 +241,22 @@ export const sendOneSignalPush = async ({
   }
 
   const targetIds = [];
-  if (externalUserId) targetIds.push(String(externalUserId));
-  if (recipientEmail && !targetIds.includes(String(recipientEmail).toLowerCase().trim())) {
-    targetIds.push(String(recipientEmail).toLowerCase().trim());
+  if (externalUserId) {
+    const rawId = String(externalUserId).trim();
+    if (rawId && !targetIds.includes(rawId)) targetIds.push(rawId);
+    if (rawId.startsWith('coach-')) {
+      const stripped = rawId.replace('coach-', '');
+      if (stripped && !targetIds.includes(stripped)) targetIds.push(stripped);
+    } else {
+      const withPrefix = `coach-${rawId}`;
+      if (!targetIds.includes(withPrefix)) targetIds.push(withPrefix);
+    }
+  }
+  if (recipientEmail) {
+    const cleanEmail = String(recipientEmail).toLowerCase().trim();
+    if (cleanEmail && !targetIds.includes(cleanEmail)) {
+      targetIds.push(cleanEmail);
+    }
   }
 
   // Si no hay targetIds específicos ni rol de destino, cancelar

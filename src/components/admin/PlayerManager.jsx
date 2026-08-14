@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
-import { UserPlus, Search, Edit3, Trash2, Eye, User } from 'lucide-react';
+import { UserPlus, Search, Edit3, Trash2, Eye, User, MessageSquare } from 'lucide-react';
 import { useData } from '../../context/DataContext';
+import { showToast } from '../common/ToastNotification';
 import Modal from '../common/Modal';
 
 const PlayerManager = () => {
@@ -57,7 +58,8 @@ const PlayerManager = () => {
       piernaHabil: 'Derecha',
       contactoTutor: '',
       foto: '',
-      observacionesTecnicas: ''
+      observacionesTecnicas: '',
+      historialObservaciones: []
     });
     setIsEditing(false);
     setIsAddModalOpen(true);
@@ -70,7 +72,8 @@ const PlayerManager = () => {
     setFormData({
       ...player,
       fechaNacimiento: birthDate,
-      edad: age
+      edad: age,
+      historialObservaciones: Array.isArray(player.historialObservaciones) ? player.historialObservaciones : []
     });
     setIsEditing(editMode);
     setIsDetailModalOpen(true);
@@ -79,15 +82,17 @@ const PlayerManager = () => {
   const handleSave = (e) => {
     e.preventDefault();
     if (!formData.nombre || !formData.nombre.trim()) {
-      alert('Por favor ingresa el nombre del jugador.');
+      showToast('Nombre Requerido', 'Por favor ingresa el nombre del jugador.', 'warning');
       return;
     }
     if (isEditing && selectedPlayer) {
       updatePlayer(selectedPlayer.id, formData);
       setIsDetailModalOpen(false);
+      showToast('Ficha Actualizada', `Se guardaron los cambios de ${formData.nombre}.`, 'success');
     } else {
       addPlayer(formData);
       setIsAddModalOpen(false);
+      showToast('Jugador Registrado', `${formData.nombre} fue registrado con éxito.`, 'success');
     }
   };
 
@@ -344,7 +349,7 @@ const PlayerManager = () => {
         </div>
 
         <div>
-          <label className="input-label">Observaciones Técnicas y Desarrollo</label>
+          <label className="input-label">Observaciones Técnicas Generales</label>
           <textarea
             disabled={!isAddModalOpen && !isEditing}
             rows={3}
@@ -354,6 +359,37 @@ const PlayerManager = () => {
             onChange={(e) => setFormData({ ...formData, observacionesTecnicas: e.target.value })}
           />
         </div>
+
+        {/* Historial de Notas de Profesores (si existen) */}
+        {!isAddModalOpen && formData.historialObservaciones && formData.historialObservaciones.length > 0 && (
+          <div style={{ background: 'rgba(15, 23, 42, 0.8)', padding: '14px', borderRadius: '12px', border: '1px solid rgba(255, 255, 255, 0.08)' }}>
+            <div style={{ fontSize: '0.85rem', fontWeight: 700, color: '#FBBF24', marginBottom: '10px', display: 'flex', alignItems: 'center', gap: '6px' }}>
+              <MessageSquare size={16} /> Historial de Observaciones por Entrenadores:
+            </div>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', maxHeight: '180px', overflowY: 'auto' }}>
+              {formData.historialObservaciones.map(obs => (
+                <div
+                  key={obs.id}
+                  style={{
+                    background: 'rgba(255, 255, 255, 0.03)',
+                    borderLeft: '3px solid #3B82F6',
+                    padding: '8px 12px',
+                    borderRadius: '0 8px 8px 0',
+                    fontSize: '0.82rem'
+                  }}
+                >
+                  <div style={{ display: 'flex', justifyContent: 'space-between', color: '#94A3B8', fontSize: '0.72rem', marginBottom: '3px' }}>
+                    <span style={{ color: '#60A5FA', fontWeight: 700 }}>👤 {obs.autorNombre || 'Entrenador'}</span>
+                    <span>📅 {obs.fecha}</span>
+                  </div>
+                  <div style={{ color: '#F8FAFC', fontStyle: 'italic', lineHeight: '1.4' }}>
+                    "{obs.texto}"
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
 
         {(isAddModalOpen || isEditing) && (
           <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px', marginTop: '10px' }}>

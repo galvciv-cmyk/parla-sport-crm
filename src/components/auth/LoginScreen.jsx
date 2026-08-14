@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { KeyRound, Mail, Lock, UserPlus, Plus, Trash2, Clock } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
+import { showToast } from '../common/ToastNotification';
 
 const DAYS_BUTTONS = [
   { code: 'L', name: 'Lunes' },
@@ -43,7 +44,7 @@ const LoginScreen = () => {
 
   const handleAddMultipleBlocks = () => {
     if (selectedRegDays.length === 0) {
-      alert('Por favor selecciona al menos un día (L, M, MI, J, V, S, D).');
+      showToast('Selección Requerida', 'Por favor selecciona al menos un día (L, M, MI, J, V, S, D).', 'warning');
       return;
     }
 
@@ -136,7 +137,6 @@ const LoginScreen = () => {
 
   return (
     <div style={{
-      minHeight: '100vh',
       minHeight: '100dvh',
       display: 'flex',
       alignItems: 'center',

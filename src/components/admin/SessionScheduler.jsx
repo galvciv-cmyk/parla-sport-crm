@@ -7,11 +7,11 @@ import {
   formatTo12Hour,
   addOneHour,
   generateTimeOptions,
-  hasPlayerSessionConflict,
   hasPlayerDailySession
 } from '../../utils/scheduling';
 import { STATUS_CONFIG } from '../../utils/mockData';
 import Modal from '../common/Modal';
+import { showToast } from '../common/ToastNotification';
 
 const SessionScheduler = () => {
   const { players, coaches, sessions, createSession, updateSessionStatus, deleteSession, reassignSession } = useData();
@@ -105,7 +105,11 @@ const SessionScheduler = () => {
       }));
     } else {
       if (sessionData.jugadoresIds.length >= maxAllowed) {
-        alert(`Para el formato ${sessionData.tipo} solo puedes seleccionar máximo ${maxAllowed} jugador(es).`);
+        showToast(
+          'Límite de Jugadores',
+          `Para el formato ${sessionData.tipo} solo puedes seleccionar máximo ${maxAllowed} jugador(es).`,
+          'warning'
+        );
         return;
       }
       setSessionData(prev => ({
@@ -176,9 +180,13 @@ const SessionScheduler = () => {
     try {
       await reassignSession(selectedSessionToReassign.id, newCoachId, absenceReason);
       setReassignModalOpen(false);
-      alert('Entrenador reasignado exitosamente. Se ha notificado al nuevo entrenador.');
+      showToast(
+        'Entrenador Reasignado',
+        'Entrenador reasignado exitosamente. Se ha notificado al nuevo entrenador.',
+        'success'
+      );
     } catch (err) {
-      alert(err.message || 'Error al reasignar entrenador.');
+      showToast('Error al Reasignar', err.message || 'Error al reasignar entrenador.', 'error');
     }
   };
 
@@ -346,7 +354,12 @@ const SessionScheduler = () => {
                       onClick={() => {
                         if (hasDailySession && !isSelected) {
                           const hora = dailyCheck.existingSession ? formatTo12Hour(dailyCheck.existingSession.horaInicio) : '';
-                          alert(`⚠️ El jugador ${p.nombre} ya tiene una sesión agendada el ${sessionData.fecha}${hora ? ` a las ${hora}` : ''}.\n\nRegla: Los jugadores solo realizan máximo 1 sesión diaria. Cambia la fecha para agendarle otra clase.`);
+                          showToast(
+                            'Conflicto de Sesión Diaria',
+                            `El jugador ${p.nombre} ya tiene una sesión agendada el ${sessionData.fecha}${hora ? ` a las ${hora}` : ''}. Regla: Los jugadores solo realizan máximo 1 sesión diaria.`,
+                            'warning',
+                            5000
+                          );
                           return;
                         }
                         handlePlayerToggle(p.id);
@@ -478,8 +491,9 @@ const SessionScheduler = () => {
                         onChange={async (e) => {
                           try {
                             await updateSessionStatus(s.id, e.target.value, 'admin');
+                            showToast('Estado Actualizado', `Sesión actualizada a ${s.tipo} (${e.target.value}).`, 'info', 3000);
                           } catch (err) {
-                            alert(err.message || 'Error al actualizar el estado.');
+                            showToast('Error al Actualizar Estado', err.message || 'Error al actualizar el estado.', 'error', 5000);
                           }
                         }}
                         className={`badge ${statusCfg.badgeClass}`}

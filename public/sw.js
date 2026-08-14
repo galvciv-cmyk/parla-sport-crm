@@ -36,7 +36,6 @@ self.addEventListener('fetch', (event) => {
   if (!url.origin.includes(self.location.origin)) return;
 
   // 1. Navegación principal (HTML / Document): SIEMPRE Network First
-  // Esto garantiza que tras un nuevo deploy, el usuario SIEMPRE descargue el nuevo index.html con los nuevos hashes de JS
   if (event.request.mode === 'navigate' || url.pathname === '/' || url.pathname === '/index.html') {
     event.respondWith(
       fetch(event.request)
@@ -66,7 +65,6 @@ self.addEventListener('fetch', (event) => {
           }
           return networkResponse;
         }).catch((err) => {
-          // Si el chunk falló por deploy nuevo, devolver error para que React.lazy haga reload
           throw err;
         });
       })
@@ -91,6 +89,7 @@ self.addEventListener('push', (event) => {
     data = { title: 'Parla Sport', body: event.data.text() };
   }
 
+  // ESTO ES CLAVE: Ignora la notificación si viene de OneSignal
   if (data.custom && data.custom.i) {
     return;
   }

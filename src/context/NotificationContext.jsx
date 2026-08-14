@@ -89,7 +89,8 @@ export const NotificationProvider = ({ children }) => {
                 notifCoachId === String(userCoachId) ||
                 notifCoachId === String(currentUser?.uid) ||
                 notifCoachId === `coach-${currentUser?.uid}` ||
-                (activeCoachId && notifCoachId === String(activeCoachId))
+                (activeCoachId && (notifCoachId === String(activeCoachId) || notifCoachId === `coach-${activeCoachId}` || notifCoachId.replace('coach-', '') === String(activeCoachId).replace('coach-', ''))) ||
+                (currentUser?.uid && notifCoachId.replace('coach-', '') === String(currentUser.uid))
               )) {
                 shouldNotify = true;
               } else if (userEmail && notifEmail && notifEmail === userEmail) {
