@@ -202,22 +202,7 @@ export const NotificationProvider = ({ children }) => {
       ? `La sesión del ${session.fecha} (${formatTo12Hour(session.horaInicio)} - ${formatTo12Hour(session.horaFin)}) fue reasignada a ${coachName}.`
       : `Se agendó la clase ${session.tipo} con ${coachName} para el ${session.fecha} (${formatTo12Hour(session.horaInicio)} - ${formatTo12Hour(session.horaFin)}). Jugadores: ${playerNames.join(', ')}.`;
 
-    const notifAdmin = {
-      id: `notif-${Date.now() + 1}-admin`,
-      title: titleAdmin,
-      message: messageAdmin,
-      recipientRole: 'admin',
-      recipientCoachId: '',
-      recipientEmail: '',
-      senderUid: currentUser?.uid || 'admin',
-      senderEmail: currentUser?.email || '',
-      timestamp: new Date().toISOString(),
-      read: false,
-      type: 'info'
-    };
-
-    await saveNotificationLocallyAndRemote([notifCoach, notifAdmin]);
-
+    // Disparar Push remoto a OneSignal INMEDIATAMENTE en paralelo (0ms bloqueo)
     if (coachId || coachEmail) {
       sendOneSignalPush({
         title: titleCoach,
@@ -227,6 +212,9 @@ export const NotificationProvider = ({ children }) => {
         url: '/#coach-calendar'
       });
     }
+
+    // Guardar en Firestore y local
+    await saveNotificationLocallyAndRemote([notifCoach, notifAdmin]);
   };
 
   // ─── 2. Notificación de Sesión Completada (para el Admin) ───
@@ -247,15 +235,15 @@ export const NotificationProvider = ({ children }) => {
       type: 'warning'
     };
 
-    await saveNotificationLocallyAndRemote([notifAdmin]);
-
-    // Disparar Push remoto al Administrador (App cerrada)
+    // Disparar Push remoto al Administrador (App cerrada) inmediatamente
     sendOneSignalPush({
       title: notifAdmin.title,
       message: notifAdmin.message,
       recipientRole: 'admin',
-      url: '/#scheduler'
+      url: '/#dashboard'
     });
+
+    await saveNotificationLocallyAndRemote([notifAdmin]);
   };
 
   // ─── 3. Notificación de Pago Registrado (para el Entrenador) ───

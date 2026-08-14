@@ -33,6 +33,39 @@ export const DataProvider = ({ children }) => {
     return saved ? JSON.parse(saved) : INITIAL_SESSIONS;
   });
 
+  // 4. Estado de Tarifas de Pago por Sesión (1:1, 1:2, 1:3)
+  const DEFAULT_RATES = { '1-1': 15, '1-2': 20, '1-3': 25 };
+  const [paymentRates, setPaymentRates] = useState(() => {
+    try {
+      const saved = localStorage.getItem('parla_payment_rates');
+      return saved ? JSON.parse(saved) : DEFAULT_RATES;
+    } catch {
+      return DEFAULT_RATES;
+    }
+  });
+
+  // Escuchar configuración de tarifas desde Firestore
+  useEffect(() => {
+    const unsub = onSnapshot(doc(db, 'settings', 'payment_rates'), (snap) => {
+      if (snap.exists()) {
+        const data = snap.data();
+        setPaymentRates(prev => ({ ...prev, ...data }));
+        try { localStorage.setItem('parla_payment_rates', JSON.stringify(data)); } catch {}
+      }
+    }, () => {});
+
+    return () => unsub();
+  }, []);
+
+  const updatePaymentRates = async (newRates) => {
+    const merged = { ...paymentRates, ...newRates };
+    setPaymentRates(merged);
+    try { localStorage.setItem('parla_payment_rates', JSON.stringify(merged)); } catch {}
+    await setDoc(doc(db, 'settings', 'payment_rates'), merged, { merge: true }).catch(err => {
+      console.warn('[DataContext] Error al guardar tarifas en Firestore:', err);
+    });
+  };
+
   // Limpieza inicial de caché local para garantizar sincronización 100% pura con Firestore
   useEffect(() => {
     localStorage.removeItem('parla_players');
@@ -98,65 +131,57 @@ export const DataProvider = ({ children }) => {
     return newPlayer;
   };
 
-  const updatePlayer = (id, updatedFields) => {
-    setPlayers(prev => prev.map(p => p.id === id ? { ...p, ...updatedFields } : p));
-    setDoc(doc(db, 'players', id), updatedFields, { merge: true }).catch(err => {
+  const updatePlayer = async (playerId, updatedData) => {
+    setPlayers(prev =>
+      prev.map(p => (p.id === playerId ? { ...p, ...updatedData } : p))
+    );
+    await setDoc(doc(db, 'players', playerId), updatedData, { merge: true }).catch(err => {
       console.warn('[DataContext] Error al actualizar jugador en Firestore:', err);
     });
   };
 
-  const deletePlayer = (id) => {
-    setPlayers(prev => prev.filter(p => p.id !== id));
-    deleteDoc(doc(db, 'players', id)).catch(err => {
+  const deletePlayer = async (playerId) => {
+    setPlayers(prev => prev.filter(p => p.id !== playerId));
+    await deleteDoc(doc(db, 'players', playerId)).catch(err => {
       console.warn('[DataContext] Error al eliminar jugador en Firestore:', err);
     });
   };
 
   // --- CRUD ENTRENADORES CON SINCRO EN FIRESTORE ---
-  const addCoach = async (coachData) => {
-    const cleanCoach = {
+  const addCoach = (coachData) => {
+    const newCoach = {
+      ...coachData,
       id: coachData.id || `coach-${Date.now()}`,
-      nombre: coachData.nombre || '',
-      email: (coachData.email || '').trim().toLowerCase(),
-      telefono: coachData.telefono || '',
-      especialidad: coachData.especialidad || '',
       foto: coachData.foto || '',
-      bloquesDisponibilidad: coachData.bloquesDisponibilidad || [],
-      fechaRegistro: coachData.fechaRegistro || new Date().toISOString().split('T')[0]
+      bloquesDisponibilidad: coachData.bloquesDisponibilidad || []
     };
-
-    setCoaches(prev => {
-      const exists = prev.some(c => c.id === cleanCoach.id || (c.email && c.email.toLowerCase() === cleanCoach.email));
-      if (exists) {
-        return prev.map(c => (c.id === cleanCoach.id || (c.email && c.email.toLowerCase() === cleanCoach.email)) ? { ...c, ...cleanCoach } : c);
-      }
-      return [cleanCoach, ...prev];
-    });
-
-    // Guardar también en Firestore
-    await setDoc(doc(db, 'coaches', cleanCoach.id), cleanCoach).catch(err => {
+    setCoaches(prev => [newCoach, ...prev]);
+    setDoc(doc(db, 'coaches', newCoach.id), newCoach).catch(err => {
       console.warn('[DataContext] No se pudo guardar el entrenador en Firestore:', err);
     });
-
-    return cleanCoach;
+    return newCoach;
   };
 
-  const updateCoach = async (id, updatedFields) => {
-    setCoaches(prev => prev.map(c => c.id === id ? { ...c, ...updatedFields } : c));
-    await setDoc(doc(db, 'coaches', id), updatedFields, { merge: true }).catch(err => {
+  const updateCoach = async (coachId, updatedData) => {
+    setCoaches(prev =>
+      prev.map(c => (c.id === coachId ? { ...c, ...updatedData } : c))
+    );
+    await setDoc(doc(db, 'coaches', coachId), updatedData, { merge: true }).catch(err => {
       console.warn('[DataContext] Error al actualizar entrenador en Firestore:', err);
     });
   };
 
-  const deleteCoach = async (id) => {
-    setCoaches(prev => prev.filter(c => c.id !== id));
-    await deleteDoc(doc(db, 'coaches', id)).catch(err => {
-      console.warn('[DataContext] Error al eliminar entrenador en Firestore:', err);
+  const deleteCoach = async (coachId) => {
+    setCoaches(prev => prev.filter(c => c.id !== coachId));
+    await deleteDoc(doc(db, 'coaches', coachId)).catch(err => {
+      console.warn('[DataContext] Error al desvincular entrenador en Firestore:', err);
     });
   };
 
-  // --- GESTIÓN DE SESIONES CON VALIDACIÓN ANTI-CHOQUE Y SINCRO FIRESTORE ---
-  const createSession = async ({ fecha, horaInicio, horaFin, tipo, entrenadorId, jugadoresIds, notas, estado = 'sin_confirmar' }) => {
+  // --- GESTIÓN DE SESIONES ---
+  const createSession = async (sessionData) => {
+    const { fecha, horaInicio, horaFin, tipo, entrenadorId, jugadoresIds, estado, notas } = sessionData;
+
     const coach = coaches.find(c => c.id === entrenadorId);
     if (!coach) {
       throw new Error('Debes seleccionar un entrenador válido.');
@@ -193,25 +218,33 @@ export const DataProvider = ({ children }) => {
       notas: notas || ''
     };
 
-    // Guardar primero en Firestore para garantizar sincronización entre dispositivos
-    await setDoc(doc(db, 'sessions', cleanSession.id), cleanSession);
-
+    // UI Optimista Inmediata (0ms de latencia)
     setSessions(prev => [cleanSession, ...prev.filter(s => s.id !== cleanSession.id)]);
 
-    // Disparar Notificaciones
-    const assignedPlayers = players.filter(p => cleanSession.jugadoresIds.includes(p.id));
-    notifySessionAssignment({
-      coach,
-      session: cleanSession,
-      players: assignedPlayers,
-      isReassignment: false
+    // Guardar en segundo plano en Firestore
+    setDoc(doc(db, 'sessions', cleanSession.id), cleanSession).catch(err => {
+      console.warn('[DataContext] Error al guardar sesión en Firestore:', err);
     });
+
+    // REGLA CLAVE: Solo notificar al profesor si la sesión está en estado CONFIRMADA ('confirmada')
+    if (cleanSession.estado === 'confirmada' && notifySessionAssignment) {
+      const assignedPlayers = players.filter(p => cleanSession.jugadoresIds.includes(p.id));
+      notifySessionAssignment({
+        coach,
+        session: cleanSession,
+        players: assignedPlayers,
+        isReassignment: false
+      }).catch(() => {});
+    }
 
     return cleanSession;
   };
 
   const updateSessionStatus = async (sessionId, newStatus, userRole = 'admin') => {
     const session = sessions.find(s => s.id === sessionId);
+    if (!session) return;
+
+    const previousStatus = session.estado;
 
     // Regla 1: El Administrador no puede marcar la sesión como realizada (eso es exclusivo del Entrenador)
     if (newStatus === 'realizada' && userRole === 'admin') {
@@ -219,40 +252,65 @@ export const DataProvider = ({ children }) => {
     }
 
     // Regla 2: El Administrador no puede marcar como pagada si el entrenador NO la ha marcado previamente como realizada
-    if (newStatus === 'pagada' && session?.estado !== 'realizada') {
+    if (newStatus === 'pagada' && previousStatus !== 'realizada') {
       throw new Error('No puedes marcar la sesión como pagada hasta que el entrenador la haya marcado como realizada / finalizada.');
     }
 
+    // Regla 3: Si la sesión ya fue realizada o pagada, NO se puede cancelar
+    if (newStatus === 'cancelada' && (previousStatus === 'realizada' || previousStatus === 'pagada')) {
+      throw new Error('Esta sesión ya fue finalizada por el profesor y está lista para cobro/liquidación. No puede ser cancelada.');
+    }
+
+    // UI Optimista Inmediata
     setSessions(prev =>
       prev.map(s => (s.id === sessionId ? { ...s, estado: newStatus } : s))
     );
-    await setDoc(doc(db, 'sessions', sessionId), { estado: newStatus }, { merge: true }).catch(err => {
+
+    // Guardar en segundo plano en Firestore
+    setDoc(doc(db, 'sessions', sessionId), { estado: newStatus }, { merge: true }).catch(err => {
       console.warn('[DataContext] Error al actualizar estado de sesión en Firestore:', err);
     });
 
-    // Disparar notificaciones en tiempo real según el cambio de estado
-    if (session) {
-      const coach = coaches.find(c => c.id === session.entrenadorId);
-      if (newStatus === 'realizada' && notifySessionCompleted) {
-        await notifySessionCompleted({ session, coachName: coach ? coach.nombre : session.entrenadorNombre }).catch(() => {});
-      } else if (newStatus === 'pagada' && notifySessionPaid && coach) {
-        await notifySessionPaid({ session, coach }).catch(() => {});
-      }
+    // Disparar notificaciones correspondientes según el cambio
+    const coach = coaches.find(c => c.id === session.entrenadorId);
+    const assignedPlayers = players.filter(p => Array.isArray(session.jugadoresIds) && session.jugadoresIds.includes(p.id));
+
+    // Si cambió de 'sin_confirmar' a 'confirmada', notificar ahora al entrenador
+    if (previousStatus === 'sin_confirmar' && newStatus === 'confirmada' && notifySessionAssignment && coach) {
+      notifySessionAssignment({
+        coach,
+        session: { ...session, estado: newStatus },
+        players: assignedPlayers,
+        isReassignment: false
+      }).catch(() => {});
+    } else if (newStatus === 'realizada' && notifySessionCompleted) {
+      notifySessionCompleted({ session, coachName: coach ? coach.nombre : session.entrenadorNombre }).catch(() => {});
+    } else if (newStatus === 'pagada' && notifySessionPaid && coach) {
+      notifySessionPaid({ session, coach }).catch(() => {});
     }
   };
 
   const deleteSession = async (sessionId) => {
     const session = sessions.find(s => s.id === sessionId);
+    if (!session) return;
+
+    // Regla de Protección: No eliminar sesiones ya realizadas o pagadas
+    if (session.estado === 'realizada' || session.estado === 'pagada') {
+      throw new Error('No se puede eliminar una sesión que ya fue finalizada por el entrenador.');
+    }
+
+    // UI Optimista Inmediata
     setSessions(prev => prev.filter(s => s.id !== sessionId));
-    await deleteDoc(doc(db, 'sessions', sessionId)).catch(err => {
+
+    deleteDoc(doc(db, 'sessions', sessionId)).catch(err => {
       console.warn('[DataContext] Error al eliminar sesión en Firestore:', err);
     });
 
-    // Notificar al entrenador que su sesión fue eliminada / cancelada
-    if (session && notifySessionDeleted) {
+    // Notificar al entrenador si era una sesión activa/confirmada
+    if (session.estado !== 'sin_confirmar' && notifySessionDeleted) {
       const coach = coaches.find(c => c.id === session.entrenadorId);
       const assignedPlayers = players.filter(p => Array.isArray(session.jugadoresIds) && session.jugadoresIds.includes(p.id));
-      await notifySessionDeleted({
+      notifySessionDeleted({
         session,
         players: assignedPlayers,
         coach
@@ -263,6 +321,10 @@ export const DataProvider = ({ children }) => {
   const reassignSession = (sessionId, newCoachId, reason = '') => {
     const session = sessions.find(s => s.id === sessionId);
     if (!session) throw new Error('Sesión no encontrada.');
+
+    if (session.estado === 'realizada' || session.estado === 'pagada') {
+      throw new Error('No se puede reasignar una sesión que ya ha sido completada.');
+    }
 
     const newCoach = coaches.find(c => c.id === newCoachId);
     if (!newCoach) throw new Error('Entrenador sustituto no válido.');
@@ -285,6 +347,7 @@ export const DataProvider = ({ children }) => {
             ...s,
             entrenadorId: newCoachId,
             entrenadorEmail: newCoach.email || '',
+            entrenadorNombre: newCoach.nombre || '',
             notasReasignacion: reason
           };
         }
@@ -295,6 +358,7 @@ export const DataProvider = ({ children }) => {
     setDoc(doc(db, 'sessions', sessionId), {
       entrenadorId: newCoachId,
       entrenadorEmail: newCoach.email || '',
+      entrenadorNombre: newCoach.nombre || '',
       notasReasignacion: reason
     }, { merge: true }).catch(err => {
       console.warn('[DataContext] Error al reasignar sesión en Firestore:', err);
@@ -303,7 +367,7 @@ export const DataProvider = ({ children }) => {
     const assignedPlayers = players.filter(p => session.jugadoresIds?.includes(p.id));
     notifySessionAssignment({
       coach: newCoach,
-      session: { ...session, entrenadorId: newCoachId },
+      session: { ...session, entrenadorId: newCoachId, entrenadorNombre: newCoach.nombre },
       players: assignedPlayers,
       isReassignment: true,
       previousCoachName
@@ -319,6 +383,8 @@ export const DataProvider = ({ children }) => {
       players,
       coaches,
       sessions,
+      paymentRates,
+      updatePaymentRates,
       addPlayer,
       updatePlayer,
       deletePlayer,

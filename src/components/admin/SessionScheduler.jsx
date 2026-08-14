@@ -497,7 +497,13 @@ const SessionScheduler = () => {
                         >
                           🟢 Pagada {s.estado !== 'realizada' ? '(Requiere estar realizada por el entrenador)' : ''}
                         </option>
-                        <option value="cancelada" style={{ color: '#000' }}>🔴 Cancelada</option>
+                        <option
+                          value="cancelada"
+                          disabled={s.estado === 'realizada' || s.estado === 'pagada'}
+                          style={{ color: (s.estado === 'realizada' || s.estado === 'pagada') ? '#888' : '#000' }}
+                        >
+                          🔴 Cancelada {(s.estado === 'realizada' || s.estado === 'pagada') ? '(Bloqueada: clase ya finalizada)' : ''}
+                        </option>
                       </select>
                     </div>
 
@@ -516,27 +522,43 @@ const SessionScheduler = () => {
                       </div>
                     )}
 
-                    {/* Acciones de Admin: Reasignación y Eliminar Sesión */}
-                    <div style={{ display: 'flex', gap: '10px', marginTop: '6px', flexWrap: 'wrap' }}>
-                      {s.estado !== 'cancelada' && (
-                        <button
-                          className="btn-secondary"
-                          style={{ flex: 1, padding: '6px 10px', fontSize: '0.78rem', color: '#F59E0B', borderColor: 'rgba(245, 158, 11, 0.4)' }}
-                          onClick={() => handleOpenReassign(s)}
-                        >
-                          <RefreshCw size={14} /> Reasignar Entrenador
-                        </button>
-                      )}
+                    {/* Acciones de Admin: Reasignación y Eliminar Sesión con Bloqueo de Protección */}
+                    {s.estado === 'realizada' || s.estado === 'pagada' ? (
+                      <div style={{
+                        fontSize: '0.75rem',
+                        color: '#34D399',
+                        background: 'rgba(16, 185, 129, 0.12)',
+                        border: '1px solid rgba(16, 185, 129, 0.25)',
+                        padding: '6px 10px',
+                        borderRadius: '8px',
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '6px'
+                      }}>
+                        🔒 Clase finalizada por el profesor. Lista para liquidación y cobro. No puede ser cancelada.
+                      </div>
+                    ) : (
+                      <div style={{ display: 'flex', gap: '10px', marginTop: '6px', flexWrap: 'wrap' }}>
+                        {s.estado !== 'cancelada' && (
+                          <button
+                            className="btn-secondary"
+                            style={{ flex: 1, padding: '6px 10px', fontSize: '0.78rem', color: '#F59E0B', borderColor: 'rgba(245, 158, 11, 0.4)' }}
+                            onClick={() => handleOpenReassign(s)}
+                          >
+                            <RefreshCw size={14} /> Reasignar Entrenador
+                          </button>
+                        )}
 
-                      <button
-                        className="btn-danger"
-                        style={{ padding: '6px 12px', fontSize: '0.78rem' }}
-                        onClick={() => setSessionToDelete(s)}
-                        title="Eliminar esta sesión de la base de datos"
-                      >
-                        <Trash2 size={14} /> Eliminar
-                      </button>
-                    </div>
+                        <button
+                          className="btn-danger"
+                          style={{ padding: '6px 12px', fontSize: '0.78rem' }}
+                          onClick={() => setSessionToDelete(s)}
+                          title="Eliminar esta sesión de la base de datos"
+                        >
+                          <Trash2 size={14} /> Eliminar
+                        </button>
+                      </div>
+                    )}
                   </div>
                 );
               })

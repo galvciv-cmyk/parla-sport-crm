@@ -173,3 +173,62 @@ export const getAvailableCoaches = (coaches, sessions, dateStr, startTime, endTi
     return !hasConflict;
   });
 };
+
+const DAY_ABBR = {
+  'Lunes': 'L',
+  'Martes': 'M',
+  'Miércoles': 'MI',
+  'Miercoles': 'MI',
+  'Jueves': 'J',
+  'Viernes': 'V',
+  'Sábado': 'S',
+  'Sabado': 'S',
+  'Domingo': 'D'
+};
+
+const DAY_ORDER = ['Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado', 'Domingo'];
+
+/**
+ * Agrupa bloques de disponibilidad que comparten el mismo rango horario
+ * y devuelve el formato compacto: "HoraInicio - HoraFin — Días abreviados" (ej: "8:00 AM - 12:00 PM — L, M, MI, J, V")
+ */
+export const groupAvailabilityBlocks = (bloques = []) => {
+  if (!Array.isArray(bloques) || bloques.length === 0) return [];
+
+  const map = new Map();
+
+  bloques.forEach((b) => {
+    if (!b || !b.horaInicio || !b.horaFin) return;
+    const key = `${b.horaInicio}_${b.horaFin}`;
+    if (!map.has(key)) {
+      map.set(key, {
+        horaInicio: b.horaInicio,
+        horaFin: b.horaFin,
+        dias: []
+      });
+    }
+    const item = map.get(key);
+    if (b.dia && !item.dias.includes(b.dia)) {
+      item.dias.push(b.dia);
+    }
+  });
+
+  return Array.from(map.values()).map(group => {
+    group.dias.sort((a, b) => {
+      const idxA = DAY_ORDER.indexOf(a);
+      const idxB = DAY_ORDER.indexOf(b);
+      return (idxA !== -1 ? idxA : 99) - (idxB !== -1 ? idxB : 99);
+    });
+
+    const abbrDays = group.dias.map(d => DAY_ABBR[d] || d).join(', ');
+    const timeFormatted = `${formatTo12Hour(group.horaInicio)} - ${formatTo12Hour(group.horaFin)}`;
+
+    return {
+      ...group,
+      abbrDays,
+      timeFormatted,
+      label: `${timeFormatted} — ${abbrDays}`
+    };
+  });
+};
+

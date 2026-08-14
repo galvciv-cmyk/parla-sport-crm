@@ -16,6 +16,9 @@ const SessionDetailModal = ({ isOpen, onClose, session, players, coach }) => {
   const handleStatusChange = async (newStatus) => {
     try {
       await updateSessionStatus(session.id, newStatus, role || 'coach');
+      if (newStatus === 'realizada') {
+        onClose();
+      }
     } catch (err) {
       alert(err.message || 'Error al actualizar el estado.');
     }
@@ -58,18 +61,18 @@ const SessionDetailModal = ({ isOpen, onClose, session, players, coach }) => {
           </div>
 
           <span className={`badge ${currentStatusCfg.badgeClass}`} style={{ padding: '6px 12px', fontSize: '0.8rem' }}>
-            {currentStatusCfg.label} ({currentStatusCfg.colorName})
+            {currentStatusCfg.label}
           </span>
         </div>
 
-        {/* CONTROLES DE ESTADO POR ROL ESTRICTO */}
-        <div style={{ background: 'rgba(15, 23, 42, 0.7)', padding: '16px', borderRadius: '12px', border: '1px solid rgba(255, 255, 255, 0.08)' }}>
-          <span style={{ fontSize: '0.8rem', fontWeight: 700, color: '#94A3B8', display: 'block', marginBottom: '10px' }}>
-            Acciones de Estado ({isAdmin ? 'Perfil Administrador' : 'Perfil Entrenador'}):
-          </span>
+        {/* CONTROLES DE ESTADO SEGÚN ROL */}
+        <div>
+          <h4 style={{ fontSize: '0.9rem', fontWeight: 700, color: '#CBD5E1', marginBottom: '8px' }}>
+            Gestión del Estado de la Clase:
+          </h4>
 
-          {!isAdmin ? (
-            /* Vista y Acción Exclusiva del Entrenador */
+          {role === 'coach' ? (
+            /* Vista y Acciones Exclusivas del Entrenador */
             <div>
               {session.estado === 'realizada' ? (
                 <div style={{
@@ -175,6 +178,8 @@ const SessionDetailModal = ({ isOpen, onClose, session, players, coach }) => {
 
               <button
                 onClick={() => handleStatusChange('cancelada')}
+                disabled={session.estado === 'realizada' || session.estado === 'pagada'}
+                title={(session.estado === 'realizada' || session.estado === 'pagada') ? 'La clase ya fue finalizada por el profesor, no puede cancelarse' : 'Cancelar clase'}
                 style={{
                   padding: '8px 10px',
                   borderRadius: '8px',
@@ -183,10 +188,11 @@ const SessionDetailModal = ({ isOpen, onClose, session, players, coach }) => {
                   color: '#F87171',
                   fontWeight: 700,
                   fontSize: '0.78rem',
-                  cursor: 'pointer'
+                  cursor: (session.estado === 'realizada' || session.estado === 'pagada') ? 'not-allowed' : 'pointer',
+                  opacity: (session.estado === 'realizada' || session.estado === 'pagada') ? 0.45 : 1
                 }}
               >
-                🔴 Cancelada
+                🔴 Cancelada {(session.estado === 'realizada' || session.estado === 'pagada') ? '(Bloqueada)' : ''}
               </button>
             </div>
           )}

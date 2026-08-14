@@ -1,10 +1,10 @@
-import React, { useState } from 'react';
-import { Calendar as CalendarIcon, Clock, Eye, Sparkles, Settings, Plus, Trash2, User, Edit3 } from 'lucide-react';
+import React, { useState, useMemo } from 'react';
+import { Calendar as CalendarIcon, Clock, Eye, Sparkles, Settings, Plus, Trash2, User, Edit3, Filter } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import { useData } from '../../context/DataContext';
 import { useNotifications } from '../../context/NotificationContext';
 import { STATUS_CONFIG } from '../../utils/mockData';
-import { formatTo12Hour, isCoachAvailableBySchedule } from '../../utils/scheduling';
+import { formatTo12Hour, isCoachAvailableBySchedule, getSpanishDayName, groupAvailabilityBlocks } from '../../utils/scheduling';
 import SessionDetailModal from './SessionDetailModal';
 import Modal from '../common/Modal';
 
@@ -83,6 +83,19 @@ const CoachCalendar = () => {
 
   const [selectedSession, setSelectedSession] = useState(null);
   const [isAvailabilityModalOpen, setIsAvailabilityModalOpen] = useState(false);
+  const [dayFilter, setDayFilter] = useState('ALL'); // 'ALL' | 'TODAY' | 'Lunes' | 'Martes' | ...
+
+  const todayDateStr = new Date().toISOString().split('T')[0];
+
+  // Filtrar sesiones del entrenador según el día seleccionado
+  const filteredCoachSessions = useMemo(() => {
+    return coachSessions.filter(s => {
+      if (dayFilter === 'ALL') return true;
+      if (dayFilter === 'TODAY') return s.fecha === todayDateStr;
+      const dayName = getSpanishDayName(s.fecha);
+      return dayName === dayFilter;
+    }).sort((a, b) => (a.fecha || '').localeCompare(b.fecha || '') || (a.horaInicio || '').localeCompare(b.horaInicio || ''));
+  }, [coachSessions, dayFilter, todayDateStr]);
 
   const [profileData, setProfileData] = useState({
     nombre: activeCoach?.nombre || '',
@@ -124,6 +137,15 @@ const CoachCalendar = () => {
     }));
 
     setSelectedDays([]);
+  };
+
+  const handleRemoveGroup = (group) => {
+    setProfileData(prev => ({
+      ...prev,
+      bloquesDisponibilidad: prev.bloquesDisponibilidad.filter(
+        b => !(b.horaInicio === group.horaInicio && b.horaFin === group.horaFin && group.dias.includes(b.dia))
+      )
+    }));
   };
 
   const handleRemoveBlock = (index) => {
@@ -263,17 +285,17 @@ const CoachCalendar = () => {
 
         <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px' }}>
           {activeCoach?.bloquesDisponibilidad && activeCoach.bloquesDisponibilidad.length > 0 ? (
-            activeCoach.bloquesDisponibilidad.map((b, idx) => (
+            groupAvailabilityBlocks(activeCoach.bloquesDisponibilidad).map((g, idx) => (
               <span key={idx} style={{
                 background: 'rgba(245, 158, 11, 0.15)',
                 color: '#FBBF24',
                 border: '1px solid rgba(245, 158, 11, 0.3)',
-                padding: '4px 10px',
+                padding: '5px 12px',
                 borderRadius: '8px',
-                fontSize: '0.8rem',
-                fontWeight: 600
+                fontSize: '0.82rem',
+                fontWeight: 700
               }}>
-                📅 {b.dia}: {b.horaInicio} - {b.horaFin}
+                ⏰ {g.label}
               </span>
             ))
           ) : (
@@ -284,13 +306,63 @@ const CoachCalendar = () => {
         </div>
       </div>
 
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '10px' }}>
         <h3 style={{ fontSize: '1.1rem', fontWeight: 700, color: '#F8FAFC', display: 'flex', alignItems: 'center', gap: '8px' }}>
-          <CalendarIcon size={20} color="#3B82F6" /> Calendario Individual de Entrenamientos
+          <CalendarIcon size={20} color="#3B82F6" /> Calendario Individual de Entrenamientos ({filteredCoachSessions.length})
         </h3>
         <span style={{ fontSize: '0.8rem', color: '#94A3B8', fontStyle: 'italic' }}>
           💡 Clic en cualquier sesión para ver Fichas Técnicas y actualizar estado.
         </span>
+      </div>
+
+      {/* ─── Selector de Días para Filtrar Sesiones Asignadas ─── */}
+      <div style={{
+        display: 'flex',
+        alignItems: 'center',
+        gap: '6px',
+        overflowX: 'auto',
+        paddingBottom: '4px',
+        maxWidth: '100%'
+      }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '4px', marginRight: '4px', color: '#94A3B8', fontSize: '0.78rem', fontWeight: 700, flexShrink: 0 }}>
+          <Filter size={14} color="#D4AF37" /> Filtrar:
+        </div>
+
+        {[
+          { id: 'ALL', label: 'Todas las clases' },
+          { id: 'TODAY', label: '⭐ Hoy' },
+          { id: 'Lunes', label: 'Lun' },
+          { id: 'Martes', label: 'Mar' },
+          { id: 'Miércoles', label: 'Mié' },
+          { id: 'Jueves', label: 'Jue' },
+          { id: 'Viernes', label: 'Vie' },
+          { id: 'Sábado', label: 'Sáb' },
+          { id: 'Domingo', label: 'Dom' }
+        ].map(filterItem => {
+          const isSelected = dayFilter === filterItem.id;
+          return (
+            <button
+              key={filterItem.id}
+              type="button"
+              onClick={() => setDayFilter(filterItem.id)}
+              style={{
+                padding: '6px 12px',
+                borderRadius: '8px',
+                border: isSelected ? '1px solid #FBBF24' : '1px solid rgba(255, 255, 255, 0.1)',
+                background: isSelected ? 'rgba(245, 158, 11, 0.22)' : 'rgba(15, 23, 42, 0.6)',
+                color: isSelected ? '#FBBF24' : '#94A3B8',
+                fontWeight: isSelected ? 800 : 600,
+                fontSize: '0.75rem',
+                cursor: 'pointer',
+                whiteSpace: 'nowrap',
+                flexShrink: 0,
+                transition: 'all 0.15s ease'
+              }}
+            >
+              {filterItem.label}
+            </button>
+          );
+        })}
       </div>
 
       {/* Grid de Tarjetas de Sesión Interactivas */}
@@ -299,15 +371,17 @@ const CoachCalendar = () => {
         gridTemplateColumns: 'repeat(auto-fill, minmax(min(280px, 100%), 1fr))',
         gap: '18px'
       }}>
-        {coachSessions.length === 0 ? (
+        {filteredCoachSessions.length === 0 ? (
           <div className="glass-panel" style={{ padding: '40px', textAlign: 'center', gridColumn: '1 / -1' }}>
             <Sparkles size={32} color="#64748B" style={{ margin: '0 auto 10px' }} />
             <p style={{ color: '#94A3B8', fontSize: '0.9rem' }}>
-              No tienes sesiones agendadas actualmente para tu perfil.
+              {dayFilter === 'ALL'
+                ? 'No tienes sesiones agendadas actualmente para tu perfil.'
+                : `No tienes sesiones asignadas para ${dayFilter === 'TODAY' ? 'el día de hoy' : `los días ${dayFilter}`}.`}
             </p>
           </div>
         ) : (
-          coachSessions.map(session => {
+          filteredCoachSessions.map(session => {
             const assignedPlayers = players.filter(p => session.jugadoresIds?.includes(p.id));
             const statusCfg = STATUS_CONFIG[session.estado] || STATUS_CONFIG.sin_confirmar;
 
@@ -456,65 +530,97 @@ const CoachCalendar = () => {
                 </div>
               </div>
 
-              {/* Horas Inicio y Fin */}
-              <div style={{ display: 'flex', gap: '12px', alignItems: 'flex-end', flexWrap: 'wrap' }}>
-                <div style={{ flex: 1, minWidth: '120px' }}>
-                  <label className="input-label">Hora Inicio</label>
+              {/* Horas Inicio y Fin Separadas para Pantallas Móviles */}
+              <div style={{
+                display: 'grid',
+                gridTemplateColumns: 'repeat(auto-fit, minmax(min(140px, 100%), 1fr))',
+                gap: '16px',
+                marginTop: '10px'
+              }}>
+                <div>
+                  <label className="input-label" style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                    <Clock size={14} color="#10B981" /> Hora Inicio
+                  </label>
                   <input
                     type="time"
                     className="input-field"
+                    style={{ width: '100%', padding: '10px 12px' }}
                     value={timeRange.horaInicio}
                     onChange={(e) => setTimeRange({ ...timeRange, horaInicio: e.target.value })}
                   />
                 </div>
 
-                <div style={{ flex: 1, minWidth: '120px' }}>
-                  <label className="input-label">Hora Fin</label>
+                <div>
+                  <label className="input-label" style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                    <Clock size={14} color="#FBBF24" /> Hora Fin
+                  </label>
                   <input
                     type="time"
                     className="input-field"
+                    style={{ width: '100%', padding: '10px 12px' }}
                     value={timeRange.horaFin}
                     onChange={(e) => setTimeRange({ ...timeRange, horaFin: e.target.value })}
                   />
                 </div>
-
-                <button
-                  type="button"
-                  className="btn-secondary"
-                  onClick={handleAddMultipleBlocks}
-                  style={{ color: '#10B981', borderColor: 'rgba(16, 185, 129, 0.4)', padding: '10px 14px' }}
-                >
-                  <Plus size={16} /> Añadir Horarios a Días Seleccionados
-                </button>
               </div>
+
+              <button
+                type="button"
+                className="btn-secondary"
+                onClick={handleAddMultipleBlocks}
+                style={{ color: '#10B981', borderColor: 'rgba(16, 185, 129, 0.4)', padding: '12px 16px', width: '100%', marginTop: '12px', fontWeight: 700 }}
+              >
+                <Plus size={16} /> Añadir Horarios a Días Seleccionados
+              </button>
             </div>
 
-            {/* Lista actual de bloques */}
+            {/* Lista actual de bloques agrupados */}
             <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', marginTop: '14px' }}>
               <span style={{ fontSize: '0.8rem', color: '#CBD5E1', fontWeight: 600 }}>
-                Horarios Configurados en tu Ficha ({profileData.bloquesDisponibilidad.length}):
+                Horarios Configurados en tu Ficha:
               </span>
-              {profileData.bloquesDisponibilidad.map((block, idx) => (
-                <div key={idx} style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'space-between',
-                  background: 'rgba(30, 41, 59, 0.6)',
-                  border: '1px solid rgba(255, 255, 255, 0.08)',
-                  padding: '8px 14px',
-                  borderRadius: '10px',
-                  fontSize: '0.85rem'
-                }}>
-                  <span>📅 <strong>{block.dia}</strong>: {formatTo12Hour(block.horaInicio)} a {formatTo12Hour(block.horaFin)}</span>
-                  <button
-                    type="button"
-                    onClick={() => handleRemoveBlock(idx)}
-                    style={{ background: 'none', border: 'none', color: '#EF4444', cursor: 'pointer' }}
-                  >
-                    <Trash2 size={16} />
-                  </button>
+              {profileData.bloquesDisponibilidad.length === 0 ? (
+                <div style={{ fontSize: '0.8rem', color: '#64748B', fontStyle: 'italic', padding: '8px 0' }}>
+                  No tienes bloques de disponibilidad configurados aún.
                 </div>
-              ))}
+              ) : (
+                groupAvailabilityBlocks(profileData.bloquesDisponibilidad).map((group, idx) => (
+                  <div key={idx} style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'space-between',
+                    background: 'rgba(30, 41, 59, 0.6)',
+                    border: '1px solid rgba(255, 255, 255, 0.08)',
+                    padding: '10px 14px',
+                    borderRadius: '10px',
+                    fontSize: '0.85rem'
+                  }}>
+                    <span style={{ color: '#F8FAFC', fontWeight: 700 }}>
+                      ⏰ {group.label}
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => handleRemoveGroup(group)}
+                      title="Eliminar este bloque horario"
+                      style={{
+                        background: 'rgba(239, 68, 68, 0.12)',
+                        border: '1px solid rgba(239, 68, 68, 0.3)',
+                        color: '#EF4444',
+                        cursor: 'pointer',
+                        padding: '4px 8px',
+                        borderRadius: '6px',
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '4px',
+                        fontSize: '0.75rem',
+                        fontWeight: 600
+                      }}
+                    >
+                      <Trash2 size={14} /> Eliminar
+                    </button>
+                  </div>
+                ))
+              )}
             </div>
           </div>
 

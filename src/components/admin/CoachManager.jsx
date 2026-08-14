@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { Search, Trash2, ShieldCheck, User } from 'lucide-react';
 import { useData } from '../../context/DataContext';
-import { formatTo12Hour } from '../../utils/scheduling';
+import { formatTo12Hour, groupAvailabilityBlocks } from '../../utils/scheduling';
 import Modal from '../common/Modal';
 
 const CoachManager = () => {
@@ -19,13 +19,15 @@ const CoachManager = () => {
     <div className="animate-fade-in" style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
       
       {/* Encabezado */}
-      <div>
-        <h2 style={{ fontSize: '1.4rem', fontWeight: 800, color: '#F8FAFC', display: 'flex', alignItems: 'center', gap: '8px' }}>
-          <ShieldCheck size={26} color="#10B981" /> Directorio de Entrenadores y Disponibilidad
-        </h2>
-        <p style={{ color: '#94A3B8', fontSize: '0.85rem', marginTop: '2px' }}>
-          Listado de profesores de la academia. Cada entrenador registra y gestiona sus propios bloques de disponibilidad semanal.
-        </p>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '12px' }}>
+        <div>
+          <h2 style={{ fontSize: '1.4rem', fontWeight: 800, color: '#F8FAFC', display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <ShieldCheck size={26} color="#10B981" /> Directorio de Entrenadores
+          </h2>
+          <p style={{ color: '#94A3B8', fontSize: '0.85rem', marginTop: '2px' }}>
+            Consulta la disponibilidad semanal y datos de contacto de todo el staff técnico.
+          </p>
+        </div>
       </div>
 
       {/* Buscador */}
@@ -89,17 +91,17 @@ const CoachManager = () => {
                 </div>
                 <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px' }}>
                   {coach.bloquesDisponibilidad && coach.bloquesDisponibilidad.length > 0 ? (
-                    coach.bloquesDisponibilidad.map((b, idx) => (
+                    groupAvailabilityBlocks(coach.bloquesDisponibilidad).map((g, idx) => (
                       <span key={idx} style={{
                         background: 'rgba(245, 158, 11, 0.12)',
                         color: '#FBBF24',
                         border: '1px solid rgba(245, 158, 11, 0.25)',
-                        padding: '3px 8px',
+                        padding: '3px 9px',
                         borderRadius: '6px',
-                        fontSize: '0.72rem',
-                        fontWeight: 600
+                        fontSize: '0.74rem',
+                        fontWeight: 700
                       }}>
-                        {b.dia}: {formatTo12Hour(b.horaInicio)} - {formatTo12Hour(b.horaFin)}
+                        ⏰ {g.label}
                       </span>
                     ))
                   ) : (
