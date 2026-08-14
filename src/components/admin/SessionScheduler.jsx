@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { CalendarPlus, RefreshCw, CheckCircle, Trash2 } from 'lucide-react';
 import { useData } from '../../context/DataContext';
 import {
@@ -7,11 +7,19 @@ import {
   formatTo12Hour,
   addOneHour,
   generateTimeOptions,
-  hasPlayerDailySession
+  hasPlayerDailySession,
+  isTimeInPast,
+  getNextUpcomingFullHour
 } from '../../utils/scheduling';
 import { STATUS_CONFIG } from '../../utils/mockData';
 import Modal from '../common/Modal';
 import { showToast } from '../common/ToastNotification';
+
+const getTodayDateStr = () => {
+  const now = new Date();
+  const pad = (n) => String(n).padStart(2, '0');
+  return `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}`;
+};
 
 const SessionScheduler = () => {
   const { players, coaches, sessions, createSession, updateSessionStatus, deleteSession, reassignSession } = useData();
@@ -19,11 +27,15 @@ const SessionScheduler = () => {
   // Estado de Confirmación de Eliminación (Modal de la App)
   const [sessionToDelete, setSessionToDelete] = useState(null);
 
+  const todayStr = getTodayDateStr();
+  const defaultHoraInicio = getNextUpcomingFullHour(todayStr);
+  const defaultHoraFin = addOneHour(defaultHoraInicio);
+
   // Estado del Formulario de Creación
   const [sessionData, setSessionData] = useState({
-    fecha: new Date().toISOString().split('T')[0],
-    horaInicio: '09:00',
-    horaFin: '10:00',
+    fecha: todayStr,
+    horaInicio: defaultHoraInicio,
+    horaFin: defaultHoraFin,
     tipo: '1-1',
     entrenadorId: '',
     jugadoresIds: [],
@@ -33,17 +45,60 @@ const SessionScheduler = () => {
 
   const [errorMessage, setErrorMessage] = useState('');
   const [successMessage, setSuccessMessage] = useState('');
-  const timeOptions = generateTimeOptions(15);
+
+  // Generar opciones de solo horas en punto, filtrando horas pasadas si la fecha seleccionada es hoy
+  const availableTimeOptions = useMemo(() => {
+    const allOptions = generateTimeOptions(60); // Horas en punto: 06:00, 07:00, ..., 22:00
+    const now = new Date();
+    const currentToday = getTodayDateStr();
+
+    if (sessionData.fecha === currentToday) {
+      return allOptions.filter(opt => {
+        const [h] = opt.value.split(':').map(Number);
+        // Si hoy ya pasó esa hora, no se puede seleccionar
+        const optDate = new Date(now.getFullYear(), now.getMonth(), now.getDate(), h, 0, 0);
+        return optDate > now;
+      });
+    }
+    return allOptions;
+  }, [sessionData.fecha]);
 
   const handleDateChange = (newDate) => {
+    const currentToday = getTodayDateStr();
+    if (newDate < currentToday) {
+      showToast('Fecha Pasada', 'No puedes seleccionar una fecha anterior a hoy.', 'warning');
+      return;
+    }
+
     setSessionData(prev => {
       // Filtrar jugadores que ya tengan sesión en la nueva fecha
       const validJugadores = prev.jugadoresIds.filter(
         pId => !hasPlayerDailySession(sessions, pId, newDate).hasSession
       );
+
+      // Calcular opciones para la nueva fecha
+      const allOptions = generateTimeOptions(60);
+      const now = new Date();
+      let validOptions = allOptions;
+      if (newDate === currentToday) {
+        validOptions = allOptions.filter(opt => {
+          const [h] = opt.value.split(':').map(Number);
+          const optDate = new Date(now.getFullYear(), now.getMonth(), now.getDate(), h, 0, 0);
+          return optDate > now;
+        });
+      }
+
+      let validHoraInicio = prev.horaInicio;
+      if (validOptions.length > 0 && !validOptions.some(opt => opt.value === validHoraInicio)) {
+        validHoraInicio = validOptions[0].value;
+      }
+      const validHoraFin = addOneHour(validHoraInicio);
+
       return {
         ...prev,
         fecha: newDate,
+        horaInicio: validHoraInicio,
+        horaFin: validHoraFin,
         entrenadorId: '',
         jugadoresIds: validJugadores
       };
@@ -55,14 +110,6 @@ const SessionScheduler = () => {
     setSessionData(prev => ({
       ...prev,
       horaInicio: newHoraInicio,
-      horaFin: newHoraFin,
-      entrenadorId: ''
-    }));
-  };
-
-  const handleHoraFinChange = (newHoraFin) => {
-    setSessionData(prev => ({
-      ...prev,
       horaFin: newHoraFin,
       entrenadorId: ''
     }));
@@ -141,6 +188,13 @@ const SessionScheduler = () => {
       }
     }
 
+    // Validación estricta: No permitir registrar sesiones en fechas u horas pasadas
+    if (isTimeInPast(sessionData.fecha, sessionData.horaInicio)) {
+      setErrorMessage('No puedes programar una sesión en una hora que ya ha transcurrido.');
+      showToast('Horario no permitido', 'No se pueden registrar sesiones en horas pasadas.', 'warning');
+      return;
+    }
+
     if (!sessionData.entrenadorId) {
       setErrorMessage('Debes seleccionar un entrenador disponible del menú.');
       return;
@@ -151,10 +205,14 @@ const SessionScheduler = () => {
       setSuccessMessage('¡Sesión agendada exitosamente! Se han enviado las notificaciones.');
       
       // Reset
+      const currentToday = getTodayDateStr();
+      const nextHoraInicio = getNextUpcomingFullHour(currentToday);
+      const nextHoraFin = addOneHour(nextHoraInicio);
+
       setSessionData({
-        fecha: new Date().toISOString().split('T')[0],
-        horaInicio: '09:00',
-        horaFin: '10:00',
+        fecha: currentToday,
+        horaInicio: nextHoraInicio,
+        horaFin: nextHoraFin,
         tipo: '1-1',
         entrenadorId: '',
         jugadoresIds: [],
@@ -235,6 +293,7 @@ const SessionScheduler = () => {
                 <input
                   type="date"
                   required
+                  min={todayStr}
                   className="input-field"
                   value={sessionData.fecha}
                   onChange={(e) => handleDateChange(e.target.value)}
@@ -253,11 +312,11 @@ const SessionScheduler = () => {
               </div>
             </div>
 
-            {/* Horario inicio / fin en formato 12h (AM/PM) */}
+            {/* Horario inicio / fin en formato 12h (AM/PM) - Solo Horas en Punto */}
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(130px, 100%), 1fr))', gap: '12px' }}>
               <div>
                 <label className="input-label" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                  <span>Hora Inicio</span>
+                  <span>Hora Inicio (En Punto)</span>
                   <span style={{ color: '#10B981', fontWeight: 700, fontSize: '0.75rem' }}>
                     {formatTo12Hour(sessionData.horaInicio)}
                   </span>
@@ -267,32 +326,38 @@ const SessionScheduler = () => {
                   value={sessionData.horaInicio}
                   onChange={(e) => handleHoraInicioChange(e.target.value)}
                 >
-                  {timeOptions.map(opt => (
-                    <option key={opt.value} value={opt.value}>
-                      {opt.label}
-                    </option>
-                  ))}
+                  {availableTimeOptions.length === 0 ? (
+                    <option value="">No hay horas restantes hoy</option>
+                  ) : (
+                    availableTimeOptions.map(opt => (
+                      <option key={opt.value} value={opt.value}>
+                        {opt.label}
+                      </option>
+                    ))
+                  )}
                 </select>
               </div>
 
               <div>
                 <label className="input-label" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                   <span>Hora Fin (Auto +1h)</span>
-                  <span style={{ color: '#10B981', fontWeight: 700, fontSize: '0.75rem' }}>
+                  <span style={{ color: '#FBBF24', fontWeight: 700, fontSize: '0.75rem' }}>
                     {formatTo12Hour(sessionData.horaFin)}
                   </span>
                 </label>
-                <select
+                <input
+                  type="text"
+                  readOnly
                   className="input-field"
-                  value={sessionData.horaFin}
-                  onChange={(e) => handleHoraFinChange(e.target.value)}
-                >
-                  {timeOptions.map(opt => (
-                    <option key={opt.value} value={opt.value}>
-                      {opt.label}
-                    </option>
-                  ))}
-                </select>
+                  style={{
+                    color: '#FBBF24',
+                    fontWeight: 700,
+                    background: 'rgba(15,23,42,0.6)',
+                    cursor: 'default',
+                    border: '1px solid rgba(251, 191, 36, 0.25)'
+                  }}
+                  value={formatTo12Hour(sessionData.horaFin)}
+                />
               </div>
             </div>
 

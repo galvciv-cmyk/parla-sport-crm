@@ -51,11 +51,46 @@ export const addOneHour = (timeStr) => {
 };
 
 /**
- * Genera lista de opciones de hora con su equivalente en 12h AM/PM
+ * Comprueba si una fecha y hora específicas ya han transcurrido respecto al momento actual
  */
-export const generateTimeOptions = (intervalMinutes = 15) => {
+export const isTimeInPast = (dateStr, timeStr) => {
+  if (!dateStr || !timeStr) return false;
+  const now = new Date();
+  const [year, month, day] = dateStr.split('-').map(Number);
+  const [h, m] = timeStr.split(':').map(Number);
+  if (isNaN(year) || isNaN(month) || isNaN(day) || isNaN(h) || isNaN(m)) return false;
+  const targetDate = new Date(year, month - 1, day, h, m, 0, 0);
+  return targetDate < now;
+};
+
+/**
+ * Obtiene la siguiente hora en punto válida para una fecha dada
+ */
+export const getNextUpcomingFullHour = (dateStr = null) => {
+  const now = new Date();
+  const pad = (n) => String(n).padStart(2, '0');
+  const todayStr = `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}`;
+
+  if (!dateStr || dateStr === todayStr) {
+    const currentHour = now.getHours();
+    const nextHour = currentHour + 1;
+    if (nextHour >= 6 && nextHour <= 22) {
+      return `${pad(nextHour)}:00`;
+    } else if (nextHour < 6) {
+      return '06:00';
+    } else {
+      return '09:00';
+    }
+  }
+  return '09:00';
+};
+
+/**
+ * Genera lista de opciones de hora con su equivalente en 12h AM/PM (Solo horas en punto por defecto)
+ */
+export const generateTimeOptions = (intervalMinutes = 60) => {
   const options = [];
-  for (let h = 6; h <= 23; h++) {
+  for (let h = 6; h <= 22; h++) {
     for (let m = 0; m < 60; m += intervalMinutes) {
       const pad = (n) => String(n).padStart(2, '0');
       const time24 = `${pad(h)}:${pad(m)}`;
