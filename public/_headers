@@ -1,0 +1,30 @@
+# ─── PARLA SPORT CRM: CABECERAS DE VELOCIDAD Y CACHÉ ───
+
+# 1. Chunks y JS/CSS versionados (Caché inmutable 1 año - carga instantánea)
+/assets/*
+  Cache-Control: public, max-age=31536000, immutable
+  X-Content-Type-Options: nosniff
+
+# 2. Iconos e imágenes estáticas
+/favicon.png
+  Cache-Control: public, max-age=604800, stale-while-revalidate=86400
+/favicon.ico
+  Cache-Control: public, max-age=604800, stale-while-revalidate=86400
+/apple-touch-icon.png
+  Cache-Control: public, max-age=604800, stale-while-revalidate=86400
+/logo.png
+  Cache-Control: public, max-age=604800, stale-while-revalidate=86400
+/logo.svg
+  Cache-Control: public, max-age=604800, stale-while-revalidate=86400
+
+# 3. HTML y Workers (Siempre frescos para evitar versiones viejas)
+/index.html
+  Cache-Control: public, max-age=0, must-revalidate
+/sw.js
+  Cache-Control: public, max-age=0, must-revalidate
+/OneSignalSDKWorker.js
+  Cache-Control: public, max-age=0, must-revalidate
+/OneSignalSDKUpdaterWorker.js
+  Cache-Control: public, max-age=0, must-revalidate
+/manifest.json
+  Cache-Control: public, max-age=0, must-revalidate

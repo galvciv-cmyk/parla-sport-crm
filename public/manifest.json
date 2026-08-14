@@ -5,16 +5,22 @@
   "description": "Sistema de gestión deportiva, entrenamientos 1-1, 1-2, 1-3, control de sesiones y ausencias.",
   "icons": [
     {
-      "src": "/favicon.png",
+      "src": "/favicon-192x192.png",
       "type": "image/png",
-      "sizes": "128x128 192x192 512x512",
+      "sizes": "192x192",
       "purpose": "any maskable"
     },
     {
-      "src": "/logo.png",
+      "src": "/favicon.png",
       "type": "image/png",
-      "sizes": "192x192 512x512",
+      "sizes": "512x512",
       "purpose": "any maskable"
+    },
+    {
+      "src": "/apple-touch-icon.png",
+      "type": "image/png",
+      "sizes": "180x180",
+      "purpose": "any"
     }
   ],
   "start_url": "/",
