@@ -78,51 +78,62 @@ self.addEventListener('fetch', (event) => {
   );
 });
 
-// ─── PUSH (Recepción y Respaldo de Notificaciones en Segundo Plano) ───
+// ─── PUSH (Recepción y Garantía de Notificaciones en Segundo Plano) ───
 self.addEventListener('push', (event) => {
   console.log('[SW] 🔔 Push recibido en segundo plano:', event);
 
-  if (!event.data) {
-    console.warn('[SW] Push recibido sin datos (payload vacío)');
-    return;
-  }
-
   let data = {};
-  try {
-    data = event.data.json();
-    console.log('[SW] 📦 Payload JSON parseado:', data);
-  } catch (err) {
-    console.warn('[SW] Error al parsear JSON push, usando texto plano:', err);
-    data = { title: '⚽ Parla Sport CRM', body: event.data.text() };
+  if (event.data) {
+    try {
+      data = event.data.json();
+      console.log('[SW] 📦 Payload JSON parseado:', data);
+    } catch (err) {
+      console.warn('[SW] Error al parsear JSON push, usando texto plano:', err);
+      data = { title: '⚽ Parla Sport CRM', body: event.data.text() };
+    }
   }
 
-  // Si la notificación trae la marca oficial de OneSignal, OneSignalSDK.sw.js la gestionará.
-  // Pero si OneSignalSDK.sw.js no la procesara, este bloque garantiza el showNotification.
-  if (data.custom && data.custom.i) {
-    console.log('[SW] ℹ️ Push originado por OneSignal con ID:', data.custom.i);
-    // Dejar que OneSignalSDK.sw.js la muestre; logueamos para tracking
-    return;
-  }
+  // Extraer título, cuerpo y URL de cualquier variante de payload (OneSignal REST / FCM / WebPush)
+  const title = data.title ||
+    data.headings?.es ||
+    data.headings?.en ||
+    data.custom?.a?.title ||
+    data.custom?.a?.heading ||
+    '⚽ Parla Sport CRM';
 
-  const title = data.title || data.headings?.es || data.headings?.en || '⚽ Parla Sport CRM';
-  const body = data.body || data.contents?.es || data.contents?.en || 'Tienes una nueva notificación.';
-  const url = data.url || '/';
+  const body = data.body ||
+    data.contents?.es ||
+    data.contents?.en ||
+    data.custom?.a?.body ||
+    data.custom?.a?.message ||
+    data.alert ||
+    'Tienes una nueva sesión o actualización.';
+
+  const url = data.url ||
+    data.web_url ||
+    data.custom?.u ||
+    data.custom?.a?.url ||
+    '/';
+
+  const notificationTag = data.custom?.i || ('parla-' + (data.tag || Date.now()));
 
   const options = {
     body,
     icon: '/favicon.png',
     badge: '/favicon.png',
-    vibrate: [200, 100, 200],
-    requireInteraction: false,
-    tag: 'parla-sport-' + Date.now(),
+    vibrate: [300, 100, 300, 100, 300],
+    requireInteraction: true,
+    tag: notificationTag,
+    renotify: true,
     data: { url }
   };
 
-  console.log('[SW] 🚀 Mostrando notificación en segundo plano:', title, options);
+  console.log('[SW] 🚀 Despachando notificación del sistema al dispositivo:', title, options);
+
   event.waitUntil(
     self.registration.showNotification(title, options)
-      .then(() => console.log('[SW] ✅ Notificación mostrada con éxito en pantalla'))
-      .catch((err) => console.error('[SW] ❌ Error al mostrar notificación:', err))
+      .then(() => console.log('[SW] ✅ Notificación del sistema renderizada con éxito'))
+      .catch((err) => console.error('[SW] ❌ Error en showNotification:', err))
   );
 });
 
