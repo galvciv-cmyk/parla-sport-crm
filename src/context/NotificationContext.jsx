@@ -221,7 +221,7 @@ export const NotificationProvider = ({ children }) => {
       type: isReassignment ? 'warning' : 'info'
     };
 
-    // Disparar Push remoto + Email a OneSignal INMEDIATAMENTE en paralelo (0ms bloqueo)
+    // Disparar Push remoto + Email al entrenador
     sendSessionAssignmentNotification({
       session,
       coach,
@@ -229,6 +229,15 @@ export const NotificationProvider = ({ children }) => {
       isReassignment,
       previousCoachName
     }).catch(err => console.warn('[NotificationContext] Error enviando OneSignal multicanal:', err));
+
+    // Disparar Correo Electrónico de Confirmación al Administrador (parlasport.vzla@gmail.com)
+    sendNetlifyEmail({
+      toEmail: 'parlasport.vzla@gmail.com',
+      coachName,
+      session,
+      players,
+      customSubject: `📋 Sesión Agendada: ${coachName} - ${session.fecha} (${formatTo12Hour(session.horaInicio)}) - Parla Sport`
+    }).catch(err => console.warn('[NotificationContext] Error enviando email de asignación al admin:', err));
 
     // Guardar en Firestore y local
     await saveNotificationLocallyAndRemote([notifCoach, notifAdmin]);

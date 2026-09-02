@@ -293,18 +293,18 @@ export const sendOneSignalPush = async ({
     url: targetUrl
   };
 
-  // Targeting: Usar SOLO UN método para evitar error 400 de OneSignal
-  if (targetIds.length > 0) {
+  // Targeting robusto: si es admin, usar segmento de suscripciones activas
+  if (recipientRole === 'admin') {
+    payload.included_segments = ['Active Subscriptions'];
+  } else if (targetIds.length > 0) {
     payload.include_aliases = {
       external_id: targetIds
     };
   } else if (recipientRole) {
-    payload.filters = [
-      { field: 'tag', key: 'role', relation: '=', value: String(recipientRole) }
-    ];
+    payload.included_segments = ['Active Subscriptions'];
   }
 
-  const targetLabel = targetIds.length > 0 ? targetIds.join(', ') : `Rol: ${recipientRole}`;
+  const targetLabel = recipientRole === 'admin' ? 'Segmento Admin (Active Subscriptions)' : (targetIds.length > 0 ? targetIds.join(', ') : `Rol: ${recipientRole}`);
 
   logNotifEvent('onesignal',
     `📤 Enviando Push remoto → ${targetLabel}`,
@@ -314,21 +314,23 @@ export const sendOneSignalPush = async ({
 
   const authHeader = getOneSignalAuthHeader();
 
-  // Intentar envío vía endpoint estándar https://api.onesignal.com/notifications
+  // Intentar endpoints v1 y v2
   const endpoints = [
-    'https://api.onesignal.com/notifications',
-    'https://onesignal.com/api/v1/notifications'
+    'https://onesignal.com/api/v1/notifications',
+    'https://api.onesignal.com/notifications'
   ];
 
   let lastError = null;
 
   for (const endpoint of endpoints) {
     try {
-      // Ajuste para endpoint v1 si incluye external_user_ids
       const requestPayload = { ...payload };
-      if (endpoint.includes('/v1/') && targetIds.length > 0) {
-        requestPayload.include_external_user_ids = targetIds;
-        requestPayload.channel_for_external_user_ids = 'push';
+      if (endpoint.includes('/v1/')) {
+        delete requestPayload.include_aliases;
+        if (targetIds.length > 0 && recipientRole !== 'admin') {
+          requestPayload.include_external_user_ids = targetIds;
+          requestPayload.channel_for_external_user_ids = 'push';
+        }
       }
 
       const response = await fetch(endpoint, {
@@ -342,10 +344,10 @@ export const sendOneSignalPush = async ({
 
       const data = await response.json();
 
-      if (!response.ok) {
-        console.warn(`[OneSignal] ⚠️ Error en ${endpoint} (${response.status}):`, data);
+      if (!response.ok || (data.errors && data.errors.length > 0)) {
+        console.warn(`[OneSignal] ⚠️ Aviso en ${endpoint} (${response.status}):`, data);
         lastError = data;
-        continue; // Intentar siguiente endpoint si falló
+        continue;
       }
 
       console.log('[OneSignal] ✅ Push entregado con éxito:', data);
