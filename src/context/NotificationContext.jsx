@@ -316,7 +316,6 @@ export const NotificationProvider = ({ children }) => {
       });
     }
 
-    // 2. Disparar Correo Electrónico al Entrenador
     if (coachEmail && coachEmail.includes('@')) {
       sendNetlifyEmail({
         toEmail: coachEmail,
@@ -325,6 +324,14 @@ export const NotificationProvider = ({ children }) => {
         customSubject: `🟢 Pago Registrado: Sesión ${session.fecha} (${formatTo12Hour(session.horaInicio)}) - Parla Sport`
       }).catch(err => console.warn('[NotificationContext] Error enviando email de pago al profesor:', err));
     }
+
+    // Disparar Correo Electrónico de Confirmación/Duplicado al Administrador
+    sendNetlifyEmail({
+      toEmail: ADMIN_NOTIFICATION_EMAIL,
+      coachName: coach?.nombre || session.entrenadorNombre || 'Entrenador',
+      session,
+      customSubject: `🟢 Confirmación Admin: Pago Registrado a ${coach?.nombre || 'Entrenador'} - ${session.fecha} (${formatTo12Hour(session.horaInicio)}) - Parla Sport`
+    }).catch(err => console.warn('[NotificationContext] Error enviando copia de pago al admin:', err));
   };
 
   // ─── 4. Notificación al Admin por Cambio de Disponibilidad del Entrenador ───
@@ -437,6 +444,15 @@ export const NotificationProvider = ({ children }) => {
         customSubject: `❌ Sesión Cancelada: ${session.fecha} (${formatTo12Hour(session.horaInicio)}) - Parla Sport`
       }).catch(err => console.warn('[NotificationContext] Error enviando email de cancelación al profesor:', err));
     }
+
+    // Disparar Correo Electrónico de Confirmación/Duplicado al Administrador
+    sendNetlifyEmail({
+      toEmail: ADMIN_NOTIFICATION_EMAIL,
+      coachName: coach?.nombre || session.entrenadorNombre || 'Entrenador',
+      session,
+      players,
+      customSubject: `❌ Sesión Cancelada: ${coach?.nombre || session.entrenadorNombre || 'Entrenador'} - ${session.fecha} (${formatTo12Hour(session.horaInicio)}) - Parla Sport`
+    }).catch(err => console.warn('[NotificationContext] Error enviando copia de cancelación al admin:', err));
   };
 
   const markAsRead = (id) => {
