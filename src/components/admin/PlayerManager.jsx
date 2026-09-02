@@ -18,11 +18,18 @@ const PlayerManager = () => {
   const [reportPlayer, setReportPlayer] = useState(null);
   const [isEditing, setIsEditing] = useState(false);
 
-  // Auto-abrir modal si la URL contiene un hash específico de jugador (#player-xxx)
+  // Auto-abrir modal si la URL contiene un hash específico de jugador (#player-xxx o #report-xxx)
   useEffect(() => {
     if (typeof window === 'undefined' || !players.length) return;
     const hash = window.location.hash || '';
-    if (hash.startsWith('#player-')) {
+    if (hash.startsWith('#report-player-') || hash.startsWith('#report-')) {
+      const pId = hash.replace('#report-player-', '').replace('#report-', '').trim();
+      const found = players.find(p => String(p.id) === String(pId));
+      if (found) {
+        setIsDetailModalOpen(false);
+        setReportPlayer(found);
+      }
+    } else if (hash.startsWith('#player-')) {
       const pId = hash.replace('#player-', '').trim();
       const found = players.find(p => String(p.id) === String(pId));
       if (found) {
@@ -444,6 +451,7 @@ const PlayerManager = () => {
                 fontWeight: 700
               }}
               onClick={() => {
+                setIsDetailModalOpen(false);
                 setReportPlayer(selectedPlayer);
               }}
             >

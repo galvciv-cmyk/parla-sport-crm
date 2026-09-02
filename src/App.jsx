@@ -86,7 +86,7 @@ const resolveTabFromHash = (defaultTab) => {
   if (!rawHash) return defaultTab;
   if (rawHash === 'coach-calendar') return 'coach-calendar';
   if (rawHash === 'scheduler') return 'scheduler';
-  if (rawHash === 'players' || rawHash.startsWith('player')) return 'players';
+  if (rawHash === 'players' || rawHash.startsWith('player') || rawHash.startsWith('report')) return 'players';
   if (rawHash === 'coaches') return 'coaches';
   if (rawHash === 'general-calendar') return 'general-calendar';
   if (rawHash === 'dashboard') return 'dashboard';

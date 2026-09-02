@@ -85,14 +85,82 @@ const PlayerMonthlyReportModal = ({
     };
   }, [monthSessions]);
 
-  // Filtrar observaciones técnicas del jugador para este mes
-  const monthObservations = useMemo(() => {
+  const [filterMode, setFilterMode] = useState('all'); // 'all' (Todas las observaciones) | 'month' (Solo de este mes)
+
+  // ─── AGREGAR TODAS LAS OBSERVACIONES DE TODOS LOS PROFESORES ───
+  // Combina: historialObservaciones del jugador + notas de sesiones de cancha + observaciones técnicas del perfil
+  const allObservations = useMemo(() => {
+    if (!player?.id) return [];
+    const list = [];
+    const seenTexts = new Set();
+
+    // 1. Historial explícito de observaciones del jugador
     const history = Array.isArray(player.historialObservaciones) ? player.historialObservaciones : [];
-    return history.filter(obs => {
-      if (!obs.fecha) return false;
-      return obs.fecha.startsWith(selectedMonthKey);
-    }).sort((a, b) => (new Date(b.timestamp || b.fecha || 0) - new Date(a.timestamp || a.fecha || 0)));
-  }, [player.historialObservaciones, selectedMonthKey]);
+    history.forEach((obs, idx) => {
+      const text = (obs.texto || '').trim();
+      if (text) {
+        seenTexts.add(text.toLowerCase());
+        list.push({
+          id: obs.id || `hist-${idx}`,
+          fecha: obs.fecha || '',
+          autorNombre: obs.autorNombre || 'Entrenador',
+          texto: text,
+          timestamp: obs.timestamp || obs.fecha || '',
+          origen: 'Observación Técnica'
+        });
+      }
+    });
+
+    // 2. Notas registradas por los profesores en cada sesión donde participó el alumno
+    (sessions || []).forEach((s) => {
+      const pIds = Array.isArray(s.jugadoresIds) ? s.jugadoresIds : (s.jugadorId ? [s.jugadorId] : []);
+      if (pIds.includes(player.id)) {
+        const sessionNote = (s.notas || '').trim();
+        if (sessionNote && !seenTexts.has(sessionNote.toLowerCase())) {
+          seenTexts.add(sessionNote.toLowerCase());
+          list.push({
+            id: `session-note-${s.id}`,
+            fecha: s.fecha || '',
+            autorNombre: s.entrenadorNombre || 'Profesor de Cancha',
+            texto: sessionNote,
+            timestamp: s.fecha || '',
+            tipo: s.tipo,
+            origen: `Sesión ${s.tipo || '1-1'}`
+          });
+        }
+      }
+    });
+
+    // 3. Observaciones técnicas generales del perfil (si no están ya en la lista)
+    if (player.observacionesTecnicas && player.observacionesTecnicas.trim()) {
+      const genText = player.observacionesTecnicas.trim();
+      if (!seenTexts.has(genText.toLowerCase())) {
+        list.push({
+          id: `player-general-obs`,
+          fecha: player.fechaRegistro || 'Registro',
+          autorNombre: 'Diagnóstico Parla Sport',
+          texto: genText,
+          timestamp: player.fechaRegistro || '',
+          origen: 'Diagnóstico Inicial'
+        });
+      }
+    }
+
+    // Ordenar cronológicamente (más recientes primero)
+    return list.sort((a, b) => {
+      const timeA = new Date(a.timestamp || a.fecha || 0).getTime();
+      const timeB = new Date(b.timestamp || b.fecha || 0).getTime();
+      return timeB - timeA;
+    });
+  }, [player.historialObservaciones, player.id, player.observacionesTecnicas, player.fechaRegistro, sessions]);
+
+  // Observaciones del mes seleccionado
+  const monthObservations = useMemo(() => {
+    return allObservations.filter(obs => !obs.fecha || obs.fecha.startsWith(selectedMonthKey));
+  }, [allObservations, selectedMonthKey]);
+
+  // Observaciones activas según el filtro del usuario
+  const displayedObservations = filterMode === 'all' ? allObservations : monthObservations;
 
   const selectedMonthLabel = availableMonths.find(m => m.key === selectedMonthKey)?.label || selectedMonthKey;
 
@@ -105,7 +173,7 @@ const PlayerMonthlyReportModal = ({
   const handleShareWhatsApp = () => {
     const rawPhone = (player.contactoTutor || '').replace(/[^0-9+]/g, '');
     
-    let text = `⚽ *PARLA SPORT - REPORTE MENSUAL DE RENDIMIENTO*\n`;
+    let text = `⚽ *PARLA SPORT - REPORTE DE RENDIMIENTO*\n`;
     text += `👤 *Jugador:* ${player.nombre}\n`;
     text += `📅 *Periodo:* ${selectedMonthLabel}\n`;
     text += `📍 *Posición:* ${player.posicion} | ${player.edad} años\n\n`;
@@ -114,14 +182,15 @@ const PlayerMonthlyReportModal = ({
     text += `• Porcentaje de Asistencia: ${stats.attendanceRate}%\n`;
     text += `• Horas de Entrenamiento: ${stats.hoursTrained} hrs\n\n`;
 
-    if (monthObservations.length > 0) {
+    const notesToShare = displayedObservations.length > 0 ? displayedObservations : allObservations;
+    if (notesToShare.length > 0) {
       text += `📝 *OBSERVACIONES DEL CUERPO TÉCNICO:*\n`;
-      monthObservations.forEach((obs, idx) => {
-        text += `${idx + 1}. [${obs.fecha}] *${obs.autorNombre || 'Entrenador'}:* "${obs.texto}"\n`;
+      notesToShare.slice(0, 5).forEach((obs, idx) => {
+        text += `${idx + 1}. [${obs.fecha}] *${obs.autorNombre || 'Entrenador'} (${obs.origen || 'Nota'}):* "${obs.texto}"\n`;
       });
       text += `\n`;
     } else {
-      text += `📝 *Observaciones:* Sin notas particulares este mes.\n\n`;
+      text += `📝 *Observaciones:* Sin notas particulares registradas.\n\n`;
     }
 
     text += `¡Seguimos entrenando al máximo nivel! 🏆\n_Parla Sport Training Academy_`;
@@ -362,30 +431,77 @@ const PlayerMonthlyReportModal = ({
               borderRadius: '10px',
               textAlign: 'center'
             }}>
-              <span style={{ fontSize: '0.72rem', color: '#94A3B8', fontWeight: 600 }}>OBSERVACIONES</span>
+              <span style={{ fontSize: '0.72rem', color: '#94A3B8', fontWeight: 600 }}>OBSERVACIONES TOTALES</span>
               <div style={{ fontSize: '1.4rem', fontWeight: 800, color: '#C084FC', marginTop: '2px' }}>
-                {monthObservations.length}
+                {allObservations.length}
               </div>
             </div>
           </div>
 
-          {/* Historial de Observaciones Técnicas del Mes */}
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+          {/* Historial de Observaciones Técnicas de los Profesores */}
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
             <div style={{
-              fontSize: '0.92rem',
-              fontWeight: 800,
-              color: '#F8FAFC',
               display: 'flex',
+              justifyContent: 'space-between',
               alignItems: 'center',
-              gap: '8px',
+              flexWrap: 'wrap',
+              gap: '10px',
               borderBottom: '1px solid rgba(255, 255, 255, 0.08)',
-              paddingBottom: '6px'
+              paddingBottom: '8px'
             }}>
-              <MessageSquare size={18} color="#10B981" />
-              Observaciones y Evaluaciones del Cuerpo Técnico ({selectedMonthLabel}):
+              <div style={{
+                fontSize: '0.95rem',
+                fontWeight: 800,
+                color: '#F8FAFC',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '8px'
+              }}>
+                <MessageSquare size={18} color="#10B981" />
+                Observaciones y Evaluaciones de los Profesores:
+              </div>
+
+              {/* Selector de filtro de observaciones (Mes vs Todo el Historial) */}
+              <div className="no-print" style={{ display: 'flex', gap: '6px', background: 'rgba(15, 23, 42, 0.8)', padding: '3px', borderRadius: '8px', border: '1px solid rgba(255, 255, 255, 0.08)' }}>
+                <button
+                  type="button"
+                  style={{
+                    background: filterMode === 'all' ? '#10B981' : 'transparent',
+                    color: filterMode === 'all' ? '#FFFFFF' : '#94A3B8',
+                    border: 'none',
+                    padding: '4px 10px',
+                    borderRadius: '6px',
+                    fontSize: '0.75rem',
+                    fontWeight: 700,
+                    cursor: 'pointer',
+                    transition: 'all 0.2s ease'
+                  }}
+                  onClick={() => setFilterMode('all')}
+                >
+                  📚 Todas ({allObservations.length})
+                </button>
+
+                <button
+                  type="button"
+                  style={{
+                    background: filterMode === 'month' ? '#10B981' : 'transparent',
+                    color: filterMode === 'month' ? '#FFFFFF' : '#94A3B8',
+                    border: 'none',
+                    padding: '4px 10px',
+                    borderRadius: '6px',
+                    fontSize: '0.75rem',
+                    fontWeight: 700,
+                    cursor: 'pointer',
+                    transition: 'all 0.2s ease'
+                  }}
+                  onClick={() => setFilterMode('month')}
+                >
+                  📅 Este Mes ({monthObservations.length})
+                </button>
+              </div>
             </div>
 
-            {monthObservations.length === 0 ? (
+            {displayedObservations.length === 0 ? (
               <div style={{
                 background: 'rgba(255, 255, 255, 0.02)',
                 padding: '20px',
@@ -395,11 +511,13 @@ const PlayerMonthlyReportModal = ({
                 fontSize: '0.85rem',
                 fontStyle: 'italic'
               }}>
-                No hay observaciones técnicas registradas en las sesiones de este mes.
+                {filterMode === 'month'
+                  ? `No hay observaciones registradas en ${selectedMonthLabel}. Puedes pulsar en "Todas" para ver el historial acumulado.`
+                  : 'Aún no se han registrado observaciones técnicas de los profesores para este alumno.'}
               </div>
             ) : (
               <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
-                {monthObservations.map((obs, idx) => (
+                {displayedObservations.map((obs, idx) => (
                   <div
                     key={obs.id || idx}
                     style={{
@@ -417,14 +535,30 @@ const PlayerMonthlyReportModal = ({
                       alignItems: 'center',
                       marginBottom: '6px',
                       fontSize: '0.78rem',
-                      color: '#94A3B8'
+                      color: '#94A3B8',
+                      flexWrap: 'wrap',
+                      gap: '6px'
                     }}>
-                      <span style={{ color: '#34D399', fontWeight: 700, display: 'flex', alignItems: 'center', gap: '4px' }}>
-                        <ShieldCheck size={14} /> {obs.autorNombre || 'Entrenador'}
-                      </span>
-                      <span>📅 {obs.fecha}</span>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                        <span style={{ color: '#34D399', fontWeight: 700, display: 'flex', alignItems: 'center', gap: '4px' }}>
+                          <ShieldCheck size={14} /> {obs.autorNombre || 'Entrenador'}
+                        </span>
+                        {obs.origen && (
+                          <span style={{
+                            background: 'rgba(59, 130, 246, 0.15)',
+                            color: '#60A5FA',
+                            fontSize: '0.7rem',
+                            padding: '2px 6px',
+                            borderRadius: '4px',
+                            fontWeight: 600
+                          }}>
+                            {obs.origen}
+                          </span>
+                        )}
+                      </div>
+                      <span>📅 {obs.fecha || 'Fecha no registrada'}</span>
                     </div>
-                    <div style={{ color: '#F1F5F9', fontSize: '0.85rem', lineHeight: '1.45', fontStyle: 'italic' }}>
+                    <div style={{ color: '#F1F5F9', fontSize: '0.88rem', lineHeight: '1.45', fontStyle: 'italic' }}>
                       "{obs.texto}"
                     </div>
                   </div>
