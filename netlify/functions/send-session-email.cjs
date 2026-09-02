@@ -31,13 +31,14 @@ const buildEmailTemplate = ({
   players = [],
   isReassignment = false,
   previousCoachName = '',
-  originUrl = 'https://crm-parla-sport.netlify.app'
+  originUrl
 }) => {
+  const baseUrl = (originUrl || process.env.URL || process.env.DEPLOY_PRIME_URL || 'https://parlasport.netlify.app').replace(/\/+$/, '');
+  const tipoSesion = session?.tipo || session?.categoria || '1-1';
+  const notasStr = session?.notas || session?.observaciones || 'Sin observaciones previas';
   const formattedStart = session?.horaInicio ? formatTo12Hour(session.horaInicio) : 'Por definir';
   const formattedEnd = session?.horaFin ? formatTo12Hour(session.horaFin) : '';
   const horarioStr = formattedEnd ? `${formattedStart} - ${formattedEnd}` : formattedStart;
-  const tipoSesion = session?.tipo || session?.categoria || '1-1';
-  const notasStr = session?.notas || session?.observaciones || 'Sin observaciones previas';
   const headerBorderColor = isReassignment ? '#F59E0B' : '#10B981';
   
   // Título en amarillo con texto exacto requerido
@@ -60,7 +61,7 @@ const buildEmailTemplate = ({
   let playersHtml = '';
   if (playersList.length === 1) {
     const singlePlayer = playersList[0];
-    const playerDetailUrl = `${originUrl}/#player-${singlePlayer.id || ''}`;
+    const playerDetailUrl = `${baseUrl}/#player-${singlePlayer.id || ''}`;
     playersHtml = `
       <div style="background-color: rgba(16, 185, 129, 0.08); border: 1px solid rgba(16, 185, 129, 0.3); border-radius: 12px; padding: 18px; margin: 20px 0;">
         <div style="font-size: 12px; font-weight: 700; color: #10B981; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 8px;">
@@ -79,7 +80,7 @@ const buildEmailTemplate = ({
     `;
   } else if (playersList.length > 1) {
     const playerCards = playersList.map((p, idx) => {
-      const playerUrl = `${originUrl}/#player-${p.id || ''}`;
+      const playerUrl = `${baseUrl}/#player-${p.id || ''}`;
       return `
         <tr style="border-bottom: 1px solid rgba(255, 255, 255, 0.08);">
           <td style="padding: 12px 8px;">
@@ -184,7 +185,7 @@ const buildEmailTemplate = ({
               <table width="100%" cellpadding="0" cellspacing="0" style="margin: 26px 0 10px 0;">
                 <tr>
                   <td align="center">
-                    <a href="${originUrl}/#coach-calendar" target="_blank" style="display: inline-block; background: linear-gradient(135deg, #10B981 0%, #059669 100%); color: #FFFFFF; text-decoration: none; padding: 14px 28px; border-radius: 10px; font-weight: 700; font-size: 14px; box-shadow: 0 4px 14px rgba(16, 185, 129, 0.4);">
+                    <a href="${baseUrl}/#coach-calendar" target="_blank" style="display: inline-block; background: linear-gradient(135deg, #10B981 0%, #059669 100%); color: #FFFFFF; text-decoration: none; padding: 14px 28px; border-radius: 10px; font-weight: 700; font-size: 14px; box-shadow: 0 4px 14px rgba(16, 185, 129, 0.4);">
                       ⚽ Ver Mi Calendario en Parla Sport
                     </a>
                   </td>
@@ -281,7 +282,7 @@ exports.handler = async (event, context) => {
       players,
       isReassignment,
       previousCoachName,
-      originUrl: originUrl || 'https://crm-parla-sport.netlify.app'
+      originUrl: originUrl || process.env.URL || process.env.DEPLOY_PRIME_URL || 'https://parlasport.netlify.app'
     });
 
     const mailOptions = {

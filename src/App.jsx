@@ -80,8 +80,31 @@ class ErrorBoundary extends Component {
   }
 }
 
+const resolveTabFromHash = (defaultTab) => {
+  if (typeof window === 'undefined') return defaultTab;
+  const rawHash = (window.location.hash || '').replace('#', '').trim();
+  if (!rawHash) return defaultTab;
+  if (rawHash === 'coach-calendar') return 'coach-calendar';
+  if (rawHash === 'scheduler') return 'scheduler';
+  if (rawHash === 'players' || rawHash.startsWith('player')) return 'players';
+  if (rawHash === 'coaches') return 'coaches';
+  if (rawHash === 'general-calendar') return 'general-calendar';
+  if (rawHash === 'dashboard') return 'dashboard';
+  return defaultTab;
+};
+
 const MainLayout = ({ defaultTab }) => {
-  const [activeTab, setActiveTab] = useState(defaultTab);
+  const [activeTab, setActiveTab] = useState(() => resolveTabFromHash(defaultTab));
+
+  useEffect(() => {
+    const handleHashChange = () => {
+      const target = resolveTabFromHash(defaultTab);
+      if (target) setActiveTab(target);
+    };
+
+    window.addEventListener('hashchange', handleHashChange);
+    return () => window.removeEventListener('hashchange', handleHashChange);
+  }, [defaultTab]);
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', minHeight: '100vh', backgroundColor: '#060D1E' }}>

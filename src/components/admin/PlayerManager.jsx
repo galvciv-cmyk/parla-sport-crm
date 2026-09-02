@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { UserPlus, Search, Edit3, Trash2, Eye, User, MessageSquare, FileText, BarChart3 } from 'lucide-react';
 import { useData } from '../../context/DataContext';
 import { showToast } from '../common/ToastNotification';
@@ -17,6 +17,20 @@ const PlayerManager = () => {
   const [selectedPlayer, setSelectedPlayer] = useState(null);
   const [reportPlayer, setReportPlayer] = useState(null);
   const [isEditing, setIsEditing] = useState(false);
+
+  // Auto-abrir modal si la URL contiene un hash específico de jugador (#player-xxx)
+  useEffect(() => {
+    if (typeof window === 'undefined' || !players.length) return;
+    const hash = window.location.hash || '';
+    if (hash.startsWith('#player-')) {
+      const pId = hash.replace('#player-', '').trim();
+      const found = players.find(p => String(p.id) === String(pId));
+      if (found) {
+        setSelectedPlayer(found);
+        setIsDetailModalOpen(true);
+      }
+    }
+  }, [players]);
 
   // Formulario
   const [formData, setFormData] = useState({

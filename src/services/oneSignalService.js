@@ -682,7 +682,8 @@ export const sendNetlifyEmail = async ({
         isReassignment,
         previousCoachName,
         customSubject,
-        customHtml
+        customHtml,
+        originUrl: typeof window !== 'undefined' ? window.location.origin : 'https://parlasport.netlify.app'
       })
     });
 
