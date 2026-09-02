@@ -1,30 +1,52 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" fill="none">
   <defs>
     <linearGradient id="goldBorder" x1="0%" y1="0%" x2="100%" y2="100%">
-      <stop offset="0%" stop-color="#FBBF24" />
+      <stop offset="0%" stop-color="#FDE047" />
       <stop offset="50%" stop-color="#F59E0B" />
-      <stop offset="100%" stop-color="#D4AF37" />
+      <stop offset="100%" stop-color="#D97706" />
     </linearGradient>
-    <filter id="goldGlowFavicon" x="-20%" y="-20%" width="140%" height="140%">
-      <feGaussianBlur stdDeviation="2" result="blur" />
+    <linearGradient id="navyBg" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#0A1931" />
+      <stop offset="100%" stop-color="#060D1E" />
+    </linearGradient>
+    <filter id="goldGlow" x="-20%" y="-20%" width="140%" height="140%">
+      <feGaussianBlur stdDeviation="1.5" result="blur" />
       <feComposite in="SourceGraphic" in2="blur" operator="over" />
     </filter>
   </defs>
 
-  <!-- Fondo Azul Marino Profundo -->
-  <rect width="100" height="100" rx="26" fill="#060D1E" />
+  <!-- Fondo Azul Marino Profundo con Borde Redondeado -->
+  <rect width="100" height="100" rx="24" fill="url(#navyBg)" />
 
-  <!-- Anillo/Borde Dorado Rodeando -->
-  <rect x="4" y="4" width="92" height="92" rx="22" stroke="url(#goldBorder)" stroke-width="5" fill="none" filter="url(#goldGlowFavicon)" />
+  <!-- Borde Dorado Elegante -->
+  <rect x="4" y="4" width="92" height="92" rx="20" stroke="url(#goldBorder)" stroke-width="4" fill="none" filter="url(#goldGlow)" />
 
-  <!-- Letra P estilizada en Blanco -->
-  <text x="50" y="70" 
+  <!-- Cruz / Emblema Dorado Superior -->
+  <g transform="translate(50, 24)" fill="url(#goldBorder)">
+    <!-- Cruz Central -->
+    <rect x="-2" y="-9" width="4" height="18" rx="1.5" />
+    <rect x="-8" y="-3" width="16" height="4" rx="1.5" />
+  </g>
+
+  <!-- Monograma PARLA SPORT "PS" en Tipografía Deportiva de Alto Impacto -->
+  <text x="50" y="66" 
         text-anchor="middle" 
         fill="#FFFFFF" 
-        font-family="'Outfit', 'Plus Jakarta Sans', sans-serif" 
-        font-size="62" 
+        font-family="-apple-system, BlinkMacSystemFont, 'Outfit', 'Plus Jakarta Sans', sans-serif" 
+        font-size="34" 
         font-weight="900" 
-        font-style="italic">
-    P
+        letter-spacing="-1">
+    PS
+  </text>
+
+  <!-- Subtítulo PARLA SPORT en Oro -->
+  <text x="50" y="82" 
+        text-anchor="middle" 
+        fill="#FBBF24" 
+        font-family="-apple-system, BlinkMacSystemFont, 'Plus Jakarta Sans', sans-serif" 
+        font-size="8.5" 
+        font-weight="800" 
+        letter-spacing="2">
+    PARLA
   </text>
 </svg>

@@ -1,9 +1,41 @@
 import { defineConfig } from 'vite';
 import react from '@vitejs/plugin-react';
 
+const netlifyDevPlugin = () => ({
+  name: 'netlify-dev-plugin',
+  configureServer(server) {
+    server.middlewares.use(async (req, res, next) => {
+      if (req.url && req.url.startsWith('/.netlify/functions/send-session-email')) {
+        let body = '';
+        req.on('data', chunk => { body += chunk; });
+        req.on('end', async () => {
+          try {
+            const { handler } = await import('./netlify/functions/send-session-email.cjs');
+            const result = await handler({
+              httpMethod: req.method,
+              headers: req.headers,
+              body
+            });
+            res.statusCode = result.statusCode || 200;
+            res.setHeader('Content-Type', 'application/json');
+            res.end(result.body);
+          } catch (err) {
+            console.error('[Vite Netlify Plugin Error]:', err);
+            res.statusCode = 500;
+            res.setHeader('Content-Type', 'application/json');
+            res.end(JSON.stringify({ success: false, error: err.message }));
+          }
+        });
+        return;
+      }
+      next();
+    });
+  }
+});
+
 // https://vite.dev/config/
 export default defineConfig({
-  plugins: [react()],
+  plugins: [react(), netlifyDevPlugin()],
   build: {
     cssCodeSplit: true,
     chunkSizeWarningLimit: 800,

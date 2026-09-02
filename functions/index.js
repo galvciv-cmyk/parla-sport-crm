@@ -7,7 +7,7 @@ admin.initializeApp();
 
 // Configuración del transporte con la cuenta oficial de Gmail
 const GMAIL_USER = process.env.GMAIL_USER || 'parlasport.vzla@gmail.com';
-const GMAIL_PASS = process.env.GMAIL_APP_PASSWORD || Buffer.from('ZHltZSBqeWRoIGpoemEgZ3ZhdQ==', 'base64').toString('ascii');
+const GMAIL_PASS = process.env.GMAIL_APP_PASSWORD || Buffer.from('ZHltZSBqeWRoIGpoenggZ3ZhdQ==', 'base64').toString('ascii');
 
 const transporter = nodemailer.createTransport({
   service: 'gmail',
