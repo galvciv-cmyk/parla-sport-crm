@@ -21,12 +21,12 @@ const Modal = ({ isOpen, onClose, title, children, widthPx = '680px' }) => {
         inset: 0,
         zIndex: 99999,
         display: 'flex',
-        alignItems: 'center',
+        alignItems: 'flex-start',
         justifyContent: 'center',
-        padding: '10px',
-        backgroundColor: 'rgba(4, 9, 23, 0.85)',
-        backdropFilter: 'blur(16px)',
-        WebkitBackdropFilter: 'blur(16px)',
+        padding: 'max(16px, env(safe-area-inset-top, 16px)) 12px max(32px, env(safe-area-inset-bottom, 32px)) 12px',
+        backgroundColor: 'rgba(4, 9, 23, 0.88)',
+        backdropFilter: 'blur(18px)',
+        WebkitBackdropFilter: 'blur(18px)',
         overflowY: 'auto',
         WebkitOverflowScrolling: 'touch'
       }}
@@ -35,34 +35,38 @@ const Modal = ({ isOpen, onClose, title, children, widthPx = '680px' }) => {
         if (e.target === e.currentTarget) onClose();
       }}
     >
-      {/* Contenedor Modal Centrado Responsive */}
+      {/* Contenedor Modal Centrado Responsive sin bloqueos de altura */}
       <div
         className="glass-modal modal-content-box"
         style={{
           width: '100%',
-          maxWidth: `min(${widthPx}, calc(100vw - 20px))`,
-          maxHeight: 'min(92dvh, 92vh)',
+          maxWidth: `min(${widthPx}, 100%)`,
           backgroundColor: '#0A1633',
-          border: '1px solid rgba(212, 175, 55, 0.5)',
+          border: '1.5px solid rgba(212, 175, 55, 0.5)',
           borderRadius: '16px',
           boxShadow: '0 0 50px rgba(212, 175, 55, 0.22), 0 25px 60px rgba(0, 0, 0, 0.95)',
           display: 'flex',
           flexDirection: 'column',
           position: 'relative',
-          overflow: 'hidden',
-          margin: 'auto'
+          margin: 'auto 0',
+          flexShrink: 0
         }}
         onClick={(e) => e.stopPropagation()}
       >
-        {/* Encabezado Fijo del Modal */}
+        {/* Encabezado Fijo/Sticky del Modal */}
         <div
           style={{
-            padding: '12px 16px',
+            padding: '14px 18px',
             borderBottom: '1px solid rgba(212, 175, 55, 0.25)',
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'space-between',
-            background: 'rgba(15, 28, 63, 0.98)',
+            background: 'rgba(10, 22, 51, 0.98)',
+            borderTopLeftRadius: '15px',
+            borderTopRightRadius: '15px',
+            position: 'sticky',
+            top: 0,
+            zIndex: 10,
             flexShrink: 0
           }}
         >
@@ -104,16 +108,13 @@ const Modal = ({ isOpen, onClose, title, children, widthPx = '680px' }) => {
           </button>
         </div>
 
-        {/* Cuerpo del Modal con Scroll Suave */}
+        {/* Cuerpo del Modal con espacio natural sin restricciones */}
         <div
           style={{
-            padding: '14px 16px',
-            overflowY: 'auto',
-            WebkitOverflowScrolling: 'touch',
+            padding: '18px 20px 24px 20px',
             display: 'flex',
             flexDirection: 'column',
-            gap: '14px',
-            flex: 1
+            gap: '14px'
           }}
         >
           {children}
