@@ -1,15 +1,11 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import {
   Activity, Bell, X, ChevronDown, ChevronUp, Wifi, Database,
-  Smartphone, Clock, AlertTriangle, CheckCircle, Info, Zap, Trash2
+  Smartphone, Clock, AlertTriangle, CheckCircle, Info, Zap, Trash2, Mail, Send
 } from 'lucide-react';
-
-/* =============================================
-   NotificationDebugPanel
-   Panel en tiempo real que muestra CUÁNDO y 
-   CÓMO llegan/se intercambian las notificaciones.
-   Solo visible en desarrollo o si el admin lo activa.
-   ============================================= */
+import { useAuth } from '../../context/AuthContext';
+import { sendOneSignalPush, sendOneSignalEmail, sendNetlifyEmail, buildSessionEmailHtml } from '../../services/oneSignalService';
+import { logNotifEvent, subscribeDebugEvents } from '../../utils/debugLogger';
 
 // ─── Colores por canal ───
 const CHANNEL_CONFIG = {
@@ -21,8 +17,6 @@ const CHANNEL_CONFIG = {
   'error':       { color: '#EF4444', bg: 'rgba(239,68,68,0.12)',   border: 'rgba(239,68,68,0.4)',   label: 'Error',        icon: AlertTriangle },
   'info':        { color: '#94A3B8', bg: 'rgba(148,163,184,0.08)', border: 'rgba(148,163,184,0.3)', label: 'Sistema',      icon: Info }
 };
-
-import { logNotifEvent, subscribeDebugEvents } from '../../utils/debugLogger';
 
 // ─── Tiempo relativo ───
 const timeAgo = (date) => {
@@ -156,13 +150,75 @@ const EventRow = ({ event }) => {
 
 // ─── Panel Principal ───
 const NotificationDebugPanel = () => {
+  const { currentUser } = useAuth();
   const [events, setEvents] = useState([]);
   const [isOpen, setIsOpen] = useState(false);
   const [isPinned, setIsPinned] = useState(false);
   const [filter, setFilter] = useState('all');
   const [newCount, setNewCount] = useState(0);
+  const [testingPush, setTestingPush] = useState(false);
+  const [testingEmail, setTestingEmail] = useState(false);
   const listRef = useRef(null);
   const lastOpenedRef = useRef(0);
+
+  const handleTestPush = async () => {
+    setTestingPush(true);
+    try {
+      logNotifEvent('onesignal', '🧪 Disparando Push de prueba...');
+      await sendOneSignalPush({
+        title: '⚽ Prueba Push Parla Sport',
+        message: `¡Push OneSignal recibido con éxito! (${new Date().toLocaleTimeString('es')})`,
+        recipientEmail: currentUser?.email || '',
+        url: '/'
+      });
+    } catch (err) {
+      logNotifEvent('error', 'Error en Test Push', err?.message || String(err));
+    } finally {
+      setTestingPush(false);
+    }
+  };
+
+  const handleTestEmail = async () => {
+    const targetEmail = currentUser?.email || 'parlasport.vzla@gmail.com';
+    setTestingEmail(true);
+    try {
+      logNotifEvent('onesignal', `🧪 Disparando Email de prueba → ${targetEmail}...`);
+      const mockSession = {
+        fecha: new Date().toISOString().split('T')[0],
+        horaInicio: '16:00',
+        horaFin: '17:00',
+        tipo: '1-1',
+        notas: 'Sesión de prueba del sistema de notificaciones por correo'
+      };
+      const mockPlayers = [{ nombre: 'Jugador de Prueba' }];
+
+      // Intentar primero por Netlify Functions (Gmail Nodemailer)
+      const netlifyRes = await sendNetlifyEmail({
+        toEmail: targetEmail,
+        coachName: currentUser?.nombre || 'Entrenador',
+        session: mockSession,
+        players: mockPlayers
+      });
+
+      if (!netlifyRes.success) {
+        const html = buildSessionEmailHtml({
+          coachName: currentUser?.nombre || 'Entrenador',
+          session: mockSession,
+          players: mockPlayers
+        });
+
+        await sendOneSignalEmail({
+          toEmail: targetEmail,
+          subject: `⚽ [Prueba Fallback] Asignación de Sesión - Parla Sport (${new Date().toLocaleTimeString('es')})`,
+          htmlBody: html
+        });
+      }
+    } catch (err) {
+      logNotifEvent('error', 'Error en Test Email', err?.message || String(err));
+    } finally {
+      setTestingEmail(false);
+    }
+  };
 
   const addEvent = useCallback((event) => {
     setEvents(prev => {
@@ -426,6 +482,65 @@ const NotificationDebugPanel = () => {
                 </button>
               );
             })}
+          </div>
+
+          {/* Barra de Pruebas Rápidas de Notificaciones */}
+          <div style={{
+            padding: '6px 14px',
+            background: 'rgba(15, 23, 42, 0.95)',
+            borderBottom: '1px solid rgba(255, 255, 255, 0.05)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            gap: '8px',
+            flexWrap: 'wrap'
+          }}>
+            <span style={{ fontSize: '0.68rem', color: '#94A3B8', fontWeight: 600 }}>
+              🧪 Disparadores de Prueba:
+            </span>
+            <div style={{ display: 'flex', gap: '6px' }}>
+              <button
+                type="button"
+                disabled={testingPush}
+                onClick={handleTestPush}
+                style={{
+                  background: 'rgba(59, 130, 246, 0.15)',
+                  border: '1px solid rgba(59, 130, 246, 0.35)',
+                  color: '#60A5FA',
+                  padding: '3px 8px',
+                  borderRadius: '6px',
+                  fontSize: '0.68rem',
+                  fontWeight: 700,
+                  cursor: testingPush ? 'wait' : 'pointer',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '4px'
+                }}
+              >
+                <Smartphone size={11} /> {testingPush ? 'Enviando...' : 'Test Push 📱'}
+              </button>
+
+              <button
+                type="button"
+                disabled={testingEmail}
+                onClick={handleTestEmail}
+                style={{
+                  background: 'rgba(16, 185, 129, 0.15)',
+                  border: '1px solid rgba(16, 185, 129, 0.35)',
+                  color: '#34D399',
+                  padding: '3px 8px',
+                  borderRadius: '6px',
+                  fontSize: '0.68rem',
+                  fontWeight: 700,
+                  cursor: testingEmail ? 'wait' : 'pointer',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '4px'
+                }}
+              >
+                <Mail size={11} /> {testingEmail ? 'Enviando...' : 'Test Email 📧'}
+              </button>
+            </div>
           </div>
 
           {/* Lista de eventos */}

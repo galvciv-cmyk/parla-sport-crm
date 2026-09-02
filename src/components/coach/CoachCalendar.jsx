@@ -7,6 +7,7 @@ import { STATUS_CONFIG } from '../../utils/mockData';
 import { formatTo12Hour, isCoachAvailableBySchedule, getSpanishDayName, groupAvailabilityBlocks } from '../../utils/scheduling';
 import SessionDetailModal from './SessionDetailModal';
 import Modal from '../common/Modal';
+import ImageUploader from '../common/ImageUploader';
 import { showToast } from '../common/ToastNotification';
 
 const DAYS_BUTTONS = [
@@ -28,7 +29,8 @@ const CoachCalendar = () => {
   const [editProfileData, setEditProfileData] = useState({
     nombre: '',
     fechaNacimiento: '',
-    telefono: ''
+    telefono: '',
+    foto: ''
   });
 
   const [selectedDays, setSelectedDays] = useState([]);
@@ -239,7 +241,8 @@ const CoachCalendar = () => {
                   setEditProfileData({
                     nombre: activeCoach?.nombre || currentUser?.nombre || '',
                     fechaNacimiento: activeCoach?.fechaNacimiento || currentUser?.fechaNacimiento || '',
-                    telefono: activeCoach?.telefono || currentUser?.telefono || ''
+                    telefono: activeCoach?.telefono || currentUser?.telefono || '',
+                    foto: activeCoach?.foto || currentUser?.foto || ''
                   });
                   setIsEditProfileModalOpen(true);
                 }}
@@ -670,17 +673,28 @@ const CoachCalendar = () => {
             const cleanedData = {
               nombre: editProfileData.nombre.trim(),
               fechaNacimiento: editProfileData.fechaNacimiento,
-              telefono: editProfileData.telefono.trim()
+              telefono: editProfileData.telefono.trim(),
+              foto: editProfileData.foto || ''
             };
 
             await updateUserProfile(cleanedData);
             if (activeCoach?.id) {
               await updateCoach(activeCoach.id, cleanedData);
             }
+            showToast('Perfil Actualizado', 'Tus datos y foto se han guardado con éxito.', 'success');
             setIsEditProfileModalOpen(false);
           }}
           style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}
         >
+          <div>
+            <ImageUploader
+              value={editProfileData.foto}
+              onChange={(url) => setEditProfileData(prev => ({ ...prev, foto: url }))}
+              label="Foto de Perfil (Cámara o Galería)"
+              sizePx={84}
+            />
+          </div>
+
           <div>
             <label className="input-label">Nombre Completo</label>
             <input

@@ -1,5 +1,5 @@
 import React, { useState, useMemo } from 'react';
-import { CalendarPlus, RefreshCw, CheckCircle, Trash2 } from 'lucide-react';
+import { CalendarPlus, RefreshCw, CheckCircle, Trash2, Edit3, UserCheck, AlertCircle } from 'lucide-react';
 import { useData } from '../../context/DataContext';
 import {
   getAvailableCoaches,
@@ -22,7 +22,7 @@ const getTodayDateStr = () => {
 };
 
 const SessionScheduler = () => {
-  const { players, coaches, sessions, createSession, updateSessionStatus, deleteSession, reassignSession } = useData();
+  const { players, coaches, sessions, createSession, updateSession, updateSessionStatus, deleteSession, reassignSession } = useData();
 
   // Estado de Confirmación de Eliminación (Modal de la App)
   const [sessionToDelete, setSessionToDelete] = useState(null);
@@ -166,6 +166,79 @@ const SessionScheduler = () => {
     }
   };
 
+  // ─── Modal de Edición Rápida (para cambios en cancha 1-1, 1-2, 1-3 por emergencias) ───
+  const [editModalOpen, setEditModalOpen] = useState(false);
+  const [editSessionData, setEditSessionData] = useState(null);
+
+  const handleOpenEdit = (session) => {
+    setEditSessionData({
+      id: session.id,
+      fecha: session.fecha,
+      horaInicio: session.horaInicio,
+      horaFin: session.horaFin,
+      tipo: session.tipo || '1-1',
+      entrenadorId: session.entrenadorId,
+      jugadoresIds: Array.isArray(session.jugadoresIds) ? [...session.jugadoresIds] : [],
+      notas: session.notas || '',
+      estado: session.estado || 'confirmada'
+    });
+    setEditModalOpen(true);
+  };
+
+  const handleEditPlayerToggle = (pId) => {
+    if (!editSessionData) return;
+    const maxAllowed = editSessionData.tipo === '1-1' ? 1 : editSessionData.tipo === '1-2' ? 2 : 3;
+
+    if (editSessionData.jugadoresIds.includes(pId)) {
+      setEditSessionData(prev => ({
+        ...prev,
+        jugadoresIds: prev.jugadoresIds.filter(id => id !== pId)
+      }));
+    } else {
+      if (editSessionData.jugadoresIds.length >= maxAllowed) {
+        showToast(
+          'Límite de Jugadores',
+          `Para el formato ${editSessionData.tipo} solo puedes seleccionar máximo ${maxAllowed} jugador(es).`,
+          'warning'
+        );
+        return;
+      }
+      setEditSessionData(prev => ({
+        ...prev,
+        jugadoresIds: [...prev.jugadoresIds, pId]
+      }));
+    }
+  };
+
+  const handleSaveEdit = async (e) => {
+    e.preventDefault();
+    if (!editSessionData) return;
+
+    const maxNeeded = editSessionData.tipo === '1-1' ? 1 : editSessionData.tipo === '1-2' ? 2 : 3;
+    if (editSessionData.jugadoresIds.length !== maxNeeded) {
+      showToast(
+        'Jugadores Requeridos',
+        `Para la modalidad ${editSessionData.tipo} debes seleccionar exactamente ${maxNeeded} jugador(es).`,
+        'warning'
+      );
+      return;
+    }
+
+    try {
+      await updateSession(editSessionData.id, editSessionData);
+      setEditModalOpen(false);
+      setEditSessionData(null);
+      showToast(
+        'Sesión Actualizada',
+        `Sesión actualizada con éxito a formato ${editSessionData.tipo}.`,
+        'success',
+        4000
+      );
+    } catch (err) {
+      showToast('Error al editar', err.message || 'No se pudo actualizar la sesión.', 'error');
+    }
+  };
+
   const handleCreateSubmit = async (e) => {
     e.preventDefault();
     setErrorMessage('');
@@ -287,7 +360,8 @@ const SessionScheduler = () => {
           <form onSubmit={handleCreateSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
             
             {/* Fecha y Día */}
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(130px, 100%), 1fr))', gap: '12px' }}>
+            {/* Fecha y Día */}
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(140px, 100%), 1fr))', gap: '12px' }}>
               <div>
                 <label className="input-label">Fecha de la Sesión</label>
                 <input
@@ -295,6 +369,7 @@ const SessionScheduler = () => {
                   required
                   min={todayStr}
                   className="input-field"
+                  style={{ height: '44px', boxSizing: 'border-box' }}
                   value={sessionData.fecha}
                   onChange={(e) => handleDateChange(e.target.value)}
                 />
@@ -306,16 +381,16 @@ const SessionScheduler = () => {
                   type="text"
                   readOnly
                   className="input-field"
-                  style={{ color: '#10B981', fontWeight: 700 }}
+                  style={{ color: '#10B981', fontWeight: 700, height: '44px', boxSizing: 'border-box' }}
                   value={getSpanishDayName(sessionData.fecha)}
                 />
               </div>
             </div>
 
-            {/* Horario inicio / fin en formato 12h (AM/PM) - Solo Horas en Punto - Perfectamente Alineados */}
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px', alignItems: 'start' }}>
+            {/* Horario inicio / fin en formato 12h (AM/PM) - 100% Responsive y Perfectamente Alineados */}
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(140px, 100%), 1fr))', gap: '12px', alignItems: 'start' }}>
               <div style={{ minWidth: 0 }}>
-                <label className="input-label" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', minHeight: '20px', marginBottom: '6px' }}>
+                <label className="input-label" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', minHeight: '22px', marginBottom: '6px' }}>
                   <span>Hora Inicio</span>
                   <span style={{ color: '#10B981', fontWeight: 700, fontSize: '0.75rem' }}>
                     {formatTo12Hour(sessionData.horaInicio)}
@@ -324,7 +399,7 @@ const SessionScheduler = () => {
                 <select
                   className="input-field"
                   style={{
-                    height: '42px',
+                    height: '44px',
                     boxSizing: 'border-box',
                     width: '100%',
                     padding: '0 12px',
@@ -346,7 +421,7 @@ const SessionScheduler = () => {
               </div>
 
               <div style={{ minWidth: 0 }}>
-                <label className="input-label" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', minHeight: '20px', marginBottom: '6px' }}>
+                <label className="input-label" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', minHeight: '22px', marginBottom: '6px' }}>
                   <span>Hora Fin (Auto +1h)</span>
                   <span style={{ color: '#FBBF24', fontWeight: 700, fontSize: '0.75rem' }}>
                     {formatTo12Hour(sessionData.horaFin)}
@@ -357,7 +432,7 @@ const SessionScheduler = () => {
                   readOnly
                   className="input-field"
                   style={{
-                    height: '42px',
+                    height: '44px',
                     boxSizing: 'border-box',
                     width: '100%',
                     padding: '0 12px',
@@ -629,15 +704,26 @@ const SessionScheduler = () => {
                         🔒 Clase finalizada por el profesor. Lista para liquidación y cobro. No puede ser cancelada.
                       </div>
                     ) : (
-                      <div style={{ display: 'flex', gap: '10px', marginTop: '6px', flexWrap: 'wrap' }}>
+                      <div style={{ display: 'flex', gap: '8px', marginTop: '6px', flexWrap: 'wrap' }}>
                         {s.estado !== 'cancelada' && (
-                          <button
-                            className="btn-secondary"
-                            style={{ flex: 1, padding: '6px 10px', fontSize: '0.78rem', color: '#F59E0B', borderColor: 'rgba(245, 158, 11, 0.4)' }}
-                            onClick={() => handleOpenReassign(s)}
-                          >
-                            <RefreshCw size={14} /> Reasignar Entrenador
-                          </button>
+                          <>
+                            <button
+                              className="btn-secondary"
+                              style={{ flex: 1, minWidth: '110px', padding: '6px 10px', fontSize: '0.78rem', color: '#38BDF8', borderColor: 'rgba(56, 189, 248, 0.4)' }}
+                              onClick={() => handleOpenEdit(s)}
+                              title="Editar formato (1-1, 1-2, 1-3), jugadores o detalles de la sesión"
+                            >
+                              <Edit3 size={14} /> Editar Sesión
+                            </button>
+
+                            <button
+                              className="btn-secondary"
+                              style={{ flex: 1, minWidth: '130px', padding: '6px 10px', fontSize: '0.78rem', color: '#F59E0B', borderColor: 'rgba(245, 158, 11, 0.4)' }}
+                              onClick={() => handleOpenReassign(s)}
+                            >
+                              <RefreshCw size={14} /> Reasignar
+                            </button>
+                          </>
                         )}
 
                         <button
@@ -658,6 +744,133 @@ const SessionScheduler = () => {
         </div>
 
       </div>
+
+      {/* ─── Modal de Edición Rápida (1-1, 1-2, 1-3 por emergencias en cancha) ─── */}
+      <Modal
+        isOpen={editModalOpen}
+        onClose={() => setEditModalOpen(false)}
+        title={`✏️ Editar Sesión (${editSessionData?.tipo || '1-1'}) - ${editSessionData?.fecha || ''}`}
+        widthPx="650px"
+      >
+        {editSessionData && (
+          <form onSubmit={handleSaveEdit} style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+            
+            {/* Selector de Formato (1-1, 1-2, 1-3) */}
+            <div>
+              <label className="input-label" style={{ color: '#38BDF8', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                <Edit3 size={14} /> Cambiar Formato de la Clase (En Cancha):
+              </label>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '8px' }}>
+                {['1-1', '1-2', '1-3'].map(tipo => {
+                  const isCur = editSessionData.tipo === tipo;
+                  return (
+                    <button
+                      key={tipo}
+                      type="button"
+                      onClick={() => {
+                        const maxNeeded = tipo === '1-1' ? 1 : tipo === '1-2' ? 2 : 3;
+                        setEditSessionData(prev => ({
+                          ...prev,
+                          tipo,
+                          jugadoresIds: prev.jugadoresIds.slice(0, maxNeeded)
+                        }));
+                      }}
+                      style={{
+                        padding: '10px',
+                        borderRadius: '8px',
+                        border: isCur ? '2px solid #10B981' : '1px solid rgba(255,255,255,0.1)',
+                        background: isCur ? 'rgba(16, 185, 129, 0.2)' : 'rgba(15,23,42,0.6)',
+                        color: isCur ? '#34D399' : '#94A3B8',
+                        fontWeight: 700,
+                        cursor: 'pointer',
+                        fontSize: '0.85rem'
+                      }}
+                    >
+                      {tipo} {tipo === '1-1' ? 'Individual' : tipo === '1-2' ? 'Doble (2)' : 'Triple (3)'}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+
+            {/* Selector de Jugadores para la Edición */}
+            <div>
+              <label className="input-label" style={{ display: 'flex', justifyContent: 'space-between' }}>
+                <span>Seleccionar Jugadores</span>
+                <span style={{ color: editSessionData.jugadoresIds.length === (editSessionData.tipo === '1-1' ? 1 : editSessionData.tipo === '1-2' ? 2 : 3) ? '#10B981' : '#F59E0B', fontWeight: 700 }}>
+                  {editSessionData.jugadoresIds.length} / {editSessionData.tipo === '1-1' ? 1 : editSessionData.tipo === '1-2' ? 2 : 3} seleccionados
+                </span>
+              </label>
+
+              <div style={{ maxHeight: '170px', overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: '6px', background: 'rgba(15,23,42,0.6)', padding: '10px', borderRadius: '10px' }}>
+                {players.map(p => {
+                  const isSelected = editSessionData.jugadoresIds.includes(p.id);
+
+                  return (
+                    <div
+                      key={p.id}
+                      onClick={() => handleEditPlayerToggle(p.id)}
+                      style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'space-between',
+                        padding: '8px 12px',
+                        borderRadius: '8px',
+                        background: isSelected ? 'rgba(16, 185, 129, 0.15)' : 'transparent',
+                        border: isSelected ? '1px solid rgba(16, 185, 129, 0.45)' : '1px solid transparent',
+                        cursor: 'pointer'
+                      }}
+                    >
+                      <span style={{ fontSize: '0.85rem', color: isSelected ? '#F8FAFC' : '#CBD5E1', fontWeight: isSelected ? 700 : 500 }}>
+                        ⚽ {p.nombre} ({p.posicion})
+                      </span>
+                      {isSelected && <CheckCircle size={16} color="#10B981" />}
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+
+            {/* Entrenador Asignado */}
+            <div>
+              <label className="input-label">Entrenador Asignado</label>
+              <select
+                required
+                className="input-field"
+                value={editSessionData.entrenadorId}
+                onChange={(e) => setEditSessionData({ ...editSessionData, entrenadorId: e.target.value })}
+              >
+                {coaches.map(c => (
+                  <option key={c.id} value={c.id}>
+                    👤 {c.nombre} {c.especialidad ? `(${c.especialidad})` : ''}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            {/* Notas u Observaciones de la Sesión */}
+            <div>
+              <label className="input-label">Notas u Objetivos</label>
+              <textarea
+                rows="2"
+                className="input-field"
+                placeholder="Notas de la sesión..."
+                value={editSessionData.notas}
+                onChange={(e) => setEditSessionData({ ...editSessionData, notas: e.target.value })}
+              />
+            </div>
+
+            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px', marginTop: '6px' }}>
+              <button type="button" className="btn-secondary" onClick={() => setEditModalOpen(false)}>
+                Cancelar
+              </button>
+              <button type="submit" className="btn-primary" style={{ padding: '8px 20px' }}>
+                Guardar Cambios de la Sesión
+              </button>
+            </div>
+          </form>
+        )}
+      </Modal>
 
       {/* Modal Reasignación de Entrenador por Ausencia */}
       <Modal

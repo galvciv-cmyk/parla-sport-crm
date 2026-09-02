@@ -1,11 +1,13 @@
 import React, { useState } from 'react';
-import { UserPlus, Search, Edit3, Trash2, Eye, User, MessageSquare } from 'lucide-react';
+import { UserPlus, Search, Edit3, Trash2, Eye, User, MessageSquare, FileText, BarChart3 } from 'lucide-react';
 import { useData } from '../../context/DataContext';
 import { showToast } from '../common/ToastNotification';
 import Modal from '../common/Modal';
+import ImageUploader from '../common/ImageUploader';
+import PlayerMonthlyReportModal from './PlayerMonthlyReportModal';
 
 const PlayerManager = () => {
-  const { players, addPlayer, updatePlayer, deletePlayer } = useData();
+  const { players, sessions, coaches, addPlayer, updatePlayer, deletePlayer } = useData();
   const [searchTerm, setSearchTerm] = useState('');
   const [positionFilter, setPositionFilter] = useState('ALL');
 
@@ -13,6 +15,7 @@ const PlayerManager = () => {
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [isDetailModalOpen, setIsDetailModalOpen] = useState(false);
   const [selectedPlayer, setSelectedPlayer] = useState(null);
+  const [reportPlayer, setReportPlayer] = useState(null);
   const [isEditing, setIsEditing] = useState(false);
 
   // Formulario
@@ -218,29 +221,49 @@ const PlayerManager = () => {
               "{player.observacionesTecnicas || 'Sin observaciones aún.'}"
             </p>
 
-            <div style={{ display: 'flex', gap: '8px', marginTop: 'auto', paddingTop: '8px', borderTop: '1px solid rgba(255, 255, 255, 0.05)' }}>
+            <div style={{ display: 'flex', gap: '6px', marginTop: 'auto', paddingTop: '8px', borderTop: '1px solid rgba(255, 255, 255, 0.05)', flexWrap: 'wrap' }}>
               <button
                 className="btn-secondary"
-                style={{ flex: 1, padding: '6px 10px', fontSize: '0.8rem' }}
+                style={{ flex: 1, padding: '6px 8px', fontSize: '0.78rem', minWidth: '90px' }}
                 onClick={() => handleOpenDetail(player, false)}
               >
-                <Eye size={14} /> Ficha completa
+                <Eye size={13} /> Ficha
               </button>
 
               <button
-                style={{ background: 'rgba(59, 130, 246, 0.15)', border: '1px solid rgba(59, 130, 246, 0.3)', color: '#60A5FA', padding: '6px 10px', borderRadius: '8px', cursor: 'pointer' }}
+                style={{
+                  background: 'rgba(245, 158, 11, 0.15)',
+                  border: '1px solid rgba(245, 158, 11, 0.35)',
+                  color: '#FBBF24',
+                  padding: '6px 10px',
+                  borderRadius: '8px',
+                  fontSize: '0.78rem',
+                  fontWeight: 700,
+                  cursor: 'pointer',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '4px'
+                }}
+                onClick={() => setReportPlayer(player)}
+                title="Generar Reporte Mensual y Observaciones"
+              >
+                <BarChart3 size={13} /> Reporte
+              </button>
+
+              <button
+                style={{ background: 'rgba(59, 130, 246, 0.15)', border: '1px solid rgba(59, 130, 246, 0.3)', color: '#60A5FA', padding: '6px 8px', borderRadius: '8px', cursor: 'pointer' }}
                 onClick={() => handleOpenDetail(player, true)}
                 title="Editar Ficha"
               >
-                <Edit3 size={14} />
+                <Edit3 size={13} />
               </button>
 
               <button
-                style={{ background: 'rgba(239, 68, 68, 0.15)', border: '1px solid rgba(239, 68, 68, 0.3)', color: '#F87171', padding: '6px 10px', borderRadius: '8px', cursor: 'pointer' }}
+                style={{ background: 'rgba(239, 68, 68, 0.15)', border: '1px solid rgba(239, 68, 68, 0.3)', color: '#F87171', padding: '6px 8px', borderRadius: '8px', cursor: 'pointer' }}
                 onClick={() => setPlayerToDelete(player)}
                 title="Eliminar Jugador"
               >
-                <Trash2 size={14} />
+                <Trash2 size={13} />
               </button>
             </div>
           </div>
@@ -322,7 +345,7 @@ const PlayerManager = () => {
           </div>
         </div>
 
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr', gap: '12px' }}>
           <div>
             <label className="input-label">Contacto Representante / Tutor</label>
             <input
@@ -336,14 +359,12 @@ const PlayerManager = () => {
           </div>
 
           <div>
-            <label className="input-label">URL Foto de Perfil (Opcional)</label>
-            <input
-              type="url"
-              disabled={!isAddModalOpen && !isEditing}
-              placeholder="https://..."
-              className="input-field"
+            <ImageUploader
               value={formData.foto}
-              onChange={(e) => setFormData({ ...formData, foto: e.target.value })}
+              onChange={(url) => setFormData(prev => ({ ...prev, foto: url }))}
+              disabled={!isAddModalOpen && !isEditing}
+              label="Foto del Jugador (Galería o Cámara)"
+              sizePx={84}
             />
           </div>
         </div>
@@ -388,6 +409,32 @@ const PlayerManager = () => {
                 </div>
               ))}
             </div>
+          </div>
+        )}
+
+        {/* Botón rápido para abrir reporte desde la ficha completa */}
+        {!isAddModalOpen && !isEditing && selectedPlayer && (
+          <div style={{ display: 'flex', justifyContent: 'flex-start', marginTop: '4px' }}>
+            <button
+              type="button"
+              className="btn-secondary"
+              style={{
+                background: 'rgba(245, 158, 11, 0.12)',
+                border: '1px solid rgba(245, 158, 11, 0.3)',
+                color: '#FBBF24',
+                padding: '8px 14px',
+                fontSize: '0.82rem',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '6px',
+                fontWeight: 700
+              }}
+              onClick={() => {
+                setReportPlayer(selectedPlayer);
+              }}
+            >
+              <BarChart3 size={15} /> Ver Reporte Mensual y Observaciones
+            </button>
           </div>
         )}
 
@@ -459,6 +506,15 @@ const PlayerManager = () => {
         </div>
       )}
     </Modal>
+
+    {/* Modal de Reporte Mensual Imprimible y Compartible */}
+    <PlayerMonthlyReportModal
+      isOpen={!!reportPlayer}
+      onClose={() => setReportPlayer(null)}
+      player={reportPlayer}
+      sessions={sessions}
+      coaches={coaches}
+    />
 
     </div>
   );

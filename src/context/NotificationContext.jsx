@@ -1,7 +1,7 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { doc, setDoc, deleteDoc, onSnapshot, collection } from 'firebase/firestore';
 import { db } from '../services/firebase';
-import { sendOneSignalPush } from '../services/oneSignalService';
+import { sendOneSignalPush, sendOneSignalEmail, sendSessionAssignmentNotification, sendNetlifyEmail } from '../services/oneSignalService';
 import { triggerLocalPushNotification } from '../services/pwaService';
 import { useAuth } from './AuthContext';
 import { logNotifEvent } from '../utils/debugLogger';
@@ -221,23 +221,21 @@ export const NotificationProvider = ({ children }) => {
       type: isReassignment ? 'warning' : 'info'
     };
 
-    // Disparar Push remoto a OneSignal INMEDIATAMENTE en paralelo (0ms bloqueo)
-    if (coachId || coachEmail) {
-      sendOneSignalPush({
-        title: titleCoach,
-        message: messageCoach,
-        externalUserId: coachId,
-        recipientEmail: coachEmail,
-        url: '/#coach-calendar'
-      });
-    }
+    // Disparar Push remoto + Email a OneSignal INMEDIATAMENTE en paralelo (0ms bloqueo)
+    sendSessionAssignmentNotification({
+      session,
+      coach,
+      players,
+      isReassignment,
+      previousCoachName
+    }).catch(err => console.warn('[NotificationContext] Error enviando OneSignal multicanal:', err));
 
     // Guardar en Firestore y local
     await saveNotificationLocallyAndRemote([notifCoach, notifAdmin]);
   };
 
   // ─── 2. Notificación de Sesión Completada (para el Admin) ───
-  const notifySessionCompleted = async ({ session, coachName }) => {
+  const notifySessionCompleted = async ({ session, coachName, players = [] }) => {
     if (!session) return;
 
     const notifAdmin = {
@@ -254,13 +252,22 @@ export const NotificationProvider = ({ children }) => {
       type: 'warning'
     };
 
-    // Disparar Push remoto al Administrador (App cerrada) inmediatamente
+    // 1. Disparar Push remoto al Administrador (App cerrada)
     sendOneSignalPush({
       title: notifAdmin.title,
       message: notifAdmin.message,
       recipientRole: 'admin',
       url: '/#dashboard'
     });
+
+    // 2. Disparar Correo Electrónico Automático al Administrador (parlasport.vzla@gmail.com)
+    sendNetlifyEmail({
+      toEmail: 'parlasport.vzla@gmail.com',
+      coachName: coachName || 'Entrenador',
+      session,
+      players,
+      customSubject: `🟠 Entrenamiento Finalizado: ${coachName || 'Entrenador'} - ${session.fecha} (${formatTo12Hour(session.horaInicio)}) - Parla Sport`
+    }).catch(err => console.warn('[NotificationContext] Error enviando email de sesión finalizada al admin:', err));
 
     await saveNotificationLocallyAndRemote([notifAdmin]);
   };
@@ -288,6 +295,7 @@ export const NotificationProvider = ({ children }) => {
 
     await saveNotificationLocallyAndRemote([notifCoach]);
 
+    // 1. Disparar Push remoto al Entrenador
     if (coachId || coachEmail) {
       sendOneSignalPush({
         title: notifCoach.title,
@@ -296,6 +304,16 @@ export const NotificationProvider = ({ children }) => {
         recipientEmail: coachEmail,
         url: '/#coach-calendar'
       });
+    }
+
+    // 2. Disparar Correo Electrónico al Entrenador
+    if (coachEmail && coachEmail.includes('@')) {
+      sendNetlifyEmail({
+        toEmail: coachEmail,
+        coachName: coach?.nombre || 'Entrenador',
+        session,
+        customSubject: `🟢 Pago Registrado: Sesión ${session.fecha} (${formatTo12Hour(session.horaInicio)}) - Parla Sport`
+      }).catch(err => console.warn('[NotificationContext] Error enviando email de pago al profesor:', err));
     }
   };
 
@@ -353,6 +371,13 @@ export const NotificationProvider = ({ children }) => {
         recipientRole: 'admin',
         url: '/#scheduler'
       });
+
+      // Disparar Correo Electrónico al Administrador
+      sendNetlifyEmail({
+        toEmail: 'parlasport.vzla@gmail.com',
+        coachName,
+        customSubject: `📅 Cambio de Disponibilidad: ${coachName} - Parla Sport`
+      }).catch(err => console.warn('[NotificationContext] Error enviando email de disponibilidad al admin:', err));
     }
   };
 
@@ -391,6 +416,16 @@ export const NotificationProvider = ({ children }) => {
         recipientEmail: coachEmail,
         url: '/#coach-calendar'
       });
+    }
+
+    if (coachEmail && coachEmail.includes('@')) {
+      sendNetlifyEmail({
+        toEmail: coachEmail,
+        coachName: coach?.nombre || 'Entrenador',
+        session,
+        players,
+        customSubject: `❌ Sesión Cancelada: ${session.fecha} (${formatTo12Hour(session.horaInicio)}) - Parla Sport`
+      }).catch(err => console.warn('[NotificationContext] Error enviando email de cancelación al profesor:', err));
     }
   };
 

@@ -1,5 +1,5 @@
-import React, { useState } from 'react';
-import { Phone, Award, User, MessageSquare, Send, Sparkles } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { Phone, Award, User, MessageSquare, Send, Sparkles, Edit3, CheckCircle, Users } from 'lucide-react';
 import { STATUS_CONFIG } from '../../utils/mockData';
 import { useData } from '../../context/DataContext';
 import { useAuth } from '../../context/AuthContext';
@@ -8,13 +8,26 @@ import { showToast } from '../common/ToastNotification';
 import Modal from '../common/Modal';
 
 const SessionDetailModal = ({ isOpen, onClose, session, players = [], coach }) => {
-  const { updateSessionStatus, addPlayerObservation } = useData();
+  const { players: globalPlayers, updateSession, updateSessionStatus, addPlayerObservation } = useData();
   const { role, currentUser } = useAuth();
 
   // Notas de observación temporal escritas por el profesor en esta sesión por cada jugador
   const [playerNotes, setPlayerNotes] = useState({});
   const [savingPlayerId, setSavingPlayerId] = useState(null);
   const [submittingStatus, setSubmittingStatus] = useState(false);
+
+  // Estado para edición rápida de formato en cancha (1-1, 1-2, 1-3)
+  const [isEditingFormat, setIsEditingFormat] = useState(false);
+  const [editTipo, setEditTipo] = useState('1-1');
+  const [editJugadoresIds, setEditJugadoresIds] = useState([]);
+
+  useEffect(() => {
+    if (session) {
+      setEditTipo(session.tipo || '1-1');
+      setEditJugadoresIds(Array.isArray(session.jugadoresIds) ? session.jugadoresIds : []);
+      setIsEditingFormat(false);
+    }
+  }, [session]);
 
   if (!session) return null;
 
@@ -108,6 +121,37 @@ const SessionDetailModal = ({ isOpen, onClose, session, players = [], coach }) =
     }
   };
 
+  const handleToggleEditPlayer = (pId) => {
+    const maxAllowed = editTipo === '1-1' ? 1 : editTipo === '1-2' ? 2 : 3;
+    if (editJugadoresIds.includes(pId)) {
+      setEditJugadoresIds(prev => prev.filter(id => id !== pId));
+    } else {
+      if (editJugadoresIds.length >= maxAllowed) {
+        showToast('Límite de Jugadores', `Para el formato ${editTipo} solo puedes seleccionar máximo ${maxAllowed} jugador(es).`, 'warning');
+        return;
+      }
+      setEditJugadoresIds(prev => [...prev, pId]);
+    }
+  };
+
+  const handleSaveFormatChange = async () => {
+    const maxNeeded = editTipo === '1-1' ? 1 : editTipo === '1-2' ? 2 : 3;
+    if (editJugadoresIds.length !== maxNeeded) {
+      showToast('Selección Requerida', `Para el formato ${editTipo} debes seleccionar exactamente ${maxNeeded} jugador(es).`, 'warning');
+      return;
+    }
+    try {
+      await updateSession(session.id, {
+        tipo: editTipo,
+        jugadoresIds: editJugadoresIds
+      });
+      setIsEditingFormat(false);
+      showToast('Formato Actualizado', `Clase actualizada a formato ${editTipo} en cancha.`, 'success');
+    } catch (err) {
+      showToast('Error', err.message || 'No se pudo actualizar el formato.', 'error');
+    }
+  };
+
   return (
     <Modal
       isOpen={isOpen}
@@ -144,10 +188,123 @@ const SessionDetailModal = ({ isOpen, onClose, session, players = [], coach }) =
             </div>
           </div>
 
-          <span className={`badge ${currentStatusCfg.badgeClass}`} style={{ padding: '6px 12px', fontSize: '0.8rem' }}>
-            {currentStatusCfg.label}
-          </span>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <span className={`badge ${currentStatusCfg.badgeClass}`} style={{ padding: '6px 12px', fontSize: '0.8rem' }}>
+              {currentStatusCfg.label}
+            </span>
+
+            {session.estado !== 'realizada' && session.estado !== 'pagada' && (
+              <button
+                type="button"
+                className="btn-secondary"
+                onClick={() => setIsEditingFormat(prev => !prev)}
+                style={{ padding: '6px 10px', fontSize: '0.75rem', color: '#38BDF8', borderColor: 'rgba(56, 189, 248, 0.4)' }}
+                title="Cambiar formato 1-1, 1-2 o 1-3 por emergencias en cancha"
+              >
+                <Edit3 size={13} /> {isEditingFormat ? 'Cancelar Ajuste' : 'Ajustar Formato (Cancha)'}
+              </button>
+            )}
+          </div>
         </div>
+
+        {/* Panel de Ajuste Rápido de Formato en Cancha */}
+        {isEditingFormat && (
+          <div style={{
+            background: 'rgba(15, 23, 42, 0.9)',
+            border: '1px solid rgba(56, 189, 248, 0.4)',
+            borderRadius: '12px',
+            padding: '16px',
+            display: 'flex',
+            flexDirection: 'column',
+            gap: '14px'
+          }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '8px' }}>
+              <div style={{ fontSize: '0.9rem', fontWeight: 700, color: '#38BDF8', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                <Users size={16} /> Cambiar Formato de Entrenamiento en Cancha:
+              </div>
+              <span style={{ fontSize: '0.75rem', color: '#94A3B8' }}>
+                {editJugadoresIds.length} / {editTipo === '1-1' ? 1 : editTipo === '1-2' ? 2 : 3} jugadores seleccionados
+              </span>
+            </div>
+
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '8px' }}>
+              {['1-1', '1-2', '1-3'].map(tipo => (
+                <button
+                  key={tipo}
+                  type="button"
+                  onClick={() => {
+                    const maxNeeded = tipo === '1-1' ? 1 : tipo === '1-2' ? 2 : 3;
+                    setEditTipo(tipo);
+                    setEditJugadoresIds(prev => prev.slice(0, maxNeeded));
+                  }}
+                  style={{
+                    padding: '8px',
+                    borderRadius: '8px',
+                    border: editTipo === tipo ? '2px solid #10B981' : '1px solid rgba(255,255,255,0.1)',
+                    background: editTipo === tipo ? 'rgba(16, 185, 129, 0.2)' : 'rgba(30,41,59,0.6)',
+                    color: editTipo === tipo ? '#34D399' : '#94A3B8',
+                    fontWeight: 700,
+                    cursor: 'pointer',
+                    fontSize: '0.82rem'
+                  }}
+                >
+                  {tipo} {tipo === '1-1' ? 'Individual' : tipo === '1-2' ? 'Doble (2)' : 'Triple (3)'}
+                </button>
+              ))}
+            </div>
+
+            <div>
+              <div style={{ fontSize: '0.78rem', color: '#CBD5E1', marginBottom: '6px' }}>
+                Selecciona los {editTipo === '1-1' ? '1 alumno' : editTipo === '1-2' ? '2 alumnos' : '3 alumnos'} presentes en cancha:
+              </div>
+              <div style={{ maxHeight: '140px', overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: '4px', background: 'rgba(30,41,59,0.5)', padding: '8px', borderRadius: '8px' }}>
+                {globalPlayers.map(p => {
+                  const isSel = editJugadoresIds.includes(p.id);
+                  return (
+                    <div
+                      key={p.id}
+                      onClick={() => handleToggleEditPlayer(p.id)}
+                      style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'space-between',
+                        padding: '6px 10px',
+                        borderRadius: '6px',
+                        background: isSel ? 'rgba(16, 185, 129, 0.15)' : 'transparent',
+                        border: isSel ? '1px solid rgba(16, 185, 129, 0.4)' : '1px solid transparent',
+                        cursor: 'pointer'
+                      }}
+                    >
+                      <span style={{ fontSize: '0.82rem', color: isSel ? '#F8FAFC' : '#CBD5E1', fontWeight: isSel ? 700 : 500 }}>
+                        ⚽ {p.nombre} ({p.posicion})
+                      </span>
+                      {isSel && <CheckCircle size={14} color="#10B981" />}
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+
+            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '8px' }}>
+              <button
+                type="button"
+                className="btn-secondary"
+                onClick={() => setIsEditingFormat(false)}
+                style={{ padding: '6px 12px', fontSize: '0.78rem' }}
+              >
+                Cancelar
+              </button>
+              <button
+                type="button"
+                className="btn-primary"
+                onClick={handleSaveFormatChange}
+                style={{ padding: '6px 16px', fontSize: '0.78rem' }}
+              >
+                Confirmar Formato en Cancha
+              </button>
+            </div>
+          </div>
+        )}
 
         {/* CONTROLES DE ESTADO SEGÚN ROL */}
         <div>

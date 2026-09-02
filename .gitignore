@@ -31,3 +31,7 @@ dist-ssr
 # Environment Variables
 .env
 .env.*
+
+# Patches and docs
+*.patch
+walkthrough.md

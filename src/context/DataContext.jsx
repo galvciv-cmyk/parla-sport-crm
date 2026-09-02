@@ -326,7 +326,11 @@ export const DataProvider = ({ children }) => {
         isReassignment: false
       }).catch(() => {});
     } else if (newStatus === 'realizada' && notifySessionCompleted) {
-      notifySessionCompleted({ session, coachName: coach ? coach.nombre : session.entrenadorNombre }).catch(() => {});
+      notifySessionCompleted({
+        session: { ...session, estado: newStatus },
+        coachName: coach ? coach.nombre : session.entrenadorNombre,
+        players: assignedPlayers
+      }).catch(() => {});
     } else if (newStatus === 'pagada' && notifySessionPaid && coach) {
       notifySessionPaid({ session, coach }).catch(() => {});
     }
@@ -416,6 +420,56 @@ export const DataProvider = ({ children }) => {
     });
   };
 
+  const updateSession = async (sessionId, updatedData) => {
+    const existing = sessions.find(s => s.id === sessionId);
+    if (!existing) throw new Error('Sesión no encontrada.');
+
+    if (existing.estado === 'pagada') {
+      throw new Error('No se puede editar una sesión que ya ha sido pagada y liquidada.');
+    }
+
+    const { tipo, jugadoresIds, entrenadorId, fecha, horaInicio, horaFin, notas, estado } = updatedData;
+
+    const targetCoachId = entrenadorId || existing.entrenadorId;
+    const coach = coaches.find(c => c.id === targetCoachId);
+
+    const merged = {
+      ...existing,
+      tipo: tipo || existing.tipo || '1-1',
+      jugadoresIds: Array.isArray(jugadoresIds) ? jugadoresIds : existing.jugadoresIds,
+      entrenadorId: targetCoachId,
+      entrenadorNombre: coach ? coach.nombre : existing.entrenadorNombre,
+      entrenadorEmail: coach ? (coach.email || '').trim().toLowerCase() : existing.entrenadorEmail,
+      fecha: fecha || existing.fecha,
+      horaInicio: horaInicio || existing.horaInicio,
+      horaFin: horaFin || existing.horaFin,
+      notas: notas !== undefined ? notas : existing.notas,
+      estado: estado || existing.estado
+    };
+
+    // UI Optimista Inmediata (0ms de latencia)
+    setSessions(prev => prev.map(s => (s.id === sessionId ? merged : s)));
+
+    // Guardar en segundo plano en Firestore
+    setDoc(doc(db, 'sessions', sessionId), merged, { merge: true }).catch(err => {
+      console.warn('[DataContext] Error al actualizar sesión en Firestore:', err);
+    });
+
+    // Si cambió de entrenador o se modificaron jugadores, notificar en segundo plano
+    if (merged.estado !== 'cancelada' && notifySessionAssignment) {
+      const assignedPlayers = players.filter(p => merged.jugadoresIds.includes(p.id));
+      notifySessionAssignment({
+        coach: coach || { id: merged.entrenadorId, nombre: merged.entrenadorNombre, email: merged.entrenadorEmail },
+        session: merged,
+        players: assignedPlayers,
+        isReassignment: existing.entrenadorId !== targetCoachId,
+        previousCoachName: existing.entrenadorNombre
+      }).catch(err => console.warn('[DataContext] Error al notificar edición:', err));
+    }
+
+    return merged;
+  };
+
   const cancelSession = (sessionId) => {
     updateSessionStatus(sessionId, 'cancelada');
   };
@@ -434,6 +488,7 @@ export const DataProvider = ({ children }) => {
       updateCoach,
       deleteCoach,
       createSession,
+      updateSession,
       updateSessionStatus,
       deleteSession,
       reassignSession,
