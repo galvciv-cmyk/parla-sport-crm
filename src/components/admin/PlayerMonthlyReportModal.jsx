@@ -246,7 +246,7 @@ const PlayerMonthlyReportModal = ({
               </div>
               <div>
                 <h2 style={{ fontSize: '1.3rem', fontWeight: 800, color: '#F8FAFC', margin: 0, letterSpacing: '-0.02em' }}>
-                  PARLA SPORT ACADEMY
+                  PARLA SPORT
                 </h2>
                 <span style={{ fontSize: '0.8rem', color: '#FBBF24', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em' }}>
                   Informe Mensual de Rendimiento Deportivo
