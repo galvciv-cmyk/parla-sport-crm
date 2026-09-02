@@ -2,8 +2,8 @@ const nodemailer = require('nodemailer');
 const LOGO_BASE64 = require('./logoBase64.cjs');
 
 // Configuración del transporte con la cuenta oficial de Gmail
-const GMAIL_USER = process.env.GMAIL_USER || 'parlasport.vzla@gmail.com';
-const GMAIL_PASS = process.env.GMAIL_APP_PASSWORD || Buffer.from('ZHltZSBqeWRoIGpoenggZ3ZhdQ==', 'base64').toString('ascii');
+const GMAIL_USER = process.env.GMAIL_USER || 'guatavolinares08@gmail.com';
+const GMAIL_PASS = process.env.GMAIL_APP_PASSWORD || Buffer.from('d3dvaSB4dWF1IGJ2ZmcgZWd0bg==', 'base64').toString('ascii');
 
 const transporter = nodemailer.createTransport({
   service: 'gmail',

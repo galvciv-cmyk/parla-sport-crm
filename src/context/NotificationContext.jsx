@@ -8,6 +8,7 @@ import { logNotifEvent } from '../utils/debugLogger';
 import { formatTo12Hour } from '../utils/scheduling';
 
 const NotificationContext = createContext();
+const ADMIN_NOTIFICATION_EMAIL = import.meta.env.VITE_ADMIN_EMAIL || 'guatavolinares08@gmail.com';
 
 export const NotificationProvider = ({ children }) => {
   const [notifications, setNotifications] = useState(() => {
@@ -230,9 +231,9 @@ export const NotificationProvider = ({ children }) => {
       previousCoachName
     }).catch(err => console.warn('[NotificationContext] Error enviando OneSignal multicanal:', err));
 
-    // Disparar Correo Electrónico de Confirmación al Administrador (parlasport.vzla@gmail.com)
+    // Disparar Correo Electrónico de Confirmación al Administrador
     sendNetlifyEmail({
-      toEmail: 'parlasport.vzla@gmail.com',
+      toEmail: ADMIN_NOTIFICATION_EMAIL,
       coachName,
       session,
       players,
@@ -269,9 +270,9 @@ export const NotificationProvider = ({ children }) => {
       url: '/#dashboard'
     });
 
-    // 2. Disparar Correo Electrónico Automático al Administrador (parlasport.vzla@gmail.com)
+    // 2. Disparar Correo Electrónico Automático al Administrador
     sendNetlifyEmail({
-      toEmail: 'parlasport.vzla@gmail.com',
+      toEmail: ADMIN_NOTIFICATION_EMAIL,
       coachName: coachName || 'Entrenador',
       session,
       players,
@@ -383,7 +384,7 @@ export const NotificationProvider = ({ children }) => {
 
       // Disparar Correo Electrónico al Administrador
       sendNetlifyEmail({
-        toEmail: 'parlasport.vzla@gmail.com',
+        toEmail: ADMIN_NOTIFICATION_EMAIL,
         coachName,
         customSubject: `📅 Cambio de Disponibilidad: ${coachName} - Parla Sport`
       }).catch(err => console.warn('[NotificationContext] Error enviando email de disponibilidad al admin:', err));
