@@ -50,8 +50,6 @@ const PlayerMonthlyReportModal = ({
     return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
   });
 
-  if (!player) return null;
-
   // Filtrar sesiones del jugador en el mes seleccionado
   const monthSessions = useMemo(() => {
     if (!sessions || !player?.id) return [];
@@ -203,6 +201,8 @@ const PlayerMonthlyReportModal = ({
     window.open(waUrl, '_blank');
     showToast('Enlace de WhatsApp generado', 'Abriendo WhatsApp con el resumen del reporte.', 'success');
   };
+
+  if (!isOpen || !player) return null;
 
   return (
     <Modal

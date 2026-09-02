@@ -8,7 +8,7 @@ import { logNotifEvent } from '../utils/debugLogger';
 import { formatTo12Hour } from '../utils/scheduling';
 
 const NotificationContext = createContext();
-const ADMIN_NOTIFICATION_EMAIL = import.meta.env.VITE_ADMIN_EMAIL || 'guatavolinares08@gmail.com';
+const ADMIN_NOTIFICATION_EMAIL = import.meta.env.VITE_ADMIN_EMAIL || 'parlasport.vzla@gmail.com';
 
 export const NotificationProvider = ({ children }) => {
   const [notifications, setNotifications] = useState(() => {

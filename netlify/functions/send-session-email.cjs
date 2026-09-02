@@ -1,15 +1,26 @@
 const nodemailer = require('nodemailer');
 const LOGO_BASE64 = require('./logoBase64.cjs');
 
-// Configuración del transporte con la cuenta oficial de Gmail
-const GMAIL_USER = process.env.GMAIL_USER || 'guatavolinares08@gmail.com';
-const GMAIL_PASS = process.env.GMAIL_APP_PASSWORD || Buffer.from('d3dvaSB4dWF1IGJ2ZmcgZWd0bg==', 'base64').toString('ascii');
+// Configuración del transporte con la cuenta oficial de Gmail y respaldo automático
+const GMAIL_PRIMARY_USER = process.env.GMAIL_USER || 'parlasport.vzla@gmail.com';
+const GMAIL_PRIMARY_PASS = process.env.GMAIL_APP_PASSWORD || Buffer.from('dWJxdiBidmpyIGt3cHggZXJsdQ==', 'base64').toString('ascii');
 
-const transporter = nodemailer.createTransport({
+const GMAIL_BACKUP_USER = 'guatavolinares08@gmail.com';
+const GMAIL_BACKUP_PASS = Buffer.from('d3dvaSB4dWF1IGJ2ZmcgZWd0bg==', 'base64').toString('ascii');
+
+const primaryTransporter = nodemailer.createTransport({
   service: 'gmail',
   auth: {
-    user: GMAIL_USER,
-    pass: GMAIL_PASS
+    user: GMAIL_PRIMARY_USER,
+    pass: GMAIL_PRIMARY_PASS
+  }
+});
+
+const backupTransporter = nodemailer.createTransport({
+  service: 'gmail',
+  auth: {
+    user: GMAIL_BACKUP_USER,
+    pass: GMAIL_BACKUP_PASS
   }
 });
 
@@ -286,7 +297,8 @@ exports.handler = async (event, context) => {
     });
 
     const mailOptions = {
-      from: `"Parla Sport" <${GMAIL_USER}>`,
+      from: `"Parla Sport" <${GMAIL_PRIMARY_USER}>`,
+      replyTo: 'parlasport.vzla@gmail.com',
       to: destinationEmail,
       subject,
       html: htmlContent,
@@ -300,8 +312,16 @@ exports.handler = async (event, context) => {
       ]
     };
 
-    const info = await transporter.sendMail(mailOptions);
-    console.log('[Netlify Function] ✅ Correo enviado exitosamente con logo incrustado (CID):', info.messageId);
+    let info;
+    try {
+      info = await primaryTransporter.sendMail(mailOptions);
+      console.log('[Netlify Function] ✅ Enviado vía Parla Sport oficial:', info.messageId);
+    } catch (primaryErr) {
+      console.warn('[Netlify Function] ⚠️ Servidor Parla en espera de propagación Google, usando respaldo:', primaryErr.message);
+      mailOptions.from = `"Parla Sport" <${GMAIL_BACKUP_USER}>`;
+      info = await backupTransporter.sendMail(mailOptions);
+      console.log('[Netlify Function] ✅ Enviado vía respaldo Parla Sport con replyTo oficial:', info.messageId);
+    }
 
     return {
       statusCode: 200,

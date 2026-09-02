@@ -530,13 +530,15 @@ const PlayerManager = () => {
     </Modal>
 
     {/* Modal de Reporte Mensual Imprimible y Compartible */}
-    <PlayerMonthlyReportModal
-      isOpen={!!reportPlayer}
-      onClose={() => setReportPlayer(null)}
-      player={reportPlayer}
-      sessions={sessions}
-      coaches={coaches}
-    />
+    {reportPlayer && (
+      <PlayerMonthlyReportModal
+        isOpen={Boolean(reportPlayer)}
+        onClose={() => setReportPlayer(null)}
+        player={reportPlayer}
+        sessions={sessions}
+        coaches={coaches}
+      />
+    )}
 
     </div>
   );
