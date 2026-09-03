@@ -1,10 +1,11 @@
 import React, { useState, useMemo } from 'react';
 import {
   Award, CreditCard, CalendarCheck, Settings, ChevronLeft, ChevronRight,
-  CheckCircle2, Clock, DollarSign,
+  CheckCircle2, Clock, DollarSign, Sparkles, Send, MessageSquare,
   Calendar as CalendarIcon
 } from 'lucide-react';
 import { useData } from '../../context/DataContext';
+import { useNotifications } from '../../context/NotificationContext';
 import Modal from '../common/Modal';
 import { showToast } from '../common/ToastNotification';
 
@@ -54,6 +55,51 @@ const DashboardOverview = ({ setActiveTab }) => {
   // Modal Nativo de Liquidación
   const [coachToSettle, setCoachToSettle] = useState(null);
   const [isSettling, setIsSettling] = useState(false);
+
+  // Modal de Mensaje Motivacional
+  const { broadcastCoachMotivation } = useNotifications();
+  const [isMotivationModalOpen, setIsMotivationModalOpen] = useState(false);
+  const [motivationTitle, setMotivationTitle] = useState('¡Hoy se deja el corazón en la cancha!');
+  const [motivationMessage, setMotivationMessage] = useState('Cada pase, cada corrección y cada palabra tuya inspiran a nuestros alumnos a ser su mejor versión. ¡A darlo todo hoy en cancha con pasión y excelencia Parla Sport!');
+  const [motivationTarget, setMotivationTarget] = useState('today'); // 'today' | 'all'
+  const [isSendingMotivation, setIsSendingMotivation] = useState(false);
+
+  const todayStr = useMemo(() => formatDateYMD(new Date()), []);
+
+  const coachesWithSessionsToday = useMemo(() => {
+    const todaySessions = (sessions || []).filter(s => s.fecha === todayStr && s.estado !== 'cancelada');
+    const coachIds = new Set(todaySessions.map(s => s.entrenadorId));
+    return (coaches || []).filter(c => coachIds.has(c.id)).map(c => {
+      const count = todaySessions.filter(s => s.entrenadorId === c.id).length;
+      return { ...c, sessionCount: count };
+    });
+  }, [sessions, coaches, todayStr]);
+
+  const handleSendMotivation = async () => {
+    const targets = motivationTarget === 'today' ? coachesWithSessionsToday : (coaches || []);
+    if (targets.length === 0) {
+      showToast('Aviso', 'No hay entrenadores en el grupo seleccionado.', 'warning');
+      return;
+    }
+
+    setIsSendingMotivation(true);
+    try {
+      if (broadcastCoachMotivation) {
+        await broadcastCoachMotivation({
+          title: motivationTitle,
+          message: motivationMessage,
+          targetCoaches: targets
+        });
+      }
+      showToast('¡Motivación Enviada!', `Mensaje enviado exitosamente a ${targets.length} entrenadores.`, 'success');
+      setIsMotivationModalOpen(false);
+    } catch (err) {
+      console.error(err);
+      showToast('Error', 'No se pudo enviar el mensaje motivacional.', 'error');
+    } finally {
+      setIsSendingMotivation(false);
+    }
+  };
 
   // ─── Rango de la Semana Activa (Lunes a Domingo) ───
   const currentWeekRange = useMemo(() => {
@@ -219,6 +265,23 @@ const DashboardOverview = ({ setActiveTab }) => {
         </div>
 
         <div style={{ display: 'flex', gap: '10px', alignItems: 'center', flexWrap: 'wrap' }}>
+          <button
+            className="btn-secondary"
+            onClick={() => setIsMotivationModalOpen(true)}
+            style={{
+              padding: '8px 14px',
+              fontSize: '0.82rem',
+              borderColor: 'rgba(245, 190, 40, 0.45)',
+              color: '#FDE047',
+              background: 'rgba(245, 190, 40, 0.08)',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '6px'
+            }}
+          >
+            <Sparkles size={16} color="#FBBF24" /> Motivación del Día
+          </button>
+
           <button
             className="btn-secondary"
             onClick={() => {
@@ -614,6 +677,167 @@ const DashboardOverview = ({ setActiveTab }) => {
             </div>
           </div>
         )}
+      </Modal>
+
+      {/* ─── Modal de Envío de Motivación al Cuerpo Técnico ─── */}
+      <Modal
+        isOpen={isMotivationModalOpen}
+        onClose={() => setIsMotivationModalOpen(false)}
+        title="🌟 Enviar Motivación del Día al Cuerpo Técnico"
+        widthPx="620px"
+      >
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '18px' }}>
+          <p style={{ fontSize: '0.85rem', color: '#94A3B8', margin: 0 }}>
+            Envía una píldora inspiradora al móvil (Push) y al correo oficial de tus entrenadores para arrancar la jornada con energía y compromiso.
+          </p>
+
+          {/* Selección de Destinatarios */}
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+            <label style={{ fontSize: '0.82rem', fontWeight: 700, color: '#CBD5E1' }}>
+              Destinatarios:
+            </label>
+            <div style={{ display: 'flex', gap: '10px' }}>
+              <button
+                type="button"
+                onClick={() => setMotivationTarget('today')}
+                style={{
+                  flex: 1,
+                  padding: '10px 12px',
+                  borderRadius: '10px',
+                  border: motivationTarget === 'today' ? '1.5px solid #F5BE28' : '1px solid rgba(255, 255, 255, 0.1)',
+                  background: motivationTarget === 'today' ? 'rgba(245, 190, 40, 0.15)' : 'rgba(15, 23, 42, 0.6)',
+                  color: motivationTarget === 'today' ? '#FDE047' : '#94A3B8',
+                  fontWeight: 700,
+                  fontSize: '0.82rem',
+                  cursor: 'pointer'
+                }}
+              >
+                ⚽ Con clases hoy ({coachesWithSessionsToday.length})
+              </button>
+
+              <button
+                type="button"
+                onClick={() => setMotivationTarget('all')}
+                style={{
+                  flex: 1,
+                  padding: '10px 12px',
+                  borderRadius: '10px',
+                  border: motivationTarget === 'all' ? '1.5px solid #F5BE28' : '1px solid rgba(255, 255, 255, 0.1)',
+                  background: motivationTarget === 'all' ? 'rgba(245, 190, 40, 0.15)' : 'rgba(15, 23, 42, 0.6)',
+                  color: motivationTarget === 'all' ? '#FDE047' : '#94A3B8',
+                  fontWeight: 700,
+                  fontSize: '0.82rem',
+                  cursor: 'pointer'
+                }}
+              >
+                👥 Todo el Cuerpo Técnico ({coaches?.length || 0})
+              </button>
+            </div>
+          </div>
+
+          {/* Plantillas Rápidas Predefinidas */}
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+            <label style={{ fontSize: '0.82rem', fontWeight: 700, color: '#CBD5E1' }}>
+              Frases Inspiradoras Recomendadas:
+            </label>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+              {[
+                {
+                  title: '¡Hoy se deja el corazón en la cancha!',
+                  text: 'Cada pase, cada corrección y cada palabra tuya inspiran a nuestros alumnos a ser su mejor versión. ¡A darlo todo hoy en cancha con pasión y excelencia Parla Sport!'
+                },
+                {
+                  title: 'Disciplina, Unión y Liderazgo',
+                  text: 'El talento gana partidos, pero el trabajo en equipo, la disciplina y el liderazgo forman campeones de vida. ¡Gran jornada para todos hoy!'
+                },
+                {
+                  title: 'Educando para el Futuro',
+                  text: 'Enseñar fútbol es educar para el futuro. Gracias por tu entrega, paciencia y profesionalismo en cada minuto de entrenamiento. ¡A brillar en la cancha!'
+                }
+              ].map((item, idx) => (
+                <button
+                  key={idx}
+                  type="button"
+                  onClick={() => {
+                    setMotivationTitle(item.title);
+                    setMotivationMessage(item.text);
+                  }}
+                  style={{
+                    padding: '10px 14px',
+                    borderRadius: '8px',
+                    border: motivationTitle === item.title ? '1px solid rgba(245, 190, 40, 0.5)' : '1px solid rgba(255, 255, 255, 0.06)',
+                    background: motivationTitle === item.title ? 'rgba(245, 190, 40, 0.08)' : 'rgba(15, 23, 42, 0.4)',
+                    color: '#E2E8F0',
+                    fontSize: '0.8rem',
+                    textAlign: 'left',
+                    cursor: 'pointer',
+                    lineHeight: '1.4'
+                  }}
+                >
+                  <strong style={{ color: '#FBBF24', display: 'block', marginBottom: '2px' }}>{item.title}</strong>
+                  <span style={{ color: '#94A3B8' }}>"{item.text}"</span>
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {/* Título y Mensaje Personalizado */}
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+            <label style={{ fontSize: '0.82rem', fontWeight: 700, color: '#CBD5E1' }}>
+              Título del Mensaje:
+            </label>
+            <input
+              type="text"
+              className="input-field"
+              value={motivationTitle}
+              onChange={(e) => setMotivationTitle(e.target.value)}
+              placeholder="Ej: ¡Hoy se deja el corazón en la cancha!"
+              style={{ width: '100%', fontSize: '0.85rem' }}
+            />
+          </div>
+
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+            <label style={{ fontSize: '0.82rem', fontWeight: 700, color: '#CBD5E1' }}>
+              Mensaje Personalizado:
+            </label>
+            <textarea
+              className="input-field"
+              rows={3}
+              value={motivationMessage}
+              onChange={(e) => setMotivationMessage(e.target.value)}
+              placeholder="Escribe un mensaje de ánimo a los profesores..."
+              style={{ width: '100%', fontSize: '0.85rem', resize: 'vertical' }}
+            />
+          </div>
+
+          {/* Botones de Acción */}
+          <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px', marginTop: '10px' }}>
+            <button
+              type="button"
+              className="btn-secondary"
+              disabled={isSendingMotivation}
+              onClick={() => setIsMotivationModalOpen(false)}
+            >
+              Cancelar
+            </button>
+            <button
+              type="button"
+              className="btn-primary"
+              disabled={isSendingMotivation || !motivationMessage.trim()}
+              onClick={handleSendMotivation}
+              style={{
+                background: 'linear-gradient(135deg, #F5BE28 0%, #D97706 100%)',
+                color: '#060D1E',
+                fontWeight: 800,
+                display: 'flex',
+                alignItems: 'center',
+                gap: '8px'
+              }}
+            >
+              <Send size={16} /> {isSendingMotivation ? 'Enviando...' : 'Enviar Motivación Multicanal'}
+            </button>
+          </div>
+        </div>
       </Modal>
 
     </div>

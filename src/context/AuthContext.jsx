@@ -8,8 +8,10 @@ import {
 import { doc, getDoc, setDoc } from 'firebase/firestore';
 import { auth, db } from '../services/firebase';
 import { MASTER_ADMIN_EMAIL } from '../utils/mockData';
-import { loginToOneSignal, logoutFromOneSignal } from '../services/oneSignalService';
+import { loginToOneSignal, logoutFromOneSignal, sendNetlifyEmail, sendOneSignalPush } from '../services/oneSignalService';
+import { buildWelcomeCoachHtml, buildAdminNewCoachHtml } from '../services/emailTemplates';
 
+const ADMIN_NOTIFICATION_EMAIL = 'parlasport.vzla@gmail.com';
 const AuthContext = createContext();
 
 // Traduce los códigos de error de Firebase Auth a mensajes legibles en español
@@ -332,6 +334,33 @@ export const AuthProvider = ({ children }) => {
           fechaRegistro: new Date().toISOString().split('T')[0]
         };
         await setDoc(doc(db, 'coaches', coachId), fullCoachData, { merge: true });
+
+        // Disparar Correo de Bienvenida al Entrenador
+        const welcomeHtml = buildWelcomeCoachHtml({
+          coachName: userProfile.nombre,
+          coachEmail: cleanEmail
+        });
+        sendNetlifyEmail({
+          toEmail: cleanEmail,
+          coachName: userProfile.nombre,
+          customSubject: `⚽ ¡Bienvenido al Cuerpo Técnico de Parla Sport, Profe ${userProfile.nombre}!`,
+          customHtml: welcomeHtml
+        }).catch(err => console.warn('[AuthContext] Error enviando bienvenida al coach:', err));
+
+        // Disparar Notificación y Correo Duplicado al Administrador
+        const adminNotifHtml = buildAdminNewCoachHtml({
+          coachName: userProfile.nombre,
+          coachEmail: cleanEmail,
+          coachPhone: fullCoachData.telefono,
+          coachSpecialty: fullCoachData.especialidad,
+          date: fullCoachData.fechaRegistro
+        });
+        sendNetlifyEmail({
+          toEmail: ADMIN_NOTIFICATION_EMAIL,
+          coachName: userProfile.nombre,
+          customSubject: `📋 Nuevo Entrenador Registrado: ${userProfile.nombre} - Parla Sport`,
+          customHtml: adminNotifHtml
+        }).catch(err => console.warn('[AuthContext] Error enviando alerta al admin:', err));
       }
 
       updateSessionState(userProfile);

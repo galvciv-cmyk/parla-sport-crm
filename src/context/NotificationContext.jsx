@@ -6,6 +6,12 @@ import { triggerLocalPushNotification } from '../services/pwaService';
 import { useAuth } from './AuthContext';
 import { logNotifEvent } from '../utils/debugLogger';
 import { formatTo12Hour } from '../utils/scheduling';
+import {
+  buildWelcomeCoachHtml,
+  buildAdminNewCoachHtml,
+  buildCoachMotivationalHtml,
+  buildCoachWorkdayThanksHtml
+} from '../services/emailTemplates';
 
 const NotificationContext = createContext();
 const ADMIN_NOTIFICATION_EMAIL = 'parlasport.vzla@gmail.com';
@@ -279,6 +285,33 @@ export const NotificationProvider = ({ children }) => {
       customSubject: `🟠 Entrenamiento Finalizado: ${coachName || 'Entrenador'} - ${session.fecha} (${formatTo12Hour(session.horaInicio)}) - Parla Sport`
     }).catch(err => console.warn('[NotificationContext] Error enviando email de sesión finalizada al admin:', err));
 
+    // 3. Disparar Agradecimiento de Fin de Jornada al Entrenador
+    const coachEmail = (session.entrenadorEmail || '').trim().toLowerCase();
+    const coachId = String(session.entrenadorId || '');
+
+    if (coachEmail) {
+      const thanksHtml = buildCoachWorkdayThanksHtml({
+        coachName: coachName || 'Entrenador',
+        completedCount: 1,
+        date: session.fecha || new Date().toLocaleDateString('es-ES')
+      });
+
+      sendNetlifyEmail({
+        toEmail: coachEmail,
+        coachName: coachName || 'Entrenador',
+        customSubject: `👏 ¡Excelente trabajo en cancha, Profe ${coachName || 'Entrenador'}! - Parla Sport`,
+        customHtml: thanksHtml
+      }).catch(err => console.warn('[NotificationContext] Error enviando agradecimiento al coach:', err));
+
+      sendOneSignalPush({
+        title: `👏 ¡Misión cumplida, Profe ${coachName || 'Entrenador'}!`,
+        message: `Gracias por tu dedicación y entrega hoy en cancha con nuestros muchachos. ¡Buen descanso!`,
+        externalUserId: coachId,
+        recipientEmail: coachEmail,
+        url: '/#coach-calendar'
+      });
+    }
+
     await saveNotificationLocallyAndRemote([notifAdmin]);
   };
 
@@ -455,6 +488,138 @@ export const NotificationProvider = ({ children }) => {
     }).catch(err => console.warn('[NotificationContext] Error enviando copia de cancelación al admin:', err));
   };
 
+  // ─── 6. Notificación y Correo de Bienvenida a Nuevo Entrenador ───
+  const notifyCoachRegistered = async ({ coach }) => {
+    if (!coach) return;
+    const coachName = coach.nombre || 'Entrenador';
+    const coachEmail = (coach.email || '').trim().toLowerCase();
+    const coachId = String(coach.id || '');
+
+    // A. Correo de Bienvenida al Entrenador
+    if (coachEmail && coachEmail.includes('@')) {
+      const welcomeHtml = buildWelcomeCoachHtml({
+        coachName,
+        coachEmail
+      });
+
+      sendNetlifyEmail({
+        toEmail: coachEmail,
+        coachName,
+        customSubject: `⚽ ¡Bienvenido al Cuerpo Técnico de Parla Sport, Profe ${coachName}!`,
+        customHtml: welcomeHtml
+      }).catch(err => console.warn('[NotificationContext] Error enviando bienvenida al coach:', err));
+
+      sendOneSignalPush({
+        title: `⚽ ¡Bienvenido a Parla Sport!`,
+        message: `Hola Profe ${coachName}, tu cuenta ha sido activada. Ya puedes configurar tu disponibilidad semanal.`,
+        externalUserId: coachId,
+        recipientEmail: coachEmail,
+        url: '/#coach-calendar'
+      });
+    }
+
+    // B. Correo Duplicado para el Administrador (parlasport.vzla@gmail.com)
+    const adminNotifHtml = buildAdminNewCoachHtml({
+      coachName,
+      coachEmail,
+      coachPhone: coach.telefono,
+      coachSpecialty: coach.especialidad,
+      date: coach.fechaRegistro || new Date().toLocaleDateString('es-ES')
+    });
+
+    sendNetlifyEmail({
+      toEmail: ADMIN_NOTIFICATION_EMAIL,
+      coachName,
+      customSubject: `📋 Nuevo Entrenador Registrado: ${coachName} - Parla Sport`,
+      customHtml: adminNotifHtml
+    }).catch(err => console.warn('[NotificationContext] Error enviando aviso de nuevo coach al admin:', err));
+
+    // Notificación In-App para el Administrador
+    const notifAdmin = {
+      id: `notif-${Date.now()}-new-coach`,
+      title: `👤 Nuevo Entrenador Registrado`,
+      message: `${coachName} (${coachEmail}) se ha unido al cuerpo técnico de Parla Sport.`,
+      recipientRole: 'admin',
+      recipientCoachId: '',
+      recipientEmail: '',
+      senderUid: coach.id || 'system',
+      senderEmail: coachEmail,
+      timestamp: new Date().toISOString(),
+      read: false,
+      type: 'success'
+    };
+    await saveNotificationLocallyAndRemote([notifAdmin]);
+  };
+
+  // ─── 7. Difusión de Mensaje Motivacional del Día ───
+  const broadcastCoachMotivation = async ({ title, message, targetCoaches = [] }) => {
+    const finalTitle = title || '¡Hoy se deja el corazón en la cancha!';
+    const finalMessage = message || 'Cada pase, cada corrección y cada palabra tuya inspiran a nuestros alumnos a ser su mejor versión. ¡A darlo todo hoy en cancha con pasión y excelencia Parla Sport!';
+
+    const notifs = [];
+
+    for (const coach of targetCoaches) {
+      const coachEmail = (coach.email || '').trim().toLowerCase();
+      const coachName = coach.nombre || 'Entrenador';
+      const coachId = String(coach.id || '');
+
+      if (coachEmail && coachEmail.includes('@')) {
+        const motHtml = buildCoachMotivationalHtml({
+          coachName,
+          title: finalTitle,
+          message: finalMessage,
+          sessionCount: coach.sessionCount || 0
+        });
+
+        sendNetlifyEmail({
+          toEmail: coachEmail,
+          coachName,
+          customSubject: `🌅 ${finalTitle} - Parla Sport`,
+          customHtml: motHtml
+        }).catch(err => console.warn(`[NotificationContext] Error motivacion a ${coachEmail}:`, err));
+
+        sendOneSignalPush({
+          title: `🌅 ${finalTitle}`,
+          message: `${coachName}: "${finalMessage}"`,
+          externalUserId: coachId,
+          recipientEmail: coachEmail,
+          url: '/#coach-calendar'
+        });
+
+        notifs.push({
+          id: `notif-${Date.now()}-${coachId}-motivation`,
+          title: `🌅 ${finalTitle}`,
+          message: `"${finalMessage}"`,
+          recipientRole: 'coach',
+          recipientCoachId: coachId,
+          recipientEmail: coachEmail,
+          senderUid: currentUser?.uid || 'admin',
+          senderEmail: ADMIN_NOTIFICATION_EMAIL,
+          timestamp: new Date().toISOString(),
+          read: false,
+          type: 'info'
+        });
+      }
+    }
+
+    if (notifs.length > 0) {
+      await saveNotificationLocallyAndRemote(notifs);
+    }
+
+    // Copia al Administrador
+    sendNetlifyEmail({
+      toEmail: ADMIN_NOTIFICATION_EMAIL,
+      coachName: 'Equipo Técnico',
+      customSubject: `📢 Mensaje Motivacional Enviado (${targetCoaches.length} Profesores) - Parla Sport`,
+      customHtml: buildCoachMotivationalHtml({
+        coachName: 'Cuerpo Técnico',
+        title: `📢 Copia Admin: ${finalTitle}`,
+        message: finalMessage,
+        sessionCount: targetCoaches.length
+      })
+    }).catch(() => {});
+  };
+
   const markAsRead = (id) => {
     setNotifications(prev => {
       const updated = prev.map(n => n.id === id ? { ...n, read: true } : n);
@@ -491,6 +656,8 @@ export const NotificationProvider = ({ children }) => {
       notifySessionPaid,
       notifyCoachAvailabilityChanged,
       notifySessionDeleted,
+      notifyCoachRegistered,
+      broadcastCoachMotivation,
       markAsRead,
       markAllAsRead,
       clearNotifications
