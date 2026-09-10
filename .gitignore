@@ -35,3 +35,5 @@ dist-ssr
 # Patches and docs
 *.patch
 walkthrough.md
+*.xlsx
+
