@@ -9,10 +9,11 @@ export const FIELD_POSITIONS = [
   { id: 'MC',  label: 'Mediocentro (Organizador)',shortLabel: 'MC',  category: 'Mediocampista', zone: 'midfield',   x: 50, y: 48 },
   { id: 'MCD', label: 'Mediocentro Defensivo',    shortLabel: 'MCD', category: 'Mediocampista', zone: 'midfield',   x: 50, y: 64 },
 
-  // Línea Defensiva
-  { id: 'LI',  label: 'Lateral Izquierdo',        shortLabel: 'LI',  category: 'Defensa',      zone: 'defense',    x: 18, y: 78 },
-  { id: 'DFC', label: 'Defensa Central',          shortLabel: 'DFC', category: 'Defensa',      zone: 'defense',    x: 50, y: 80 },
-  { id: 'LD',  label: 'Lateral Derecho',          shortLabel: 'LD',  category: 'Defensa',      zone: 'defense',    x: 82, y: 78 },
+  // Línea Defensiva (Línea de 4)
+  { id: 'LI',   label: 'Lateral Izquierdo',         shortLabel: 'LI',  category: 'Defensa',      zone: 'defense',    x: 18, y: 78 },
+  { id: 'DFCI', label: 'Defensa Central (Izquierdo)', shortLabel: 'DFC', category: 'Defensa',      zone: 'defense',    x: 38, y: 80 },
+  { id: 'DFCD', label: 'Defensa Central (Derecho)',   shortLabel: 'DFC', category: 'Defensa',      zone: 'defense',    x: 62, y: 80 },
+  { id: 'LD',   label: 'Lateral Derecho',           shortLabel: 'LD',  category: 'Defensa',      zone: 'defense',    x: 82, y: 78 },
 
   // Portería
   { id: 'POR', label: 'Portero (Arquero)',        shortLabel: 'POR', category: 'Portero',      zone: 'goalkeeper', x: 50, y: 92 }
@@ -21,6 +22,7 @@ export const FIELD_POSITIONS = [
 export const getCategoryForPositions = (posCodes = []) => {
   if (!posCodes || posCodes.length === 0) return 'Mediocampista';
   const categories = posCodes.map(id => {
+    if (id === 'DFC') return 'Defensa';
     const item = FIELD_POSITIONS.find(p => p.id === id);
     return item ? item.category : 'Mediocampista';
   });

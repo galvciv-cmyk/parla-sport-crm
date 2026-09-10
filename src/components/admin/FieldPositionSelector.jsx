@@ -12,12 +12,13 @@ const FieldPositionSelector = ({
 
   const handleToggle = (posId) => {
     if (readOnly || !onChange) return;
-    const isAlready = currentSelections.includes(posId);
+    const cleanCurrent = currentSelections.flatMap(id => id === 'DFC' ? ['DFCI', 'DFCD'] : id);
+    const isAlready = cleanCurrent.includes(posId);
     let nextList;
     if (isAlready) {
-      nextList = currentSelections.filter(id => id !== posId);
+      nextList = cleanCurrent.filter(id => id !== posId);
     } else {
-      nextList = [...currentSelections, posId];
+      nextList = [...cleanCurrent, posId];
     }
     onChange(nextList);
   };
@@ -153,7 +154,7 @@ const FieldPositionSelector = ({
 
         {/* ─── Botones Circulares de Posiciones Tácticas ─── */}
         {FIELD_POSITIONS.map((pos) => {
-          const isSelected = currentSelections.includes(pos.id);
+          const isSelected = currentSelections.includes(pos.id) || (currentSelections.includes('DFC') && (pos.id === 'DFCI' || pos.id === 'DFCD'));
           const color = getBadgeColorByZone(pos.zone);
           const btnSize = compact ? 30 : 36;
 
@@ -243,7 +244,7 @@ const FieldPositionSelector = ({
           </span>
         ) : (
           currentSelections.map(posId => {
-            const p = FIELD_POSITIONS.find(item => item.id === posId);
+            const p = FIELD_POSITIONS.find(item => item.id === posId) || (posId === 'DFC' ? { id: 'DFC', shortLabel: 'DFC', label: 'Defensa Central', zone: 'defense' } : null);
             if (!p) return null;
             const color = getBadgeColorByZone(p.zone);
 

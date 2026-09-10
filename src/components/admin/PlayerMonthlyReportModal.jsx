@@ -366,7 +366,7 @@ const PlayerMonthlyReportModal = ({
                 <span className="badge badge-emerald">{player.posicion}</span>
                 {Array.isArray(player.posicionesCampo) && player.posicionesCampo.length > 0 && (
                   <span className="badge" style={{ background: 'rgba(139, 92, 246, 0.2)', border: '1px solid #8B5CF6', color: '#C4B5FD', fontSize: '0.72rem', fontWeight: 800 }}>
-                    {player.posicionesCampo.join(' • ')}
+                    {player.posicionesCampo.map(p => p === 'DFCI' ? 'DFC (I)' : p === 'DFCD' ? 'DFC (D)' : p).join(' • ')}
                   </span>
                 )}
                 <span className="badge badge-gold">{player.edad} Años</span>

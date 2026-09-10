@@ -48,7 +48,7 @@ const PlayerManager = () => {
     }
     switch (player?.posicion) {
       case 'Portero': return ['POR'];
-      case 'Defensa': return ['DFC'];
+      case 'Defensa': return ['DFCI', 'DFCD'];
       case 'Mediocampista': return ['MC'];
       case 'Delantero': return ['DC'];
       default: return ['MC'];
