@@ -1,10 +1,12 @@
 import React, { useState, useEffect } from 'react';
-import { UserPlus, Search, Edit3, Trash2, Eye, User, MessageSquare, FileText, BarChart3 } from 'lucide-react';
+import { UserPlus, Search, Edit3, Trash2, Eye, User, MessageSquare, BarChart3 } from 'lucide-react';
 import { useData } from '../../context/DataContext';
 import { showToast } from '../common/ToastNotification';
 import Modal from '../common/Modal';
 import ImageUploader from '../common/ImageUploader';
 import PlayerMonthlyReportModal from './PlayerMonthlyReportModal';
+import FieldPositionSelector from './FieldPositionSelector';
+import { FIELD_POSITIONS, getCategoryForPositions } from '../../utils/fieldPositions';
 
 const PlayerManager = () => {
   const { players, sessions, coaches, addPlayer, updatePlayer, deletePlayer } = useData();
@@ -39,12 +41,27 @@ const PlayerManager = () => {
     }
   }, [players]);
 
+  // Obtener posiciones iniciales para compatibilidad con jugadores existentes
+  const getInitialPositions = (player) => {
+    if (Array.isArray(player?.posicionesCampo) && player.posicionesCampo.length > 0) {
+      return player.posicionesCampo;
+    }
+    switch (player?.posicion) {
+      case 'Portero': return ['POR'];
+      case 'Defensa': return ['DFC'];
+      case 'Mediocampista': return ['MC'];
+      case 'Delantero': return ['DC'];
+      default: return ['MC'];
+    }
+  };
+
   // Formulario
   const [formData, setFormData] = useState({
     nombre: '',
     fechaNacimiento: '',
     edad: 0,
     posicion: 'Mediocampista',
+    posicionesCampo: ['MC'],
     piernaHabil: 'Derecha',
     contactoTutor: '',
     foto: '',
@@ -73,12 +90,22 @@ const PlayerManager = () => {
     }));
   };
 
+  const handlePositionsChange = (newPositions) => {
+    const autoCat = getCategoryForPositions(newPositions);
+    setFormData(prev => ({
+      ...prev,
+      posicionesCampo: newPositions,
+      posicion: autoCat || prev.posicion
+    }));
+  };
+
   const handleOpenAdd = () => {
     setFormData({
       nombre: '',
       fechaNacimiento: '',
       edad: 0,
       posicion: 'Mediocampista',
+      posicionesCampo: ['MC'],
       piernaHabil: 'Derecha',
       contactoTutor: '',
       foto: '',
@@ -93,8 +120,10 @@ const PlayerManager = () => {
     setSelectedPlayer(player);
     const birthDate = player.fechaNacimiento || '';
     const age = birthDate ? calculateAge(birthDate) : (player.edad || 0);
+    const positions = getInitialPositions(player);
     setFormData({
       ...player,
+      posicionesCampo: positions,
       fechaNacimiento: birthDate,
       edad: age,
       historialObservaciones: Array.isArray(player.historialObservaciones) ? player.historialObservaciones : []
@@ -213,10 +242,29 @@ const PlayerManager = () => {
               )}
               <div style={{ flex: 1 }}>
                 <h3 style={{ fontSize: '1rem', fontWeight: 700, color: '#F8FAFC' }}>{player.nombre}</h3>
-                <div style={{ display: 'flex', gap: '6px', marginTop: '4px', flexWrap: 'wrap' }}>
+                <div style={{ display: 'flex', gap: '6px', marginTop: '4px', flexWrap: 'wrap', alignItems: 'center' }}>
                   <span className={`badge ${getPositionBadgeClass(player.posicion)}`}>
                     {player.posicion}
                   </span>
+                  {Array.isArray(player.posicionesCampo) && player.posicionesCampo.length > 0 && (
+                    player.posicionesCampo.map(pCode => (
+                      <span
+                        key={pCode}
+                        title={FIELD_POSITIONS.find(p => p.id === pCode)?.label || pCode}
+                        style={{
+                          background: 'rgba(255, 255, 255, 0.08)',
+                          border: '1px solid rgba(255, 255, 255, 0.2)',
+                          color: '#F1F5F9',
+                          fontSize: '0.66rem',
+                          fontWeight: 800,
+                          padding: '1px 5px',
+                          borderRadius: '6px'
+                        }}
+                      >
+                        {pCode}
+                      </span>
+                    ))
+                  )}
                   <span className="badge badge-emerald" style={{ fontSize: '0.65rem' }}>
                     {player.edad} Años
                   </span>
@@ -348,6 +396,7 @@ const PlayerManager = () => {
               <option value="Defensa">Defensa</option>
               <option value="Mediocampista">Mediocampista</option>
               <option value="Delantero">Delantero</option>
+              <option value="Polivalente">Polivalente</option>
             </select>
           </div>
 
@@ -364,6 +413,34 @@ const PlayerManager = () => {
               <option value="Ambidextro">Ambidextro</option>
             </select>
           </div>
+        </div>
+
+        {/* ─── Selector Táctico de Posición en Mitad de Cancha (Multiselección) ─── */}
+        <div style={{
+          background: 'rgba(15, 23, 42, 0.7)',
+          border: '1px solid rgba(255, 255, 255, 0.08)',
+          borderRadius: '14px',
+          padding: '14px',
+          display: 'flex',
+          flexDirection: 'column',
+          gap: '10px'
+        }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '6px' }}>
+            <label className="input-label" style={{ margin: 0, fontWeight: 700, color: '#F8FAFC', display: 'flex', alignItems: 'center', gap: '6px' }}>
+              <span>⚽ Ubicación en el Campo (Selección Múltiple)</span>
+            </label>
+            {(isAddModalOpen || isEditing) && (
+              <span style={{ fontSize: '0.72rem', color: '#34D399', fontWeight: 600 }}>
+                Toca los círculos para activar / desactivar posiciones
+              </span>
+            )}
+          </div>
+
+          <FieldPositionSelector
+            selectedPositions={formData.posicionesCampo || []}
+            onChange={handlePositionsChange}
+            readOnly={!isAddModalOpen && !isEditing}
+          />
         </div>
 
         <div style={{ display: 'grid', gridTemplateColumns: '1fr', gap: '12px' }}>

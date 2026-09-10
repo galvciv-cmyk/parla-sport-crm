@@ -3,9 +3,7 @@
  * Compatible con clientes de correo modernos, móviles y modo oscuro.
  */
 
-const baseEmailWrapper = ({ headerTitle, contentHtml, originUrl = 'https://parlasport.netlify.app' }) => {
-  const cleanUrl = (originUrl || 'https://parlasport.netlify.app').replace(/\/+$/, '');
-
+const baseEmailWrapper = ({ headerTitle, contentHtml }) => {
   return `
 <!DOCTYPE html>
 <html lang="es">
@@ -266,8 +264,6 @@ export const buildCoachWorkdayThanksHtml = ({
   date = new Date().toLocaleDateString('es-ES'),
   originUrl = 'https://parlasport.netlify.app'
 }) => {
-  const cleanUrl = (originUrl || 'https://parlasport.netlify.app').replace(/\/+$/, '');
-
   const content = `
     <div style="text-align: center; margin-bottom: 20px;">
       <span style="display: inline-block; background: rgba(16, 185, 129, 0.15); border: 1px solid #10B981; color: #34D399; padding: 4px 12px; border-radius: 9999px; font-size: 12px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.5px;">

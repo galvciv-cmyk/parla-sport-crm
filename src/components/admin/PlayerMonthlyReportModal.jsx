@@ -2,16 +2,10 @@ import React, { useState, useMemo } from 'react';
 import {
   Calendar,
   Award,
-  Clock,
-  CheckCircle2,
-  XCircle,
-  FileText,
   Printer,
   Share2,
   User,
   MessageSquare,
-  Sparkles,
-  Phone,
   ShieldCheck
 } from 'lucide-react';
 import Modal from '../common/Modal';
@@ -27,8 +21,7 @@ const PlayerMonthlyReportModal = ({
   isOpen,
   onClose,
   player,
-  sessions = [],
-  coaches = []
+  sessions = []
 }) => {
   // Generar lista de los últimos 12 meses para el selector
   const availableMonths = useMemo(() => {
@@ -174,7 +167,10 @@ const PlayerMonthlyReportModal = ({
     let text = `⚽ *PARLA SPORT - REPORTE DE RENDIMIENTO*\n`;
     text += `👤 *Jugador:* ${player.nombre}\n`;
     text += `📅 *Periodo:* ${selectedMonthLabel}\n`;
-    text += `📍 *Posición:* ${player.posicion} | ${player.edad} años\n\n`;
+    const posLabel = Array.isArray(player.posicionesCampo) && player.posicionesCampo.length > 0
+      ? `${player.posicion} (${player.posicionesCampo.join(', ')})`
+      : player.posicion;
+    text += `📍 *Posición:* ${posLabel} | ${player.edad} años\n\n`;
     text += `📊 *ESTADÍSTICAS DEL MES:*\n`;
     text += `• Sesiones Realizadas: ${stats.completed} de ${stats.total}\n`;
     text += `• Porcentaje de Asistencia: ${stats.attendanceRate}%\n`;
@@ -366,8 +362,13 @@ const PlayerMonthlyReportModal = ({
               <h3 style={{ fontSize: '1.2rem', fontWeight: 800, color: '#F8FAFC', margin: 0 }}>
                 {player.nombre}
               </h3>
-              <div style={{ display: 'flex', gap: '8px', marginTop: '6px', flexWrap: 'wrap' }}>
+              <div style={{ display: 'flex', gap: '8px', marginTop: '6px', flexWrap: 'wrap', alignItems: 'center' }}>
                 <span className="badge badge-emerald">{player.posicion}</span>
+                {Array.isArray(player.posicionesCampo) && player.posicionesCampo.length > 0 && (
+                  <span className="badge" style={{ background: 'rgba(139, 92, 246, 0.2)', border: '1px solid #8B5CF6', color: '#C4B5FD', fontSize: '0.72rem', fontWeight: 800 }}>
+                    {player.posicionesCampo.join(' • ')}
+                  </span>
+                )}
                 <span className="badge badge-gold">{player.edad} Años</span>
                 <span className="badge badge-blue">Pierna: {player.piernaHabil}</span>
               </div>

@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Bell, BellOff, Shield, Smartphone, X, CheckCircle, ChevronRight, Share2 } from 'lucide-react';
+import { Bell, BellOff, X, CheckCircle, ChevronRight, Share2 } from 'lucide-react';
 import { requestOneSignalPermission } from '../../services/oneSignalService';
 
 /* =============================================
@@ -55,12 +55,12 @@ const NotificationPermissionModal = ({ isOpen, onClose, onGranted }) => {
 
       if (granted) {
         setStep('granted');
-        onGranted && onGranted(true);
+        onGranted?.(true);
       } else {
         const perm = ('Notification' in window) ? Notification.permission : 'denied';
         if (perm === 'denied') {
           setStep('blocked');
-          onGranted && onGranted(false);
+          onGranted?.(false);
         } else {
           setStep('prompt');
         }
@@ -352,7 +352,6 @@ const NotificationPermissionModal = ({ isOpen, onClose, onGranted }) => {
                   width: '100%',
                   padding: '11px',
                   borderRadius: '12px',
-                  border: 'none',
                   background: 'rgba(16,185,129,0.15)',
                   border: '1px solid rgba(16,185,129,0.35)',
                   color: '#10B981',
