@@ -73,11 +73,60 @@ export const DataProvider = ({ children }) => {
     localStorage.removeItem('parla_sessions');
   }, []);
 
-  // Escuchar entrenadores en tiempo real desde Firestore (Fuente Única de Verdad)
+  // Escuchar entrenadores en tiempo real desde Firestore (Fuente Única de Verdad con Auto-Deduplicación Inteligente)
   useEffect(() => {
     const unsub = onSnapshot(collection(db, 'coaches'), (snapshot) => {
       const firestoreCoaches = snapshot.docs.map(d => ({ id: d.id, ...d.data() }));
-      setCoaches(firestoreCoaches);
+
+      // Auto-deduplicar por correo: conservar siempre el registro más reciente y con formato WhatsApp
+      const emailMap = new Map();
+      const duplicateIdsToDelete = [];
+
+      firestoreCoaches.forEach(coach => {
+        const cleanEmail = (coach.email || '').toLowerCase().trim();
+        if (!cleanEmail) {
+          emailMap.set(coach.id, coach);
+          return;
+        }
+
+        const existing = emailMap.get(cleanEmail);
+        if (!existing) {
+          emailMap.set(cleanEmail, coach);
+        } else {
+          const coachHasPlus = (coach.telefono || '').startsWith('+');
+          const existingHasPlus = (existing.telefono || '').startsWith('+');
+          const coachTime = new Date(coach.fechaRegistro || 0).getTime() || (coach.id.startsWith('coach-') ? parseInt(coach.id.replace('coach-', '')) || 0 : 0);
+          const existingTime = new Date(existing.fechaRegistro || 0).getTime() || (existing.id.startsWith('coach-') ? parseInt(existing.id.replace('coach-', '')) || 0 : 0);
+
+          let keepCurrent = false;
+          if (coachHasPlus && !existingHasPlus) {
+            keepCurrent = true;
+          } else if (!coachHasPlus && existingHasPlus) {
+            keepCurrent = false;
+          } else {
+            keepCurrent = coachTime >= existingTime;
+          }
+
+          if (keepCurrent) {
+            duplicateIdsToDelete.push(existing.id);
+            emailMap.set(cleanEmail, coach);
+          } else {
+            duplicateIdsToDelete.push(coach.id);
+          }
+        }
+      });
+
+      const uniqueCoaches = Array.from(emailMap.values());
+      setCoaches(uniqueCoaches);
+
+      // Purgar de Firestore cualquier registro duplicado viejo en segundo plano
+      if (duplicateIdsToDelete.length > 0) {
+        duplicateIdsToDelete.forEach(dupId => {
+          deleteDoc(doc(db, 'coaches', dupId)).catch(err => {
+            console.warn('[DataContext] Limpieza de entrenador duplicado en Firestore:', dupId, err);
+          });
+        });
+      }
     }, () => {});
 
     return () => unsub();
