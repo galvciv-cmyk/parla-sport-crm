@@ -167,13 +167,14 @@ export const NotificationProvider = ({ children }) => {
     }
   };
 
-  // ─── 1. Notificación de Asignación / Reasignación ───
+  // ─── 1. Notificación de Asignación / Reasignación / Modificación ───
   const notifySessionAssignment = async ({
     coach,
     session,
     players = [],
     isReassignment = false,
-    previousCoachName = ''
+    previousCoachName = '',
+    isModification = false
   }) => {
     if (!session) return;
 
@@ -181,15 +182,22 @@ export const NotificationProvider = ({ children }) => {
     const coachName = coach?.nombre || session.entrenadorNombre || 'Entrenador';
     const coachEmail = (coach?.email || session.entrenadorEmail || '').trim().toLowerCase();
     const coachId = String(coach?.id || session.entrenadorId || '');
+    const formattedStart = session?.horaInicio ? formatTo12Hour(session.horaInicio) : 'Por definir';
+    const formattedEnd = session?.horaFin ? formatTo12Hour(session.horaFin) : '';
+    const horarioStr = formattedEnd ? `${formattedStart} - ${formattedEnd}` : formattedStart;
 
     // Notificación para el ENTRENADOR
     const titleCoach = isReassignment
       ? `⚠️ Reasignación: Sesión ${session.tipo || '1-1'}`
-      : `⚽ Nueva Sesión Asignada (${session.tipo || '1-1'})`;
+      : (isModification
+        ? `✏️ Sesión Modificada (${session.tipo || '1-1'})`
+        : `⚽ Nueva Sesión Asignada (${session.tipo || '1-1'})`);
 
     const messageCoach = isReassignment
-      ? `Se te ha reasignado la sesión del ${session.fecha} (${formatTo12Hour(session.horaInicio)} - ${formatTo12Hour(session.horaFin)}) por ausencia de ${previousCoachName || 'profesor'}. Jugadores: ${playerNames.join(', ')}.`
-      : `Nueva sesión programada para el ${session.fecha} (${formatTo12Hour(session.horaInicio)} - ${formatTo12Hour(session.horaFin)}). Jugadores: ${playerNames.join(', ')}.`;
+      ? `Se te ha reasignado la sesión del ${session.fecha} (${horarioStr}) por ausencia de ${previousCoachName || 'profesor'}. Jugadores: ${playerNames.join(', ')}.`
+      : (isModification
+        ? `Se ha modificado la sesión asignada a las ${formattedStart} (${session.fecha}). Modalidad: ${session.tipo}. Jugadores: ${playerNames.join(', ')}.`
+        : `Nueva sesión programada para el ${session.fecha} (${horarioStr}). Jugadores: ${playerNames.join(', ')}.`);
 
     const notifCoach = {
       id: `notif-${Date.now()}-coach`,
@@ -202,17 +210,21 @@ export const NotificationProvider = ({ children }) => {
       senderEmail: currentUser?.email || '',
       timestamp: new Date().toISOString(),
       read: false,
-      type: isReassignment ? 'warning' : 'success'
+      type: (isReassignment || isModification) ? 'warning' : 'success'
     };
 
     // Notificación de confirmación para el ADMIN
     const titleAdmin = isReassignment
       ? `⚠️ Sesión Reasignada a ${coachName}`
-      : `📋 Sesión Agendada Exitosamente`;
+      : (isModification
+        ? `✏️ Sesión Modificada: ${coachName}`
+        : `📋 Sesión Agendada Exitosamente`);
 
     const messageAdmin = isReassignment
-      ? `La sesión del ${session.fecha} (${formatTo12Hour(session.horaInicio)} - ${formatTo12Hour(session.horaFin)}) fue reasignada a ${coachName}.`
-      : `Se agendó la clase ${session.tipo} con ${coachName} para el ${session.fecha} (${formatTo12Hour(session.horaInicio)} - ${formatTo12Hour(session.horaFin)}). Jugadores: ${playerNames.join(', ')}.`;
+      ? `La sesión del ${session.fecha} (${horarioStr}) fue reasignada a ${coachName}.`
+      : (isModification
+        ? `Se modificó la sesión de ${coachName} a las ${formattedStart} (${session.fecha}). Formato: ${session.tipo}. Jugadores: ${playerNames.join(', ')}.`
+        : `Se agendó la clase ${session.tipo} con ${coachName} para el ${session.fecha} (${horarioStr}). Jugadores: ${playerNames.join(', ')}.`);
 
     const notifAdmin = {
       id: `notif-${Date.now()}-admin`,
@@ -234,16 +246,25 @@ export const NotificationProvider = ({ children }) => {
       coach,
       players,
       isReassignment,
-      previousCoachName
+      previousCoachName,
+      isModification
     }).catch(err => console.warn('[NotificationContext] Error enviando OneSignal multicanal:', err));
 
     // Disparar Correo Electrónico de Confirmación al Administrador
+    const adminSubject = isReassignment
+      ? `⚠️ Sesión Reasignada: ${coachName} - ${session.fecha} (${formattedStart}) - Parla Sport`
+      : (isModification
+        ? `✏️ Sesión Modificada: ${coachName} - ${session.fecha} (${formattedStart}) - Parla Sport`
+        : `📋 Sesión Agendada: ${coachName} - ${session.fecha} (${formattedStart}) - Parla Sport`);
+
     sendNetlifyEmail({
       toEmail: ADMIN_NOTIFICATION_EMAIL,
       coachName,
       session,
       players,
-      customSubject: `📋 Sesión Agendada: ${coachName} - ${session.fecha} (${formatTo12Hour(session.horaInicio)}) - Parla Sport`
+      isReassignment,
+      isModification,
+      customSubject: adminSubject
     }).catch(err => console.warn('[NotificationContext] Error enviando email de asignación al admin:', err));
 
     // Guardar en Firestore y local

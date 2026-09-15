@@ -42,6 +42,7 @@ const buildEmailTemplate = ({
   players = [],
   isReassignment = false,
   previousCoachName = '',
+  isModification = false,
   originUrl
 }) => {
   const baseUrl = (originUrl || process.env.URL || process.env.DEPLOY_PRIME_URL || 'https://parlasport.netlify.app').replace(/\/+$/, '');
@@ -50,12 +51,14 @@ const buildEmailTemplate = ({
   const formattedStart = session?.horaInicio ? formatTo12Hour(session.horaInicio) : 'Por definir';
   const formattedEnd = session?.horaFin ? formatTo12Hour(session.horaFin) : '';
   const horarioStr = formattedEnd ? `${formattedStart} - ${formattedEnd}` : formattedStart;
-  const headerBorderColor = isReassignment ? '#F59E0B' : '#10B981';
+  const headerBorderColor = isReassignment ? '#F59E0B' : (isModification ? '#0EA5E9' : '#10B981');
   
   // Título en amarillo con texto exacto requerido
   const headerTitle = isReassignment
     ? '⚠️ SESIÓN REASIGNADA'
-    : '⚽ NUEVA SESIÓN DE ENTRENAMIENTO REGISTRADA';
+    : (isModification
+      ? `✏️ SESIÓN MODIFICADA A LAS ${formattedStart.toUpperCase()}`
+      : '⚽ NUEVA SESIÓN DE ENTRENAMIENTO REGISTRADA');
 
   // Normalizar array de jugadores
   const playersList = Array.isArray(players) ? players.map(p => {
@@ -162,7 +165,9 @@ const buildEmailTemplate = ({
               <p style="font-size: 14px; color: #94A3B8; line-height: 1.6;">
                 ${isReassignment
                   ? `Se te ha reasignado una sesión programada originalmente para <strong>${previousCoachName || 'otro profesor'}</strong>.`
-                  : `Se ha registrado una nueva sesión en tu calendario de entrenamientos en Parla Sport:`}
+                  : (isModification
+                    ? `Se ha modificado la sesión asignada a las <strong>${formattedStart}</strong> (alumnos asignados o modalidad actualizada):`
+                    : `Se ha registrado una nueva sesión en tu calendario de entrenamientos en Parla Sport:`)}
               </p>
 
               <!-- Tarjeta de Detalles de la Sesión -->
@@ -262,6 +267,7 @@ exports.handler = async (event, context) => {
       players = [],
       isReassignment = false,
       previousCoachName = '',
+      isModification = false,
       customSubject,
       customHtml,
       originUrl
@@ -283,7 +289,9 @@ exports.handler = async (event, context) => {
 
     const defaultSubject = isReassignment
       ? `⚠️ Reasignación de Sesión: ${session?.fecha || ''} (${horarioStr}) - Parla Sport`
-      : `⚽ Nueva Sesión Asignada: ${session?.fecha || ''} (${horarioStr}) - Parla Sport`;
+      : (isModification
+        ? `✏️ Se ha modificado la sesión asignada a las ${formattedStart} - Parla Sport`
+        : `⚽ Nueva Sesión Asignada: ${session?.fecha || ''} (${horarioStr}) - Parla Sport`);
 
     const subject = customSubject || defaultSubject;
 
@@ -293,6 +301,7 @@ exports.handler = async (event, context) => {
       players,
       isReassignment,
       previousCoachName,
+      isModification,
       originUrl: originUrl || process.env.URL || process.env.DEPLOY_PRIME_URL || 'https://parlasport.netlify.app'
     });
 

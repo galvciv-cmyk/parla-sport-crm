@@ -505,6 +505,7 @@ const SessionDetailModal = ({ isOpen, onClose, session, players = [], coach }) =
                           <span className="badge badge-emerald" style={{ fontSize: '0.7rem' }}>{player.posicion}</span>
                           <span style={{ fontSize: '0.78rem', color: '#94A3B8' }}>• {player.edad} Años</span>
                           <span style={{ fontSize: '0.78rem', color: '#94A3B8' }}>• Pierna: {player.piernaHabil}</span>
+                          <span style={{ fontSize: '0.78rem', color: '#FBBF24' }}>• Club: {player.club || player.equipo || 'Parla Sport'}</span>
                         </div>
                       </div>
                     </div>

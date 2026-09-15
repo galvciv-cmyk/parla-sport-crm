@@ -371,6 +371,9 @@ const PlayerMonthlyReportModal = ({
                 )}
                 <span className="badge badge-gold">{player.edad} Años</span>
                 <span className="badge badge-blue">Pierna: {player.piernaHabil}</span>
+                <span className="badge" style={{ background: 'rgba(245, 158, 11, 0.15)', border: '1px solid rgba(245, 158, 11, 0.4)', color: '#FBBF24', fontSize: '0.72rem', fontWeight: 700 }}>
+                  🛡️ {player.club || player.equipo || 'Parla Sport'}
+                </span>
               </div>
             </div>
 

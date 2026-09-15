@@ -379,16 +379,19 @@ export const buildSessionEmailHtml = ({
   session,
   players = [],
   isReassignment = false,
-  previousCoachName = ''
+  previousCoachName = '',
+  isModification = false
 }) => {
-  const originUrl = typeof window !== 'undefined' ? window.location.origin : 'https://crm-parla-sport.netlify.app';
+  const originUrl = typeof window !== 'undefined' ? window.location.origin : 'https://parlasport.netlify.app';
   const formattedStart = session?.horaInicio ? formatTo12Hour(session.horaInicio) : 'Por definir';
   const formattedEnd = session?.horaFin ? formatTo12Hour(session.horaFin) : '';
   const horarioStr = formattedEnd ? `${formattedStart} - ${formattedEnd}` : formattedStart;
   const tipoSesion = session?.tipo || session?.categoria || '1-1';
   const notasStr = session?.notas || session?.observaciones || 'Sin observaciones previas';
-  const headerColor = isReassignment ? '#F59E0B' : '#10B981';
-  const headerTitle = isReassignment ? '⚠️ Sesión Reasignada' : '⚽ Nueva Sesión de Entrenamiento';
+  const headerColor = isReassignment ? '#F59E0B' : (isModification ? '#0EA5E9' : '#10B981');
+  const headerTitle = isReassignment 
+    ? '⚠️ Sesión Reasignada' 
+    : (isModification ? `✏️ Sesión Modificada a las ${formattedStart}` : '⚽ Nueva Sesión de Entrenamiento');
 
   // Normalizar array de jugadores
   const playersList = Array.isArray(players) ? players.map(p => {
@@ -494,7 +497,9 @@ export const buildSessionEmailHtml = ({
               <p style="font-size: 14px; color: #94A3B8; line-height: 1.6;">
                 ${isReassignment
                   ? `Se te ha reasignado una sesión programada originalmente para <strong>${previousCoachName || 'otro profesor'}</strong>.`
-                  : `Se ha registrado una nueva sesión en tu calendario de entrenamientos en Parla Sport:`}
+                  : (isModification
+                    ? `Se ha modificado la sesión asignada a las <strong>${formattedStart}</strong> (alumnos o modalidad actualizada):`
+                    : `Se ha registrado una nueva sesión en tu calendario de entrenamientos en Parla Sport:`)}
               </p>
 
               <!-- Tarjeta de Detalles de la Sesión -->
@@ -657,6 +662,7 @@ export const sendNetlifyEmail = async ({
   players = [],
   isReassignment = false,
   previousCoachName = '',
+  isModification = false,
   customSubject = null,
   customHtml = null
 }) => {
@@ -681,6 +687,7 @@ export const sendNetlifyEmail = async ({
         players,
         isReassignment,
         previousCoachName,
+        isModification,
         customSubject,
         customHtml,
         originUrl: typeof window !== 'undefined' ? window.location.origin : 'https://parlasport.netlify.app'
@@ -718,7 +725,8 @@ export const sendSessionAssignmentNotification = async ({
   coach,
   players = [],
   isReassignment = false,
-  previousCoachName = ''
+  previousCoachName = '',
+  isModification = false
 }) => {
   if (!session) return;
 
@@ -726,14 +734,25 @@ export const sendSessionAssignmentNotification = async ({
   const coachEmail = (coach?.email || session.entrenadorEmail || '').trim().toLowerCase();
   const coachId = String(coach?.id || session.entrenadorId || '');
   const playerNames = (players || []).map(p => p.nombre || 'Jugador').filter(Boolean);
+  const formattedStart = session?.horaInicio ? formatTo12Hour(session.horaInicio) : '';
 
   const titleCoach = isReassignment
     ? `⚠️ Reasignación: Sesión ${session.tipo || '1-1'}`
-    : `⚽ Nueva Sesión Asignada (${session.tipo || '1-1'})`;
+    : (isModification
+      ? `✏️ Sesión Modificada (${session.tipo || '1-1'})`
+      : `⚽ Nueva Sesión Asignada (${session.tipo || '1-1'})`);
 
   const messageCoach = isReassignment
     ? `Se te ha reasignado la sesión del ${session.fecha} (${formatTo12Hour(session.horaInicio)} - ${formatTo12Hour(session.horaFin)}) por ausencia de ${previousCoachName || 'profesor'}. Jugadores: ${playerNames.join(', ')}.`
-    : `Nueva sesión programada para el ${session.fecha} (${formatTo12Hour(session.horaInicio)} - ${formatTo12Hour(session.horaFin)}). Jugadores: ${playerNames.join(', ')}.`;
+    : (isModification
+      ? `Se ha modificado la sesión asignada a las ${formattedStart} (${session.fecha}). Modalidad: ${session.tipo}. Jugadores: ${playerNames.join(', ')}.`
+      : `Nueva sesión programada para el ${session.fecha} (${formatTo12Hour(session.horaInicio)} - ${formatTo12Hour(session.horaFin)}). Jugadores: ${playerNames.join(', ')}.`);
+
+  const coachSubject = isReassignment
+    ? `⚠️ Reasignación: ${session.fecha} (${formattedStart}) - Parla Sport`
+    : (isModification
+      ? `✏️ Se ha modificado la sesión asignada a las ${formattedStart} - Parla Sport`
+      : `⚽ Nueva Sesión: ${session.fecha} (${formattedStart}) - Parla Sport`);
 
   const results = {};
 
@@ -760,7 +779,9 @@ export const sendSessionAssignmentNotification = async ({
       session,
       players,
       isReassignment,
-      previousCoachName
+      previousCoachName,
+      isModification,
+      customSubject: coachSubject
     }).then(res => {
       results.email = res;
       if (!res.success) {
@@ -770,11 +791,12 @@ export const sendSessionAssignmentNotification = async ({
           session,
           players,
           isReassignment,
-          previousCoachName
+          previousCoachName,
+          isModification
         });
         return sendOneSignalEmail({
           toEmail: coachEmail,
-          subject: `${isReassignment ? '⚠️ Reasignación' : '⚽ Nueva Sesión'}: ${session.fecha} (${formatTo12Hour(session.horaInicio)}) - Parla Sport`,
+          subject: coachSubject,
           htmlBody: emailHtml,
           fromName: 'Parla Sport'
         });

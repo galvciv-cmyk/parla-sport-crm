@@ -504,14 +504,16 @@ export const DataProvider = ({ children }) => {
       console.warn('[DataContext] Error al actualizar sesión en Firestore:', err);
     });
 
-    // Si cambió de entrenador o se modificaron jugadores, notificar en segundo plano
+    // Si cambió de entrenador o se modificó la sesión (jugadores, modalidad, horario), notificar en segundo plano
     if (merged.estado !== 'cancelada' && notifySessionAssignment) {
       const assignedPlayers = players.filter(p => merged.jugadoresIds.includes(p.id));
+      const isDifferentCoach = existing.entrenadorId !== targetCoachId;
       notifySessionAssignment({
         coach: coach || { id: merged.entrenadorId, nombre: merged.entrenadorNombre, email: merged.entrenadorEmail },
         session: merged,
         players: assignedPlayers,
-        isReassignment: existing.entrenadorId !== targetCoachId,
+        isReassignment: isDifferentCoach,
+        isModification: !isDifferentCoach,
         previousCoachName: existing.entrenadorNombre
       }).catch(err => console.warn('[DataContext] Error al notificar edición:', err));
     }
