@@ -21,7 +21,8 @@ const PlayerMonthlyReportModal = ({
   isOpen,
   onClose,
   player,
-  sessions = []
+  sessions = [],
+  onOpenProfile
 }) => {
   // Generar lista de los últimos 12 meses para el selector
   const availableMonths = useMemo(() => {
@@ -204,7 +205,7 @@ const PlayerMonthlyReportModal = ({
     <Modal
       isOpen={isOpen}
       onClose={onClose}
-      title={`📊 Reporte Mensual: ${player.nombre}`}
+      title={`📊 Registro de Rendimiento Deportivo: ${player.nombre}`}
       widthPx="850px"
     >
       <div className="report-container" style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
@@ -240,13 +241,13 @@ const PlayerMonthlyReportModal = ({
             </select>
           </div>
 
-          <div style={{ display: 'flex', gap: '8px' }}>
+          <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
             <button
               type="button"
               className="btn-secondary"
               style={{ padding: '8px 14px', fontSize: '0.82rem', display: 'flex', alignItems: 'center', gap: '6px' }}
               onClick={handlePrint}
-              title="Imprimir o guardar como PDF"
+              title="Imprimir o guardar como PDF este registro"
             >
               <Printer size={15} color="#60A5FA" /> Imprimir / PDF
             </button>
@@ -272,6 +273,28 @@ const PlayerMonthlyReportModal = ({
             >
               <Share2 size={15} /> WhatsApp Tutor
             </button>
+
+            {onOpenProfile && (
+              <button
+                type="button"
+                className="btn-secondary"
+                style={{
+                  background: 'rgba(56, 189, 248, 0.12)',
+                  border: '1px solid rgba(56, 189, 248, 0.3)',
+                  color: '#38BDF8',
+                  padding: '8px 14px',
+                  fontSize: '0.82rem',
+                  fontWeight: 700,
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '6px'
+                }}
+                onClick={() => onOpenProfile(player)}
+                title="Ver y compartir la Ficha / Perfil Oficial con cancha táctica"
+              >
+                <User size={15} /> Ver Perfil Oficial
+              </button>
+            )}
           </div>
         </div>
 
