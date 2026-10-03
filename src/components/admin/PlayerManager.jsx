@@ -1491,357 +1491,418 @@ const PlayerManager = () => {
                 background: '#FFFFFF',
                 color: '#0F172A',
                 fontFamily: 'Inter, system-ui, -apple-system, sans-serif',
-                padding: '24px',
-                boxSizing: 'border-box'
+                boxSizing: 'border-box',
+                border: '2.5px solid #0B1736',
+                borderRadius: '16px',
+                overflow: 'hidden',
+                boxShadow: '0 6px 24px rgba(0,0,0,0.1)'
               }}>
-                {/* Membrete Oficial Parla Sport */}
+                {/* ─── ENCABEZADO MEMBRETADO CREATIVO AZUL MARINO ─── */}
                 <div style={{
+                  background: 'linear-gradient(135deg, #050B17 0%, #0A1633 50%, #0D1E42 100%)',
+                  color: '#FFFFFF',
+                  padding: '20px 24px',
+                  borderBottom: '4px solid #D4AF37',
                   display: 'flex',
                   justifyContent: 'space-between',
                   alignItems: 'center',
-                  borderBottom: '3px solid #D4AF37',
-                  paddingBottom: '14px',
-                  marginBottom: '16px'
+                  position: 'relative',
+                  overflow: 'hidden'
                 }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '14px' }}>
-                    <img
-                      src="/logo.png"
-                      alt="Parla Sport"
-                      style={{ width: '56px', height: '56px', objectFit: 'contain' }}
-                    />
-                    <div>
-                      <h1 style={{ margin: 0, fontSize: '1.45rem', fontWeight: 900, color: '#070F1E', letterSpacing: '-0.02em' }}>
-                        PARLA SPORT
-                      </h1>
-                      <span style={{ fontSize: '0.78rem', color: '#B45309', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.08em' }}>
-                        Ficha Técnica Oficial del Jugador • Perfil Deportivo
-                      </span>
-                    </div>
-                  </div>
+                  {/* Destello y líneas deportivas de fondo */}
+                  <div style={{
+                    position: 'absolute',
+                    top: 0,
+                    right: 0,
+                    bottom: 0,
+                    width: '320px',
+                    backgroundImage: 'radial-gradient(ellipse at 80% 50%, rgba(212, 175, 55, 0.22) 0%, rgba(56, 189, 248, 0.12) 45%, transparent 75%)',
+                    pointerEvents: 'none'
+                  }} />
 
-                  <div style={{ textAlign: 'right' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '16px', position: 'relative', zIndex: 1 }}>
+                    {/* Caja estilizada para enmarcar el logo y que sus letras blancas resalten 100% */}
                     <div style={{
-                      background: 'rgba(16, 185, 129, 0.12)',
-                      border: '1px solid #10B981',
-                      color: '#047857',
-                      padding: '3px 10px',
-                      borderRadius: '6px',
-                      fontSize: '0.75rem',
-                      fontWeight: 800,
-                      display: 'inline-block',
-                      marginBottom: '4px'
-                    }}>
-                      EXPEDIENTE OFICIAL
-                    </div>
-                    <div style={{ fontSize: '0.72rem', color: '#64748B' }}>
-                      Fecha de Emisión: {new Date().toLocaleDateString('es-ES', { day: '2-digit', month: 'long', year: 'numeric' })}
-                    </div>
-                  </div>
-                </div>
-
-                {/* Cabecera del Jugador: Foto + Nombre + Datos Principales */}
-                <div style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '18px',
-                  background: '#F8FAFC',
-                  border: '1.5px solid #E2E8F0',
-                  borderRadius: '12px',
-                  padding: '16px',
-                  marginBottom: '16px'
-                }}>
-                  {playerToPrint.foto ? (
-                    <img
-                      src={playerToPrint.foto}
-                      alt={playerToPrint.nombre}
-                      style={{
-                        width: '92px',
-                        height: '92px',
-                        borderRadius: '14px',
-                        objectFit: 'cover',
-                        border: '2.5px solid #D4AF37',
-                        boxShadow: '0 4px 10px rgba(0,0,0,0.1)',
-                        flexShrink: 0
-                      }}
-                    />
-                  ) : (
-                    <div style={{
-                      width: '92px',
-                      height: '92px',
+                      width: '64px',
+                      height: '64px',
                       borderRadius: '14px',
-                      background: 'linear-gradient(135deg, #070F1E 0%, #0F172A 100%)',
-                      border: '2.5px solid #D4AF37',
+                      background: 'linear-gradient(135deg, rgba(255, 255, 255, 0.12) 0%, rgba(255, 255, 255, 0.03) 100%)',
+                      border: '2px solid rgba(212, 175, 55, 0.8)',
+                      boxShadow: '0 4px 14px rgba(0, 0, 0, 0.5), inset 0 0 12px rgba(212, 175, 55, 0.25)',
                       display: 'flex',
                       alignItems: 'center',
                       justifyContent: 'center',
-                      padding: '8px',
+                      padding: '5px',
                       flexShrink: 0
                     }}>
-                      <img src="/logo.png" alt="Parla Sport" style={{ width: '70px', height: '70px', objectFit: 'contain' }} />
+                      <img
+                        src="/logo.png"
+                        alt="Parla Sport"
+                        style={{ width: '54px', height: '54px', objectFit: 'contain' }}
+                      />
                     </div>
-                  )}
 
-                  <div style={{ flex: 1, minWidth: 0 }}>
-                    <h2 style={{ fontSize: '1.65rem', fontWeight: 800, color: '#0F172A', margin: '0 0 6px 0', letterSpacing: '-0.02em' }}>
-                      {playerToPrint.nombre}
-                    </h2>
-
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
-                      <span style={{
-                        background: '#FEF3C7',
-                        border: '1.5px solid #F59E0B',
-                        color: '#92400E',
-                        padding: '3px 10px',
-                        borderRadius: '6px',
-                        fontSize: '0.8rem',
-                        fontWeight: 800
+                    <div>
+                      <div style={{
+                        fontSize: '1.55rem',
+                        fontWeight: 900,
+                        color: '#FFFFFF',
+                        letterSpacing: '0.04em',
+                        lineHeight: 1.1,
+                        textShadow: '0 2px 8px rgba(0, 0, 0, 0.7)'
                       }}>
-                        Año {birthYear || 'N/D'} {playerToPrint.edad ? `(${playerToPrint.edad} años)` : ''}
-                      </span>
-
-                      <span style={{
-                        background: '#E0F2FE',
-                        border: '1.5px solid #0284C7',
-                        color: '#0369A1',
-                        padding: '3px 10px',
-                        borderRadius: '6px',
-                        fontSize: '0.8rem',
-                        fontWeight: 800
+                        PARLA SPORT
+                      </div>
+                      <div style={{
+                        fontSize: '0.78rem',
+                        color: '#FBBF24',
+                        fontWeight: 800,
+                        letterSpacing: '0.12em',
+                        textTransform: 'uppercase',
+                        marginTop: '4px',
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '6px'
                       }}>
-                        {playerToPrint.posicion || 'Jugador'}
-                      </span>
+                        <span>TRAINING ACADEMY</span>
+                        <span style={{ color: 'rgba(255,255,255,0.4)' }}>•</span>
+                        <span style={{ color: '#38BDF8' }}>FICHA TÉCNICA OFICIAL</span>
+                      </div>
+                    </div>
+                  </div>
 
-                      {Array.isArray(playerPositions) && playerPositions.length > 0 && (
-                        playerPositions.map(pCode => (
-                          <span
-                            key={pCode}
-                            style={{
-                              background: '#F1F5F9',
-                              border: '1px solid #94A3B8',
-                              color: '#1E293B',
-                              fontSize: '0.72rem',
-                              fontWeight: 800,
-                              padding: '2px 8px',
-                              borderRadius: '6px'
-                            }}
-                          >
-                            {pCode}
-                          </span>
-                        ))
-                      )}
+                  <div style={{ textAlign: 'right', position: 'relative', zIndex: 1 }}>
+                    <div style={{
+                      background: 'rgba(212, 175, 55, 0.18)',
+                      border: '1.5px solid #D4AF37',
+                      color: '#FDE68A',
+                      padding: '5px 14px',
+                      borderRadius: '20px',
+                      fontSize: '0.72rem',
+                      fontWeight: 800,
+                      letterSpacing: '0.08em',
+                      textTransform: 'uppercase',
+                      display: 'inline-block',
+                      marginBottom: '5px',
+                      boxShadow: '0 2px 8px rgba(0,0,0,0.3)'
+                    }}>
+                      ⭐ EXPEDIENTE DEPORTIVO
+                    </div>
+                    <div style={{ fontSize: '0.74rem', color: '#CBD5E1', fontWeight: 600 }}>
+                      Fecha de Emisión: <strong style={{ color: '#FFFFFF' }}>{new Date().toLocaleDateString('es-ES', { day: '2-digit', month: 'long', year: 'numeric' })}</strong>
                     </div>
                   </div>
                 </div>
 
-                {/* Grid 2 Columnas: Cancha Táctica (Izq) vs Ficha de Atributos (Der) */}
-                <div style={{
-                  display: 'grid',
-                  gridTemplateColumns: '1.15fr 1fr',
-                  gap: '16px',
-                  marginBottom: '16px',
-                  alignItems: 'stretch'
-                }}>
-                  {/* Columna Izquierda: Diagrama de Cancha Táctica */}
+                {/* ─── CUERPO DE LA FICHA DEL JUGADOR ─── */}
+                <div style={{ padding: '20px', display: 'flex', flexDirection: 'column', gap: '14px' }}>
+
+                  {/* Cabecera del Jugador: Foto + Nombre + Datos Principales */}
                   <div style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '18px',
                     background: '#F8FAFC',
                     border: '1.5px solid #E2E8F0',
                     borderRadius: '12px',
-                    padding: '14px',
-                    display: 'flex',
-                    flexDirection: 'column',
-                    gap: '8px'
+                    padding: '16px'
                   }}>
-                    <div style={{
-                      fontSize: '0.78rem',
-                      fontWeight: 800,
-                      color: '#0284C7',
-                      textTransform: 'uppercase',
-                      letterSpacing: '0.5px',
-                      display: 'flex',
-                      alignItems: 'center',
-                      gap: '6px'
-                    }}>
-                      ⚽ Ubicación en Cancha Táctica:
-                    </div>
-
-                    <div style={{ transform: 'scale(0.95)', transformOrigin: 'top center' }}>
-                      <FieldPositionSelector
-                        selectedPositions={playerPositions}
-                        readOnly={true}
-                        compact={true}
+                    {playerToPrint.foto ? (
+                      <img
+                        src={playerToPrint.foto}
+                        alt={playerToPrint.nombre}
+                        style={{
+                          width: '92px',
+                          height: '92px',
+                          borderRadius: '14px',
+                          objectFit: 'cover',
+                          border: '2.5px solid #D4AF37',
+                          boxShadow: '0 4px 10px rgba(0,0,0,0.1)',
+                          flexShrink: 0
+                        }}
                       />
-                    </div>
-                  </div>
-
-                  {/* Columna Derecha: Tarjetas de Pierna Hábil, Club y Tutor */}
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', justifyContent: 'center' }}>
-                    <div style={{
-                      background: '#F8FAFC',
-                      border: '1.5px solid #E2E8F0',
-                      borderRadius: '10px',
-                      padding: '12px 14px',
-                      display: 'flex',
-                      alignItems: 'center',
-                      gap: '12px'
-                    }}>
+                    ) : (
                       <div style={{
-                        width: '38px',
-                        height: '38px',
-                        borderRadius: '8px',
-                        background: '#DBEAFE',
-                        border: '1px solid #93C5FD',
+                        width: '92px',
+                        height: '92px',
+                        borderRadius: '14px',
+                        background: 'linear-gradient(135deg, #070F1E 0%, #0F172A 100%)',
+                        border: '2.5px solid #D4AF37',
                         display: 'flex',
                         alignItems: 'center',
                         justifyContent: 'center',
-                        fontSize: '1.2rem',
+                        padding: '8px',
                         flexShrink: 0
                       }}>
-                        🦶
+                        <img src="/logo.png" alt="Parla Sport" style={{ width: '70px', height: '70px', objectFit: 'contain' }} />
                       </div>
-                      <div>
-                        <div style={{ fontSize: '0.68rem', color: '#64748B', textTransform: 'uppercase', fontWeight: 800 }}>
-                          Pierna Hábil
-                        </div>
-                        <div style={{ fontSize: '1.05rem', fontWeight: 800, color: '#0F172A', marginTop: '1px' }}>
-                          {playerToPrint.piernaHabil || 'Derecha'}
-                        </div>
+                    )}
+
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <h2 style={{ fontSize: '1.65rem', fontWeight: 800, color: '#0F172A', margin: '0 0 6px 0', letterSpacing: '-0.02em' }}>
+                        {playerToPrint.nombre}
+                      </h2>
+
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+                        <span style={{
+                          background: '#FEF3C7',
+                          border: '1.5px solid #F59E0B',
+                          color: '#92400E',
+                          padding: '3px 10px',
+                          borderRadius: '6px',
+                          fontSize: '0.8rem',
+                          fontWeight: 800
+                        }}>
+                          Año {birthYear || 'N/D'} {playerToPrint.edad ? `(${playerToPrint.edad} años)` : ''}
+                        </span>
+
+                        <span style={{
+                          background: '#E0F2FE',
+                          border: '1.5px solid #0284C7',
+                          color: '#0369A1',
+                          padding: '3px 10px',
+                          borderRadius: '6px',
+                          fontSize: '0.8rem',
+                          fontWeight: 800
+                        }}>
+                          {playerToPrint.posicion || 'Jugador'}
+                        </span>
+
+                        {Array.isArray(playerPositions) && playerPositions.length > 0 && (
+                          playerPositions.map(pCode => (
+                            <span
+                              key={pCode}
+                              style={{
+                                background: '#F1F5F9',
+                                border: '1px solid #94A3B8',
+                                color: '#1E293B',
+                                fontSize: '0.72rem',
+                                fontWeight: 800,
+                                padding: '2px 8px',
+                                borderRadius: '6px'
+                              }}
+                            >
+                              {pCode}
+                            </span>
+                          ))
+                        )}
                       </div>
                     </div>
+                  </div>
 
+                  {/* Grid 2 Columnas: Cancha Táctica (Izq) vs Ficha de Atributos (Der) */}
+                  <div style={{
+                    display: 'grid',
+                    gridTemplateColumns: '1.15fr 1fr',
+                    gap: '16px',
+                    alignItems: 'stretch'
+                  }}>
+                    {/* Columna Izquierda: Diagrama de Cancha Táctica */}
                     <div style={{
                       background: '#F8FAFC',
                       border: '1.5px solid #E2E8F0',
-                      borderRadius: '10px',
-                      padding: '12px 14px',
+                      borderRadius: '12px',
+                      padding: '14px',
                       display: 'flex',
-                      alignItems: 'center',
-                      gap: '12px'
+                      flexDirection: 'column',
+                      gap: '8px'
                     }}>
                       <div style={{
-                        width: '38px',
-                        height: '38px',
-                        borderRadius: '8px',
-                        background: '#FEF3C7',
-                        border: '1px solid #FCD34D',
+                        fontSize: '0.78rem',
+                        fontWeight: 800,
+                        color: '#0284C7',
+                        textTransform: 'uppercase',
+                        letterSpacing: '0.5px',
                         display: 'flex',
                         alignItems: 'center',
-                        justifyContent: 'center',
-                        fontSize: '1.2rem',
-                        flexShrink: 0
+                        gap: '6px'
                       }}>
-                        🛡️
+                        ⚽ Ubicación en Cancha Táctica:
                       </div>
-                      <div>
-                        <div style={{ fontSize: '0.68rem', color: '#64748B', textTransform: 'uppercase', fontWeight: 800 }}>
-                          Club donde entrena
-                        </div>
-                        <div style={{ fontSize: '1.05rem', fontWeight: 800, color: '#0F172A', marginTop: '1px' }}>
-                          {playerToPrint.club || playerToPrint.equipo || 'Parla Sport'}
-                        </div>
+
+                      <div style={{ transform: 'scale(0.95)', transformOrigin: 'top center' }}>
+                        <FieldPositionSelector
+                          selectedPositions={playerPositions}
+                          readOnly={true}
+                          compact={true}
+                        />
                       </div>
                     </div>
 
-                    <div style={{
-                      background: '#F8FAFC',
-                      border: '1.5px solid #E2E8F0',
-                      borderRadius: '10px',
-                      padding: '12px 14px',
-                      display: 'flex',
-                      alignItems: 'center',
-                      gap: '12px'
-                    }}>
+                    {/* Columna Derecha: Tarjetas de Pierna Hábil, Club y Tutor */}
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', justifyContent: 'center' }}>
                       <div style={{
-                        width: '38px',
-                        height: '38px',
-                        borderRadius: '8px',
-                        background: '#D1FAE5',
-                        border: '1px solid #6EE7B7',
+                        background: '#F8FAFC',
+                        border: '1.5px solid #E2E8F0',
+                        borderRadius: '10px',
+                        padding: '12px 14px',
                         display: 'flex',
                         alignItems: 'center',
-                        justifyContent: 'center',
-                        fontSize: '1.2rem',
-                        flexShrink: 0
+                        gap: '12px'
                       }}>
-                        📞
-                      </div>
-                      <div>
-                        <div style={{ fontSize: '0.68rem', color: '#64748B', textTransform: 'uppercase', fontWeight: 800 }}>
-                          Contacto Tutor / Representante
+                        <div style={{
+                          width: '38px',
+                          height: '38px',
+                          borderRadius: '8px',
+                          background: '#DBEAFE',
+                          border: '1px solid #93C5FD',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          fontSize: '1.2rem',
+                          flexShrink: 0
+                        }}>
+                          🦶
                         </div>
-                        <div style={{ fontSize: '0.95rem', fontWeight: 800, color: '#0F172A', marginTop: '1px' }}>
-                          {playerToPrint.contactoTutor || 'No registrado'}
+                        <div>
+                          <div style={{ fontSize: '0.68rem', color: '#64748B', textTransform: 'uppercase', fontWeight: 800 }}>
+                            Pierna Hábil
+                          </div>
+                          <div style={{ fontSize: '1.05rem', fontWeight: 800, color: '#0F172A', marginTop: '1px' }}>
+                            {playerToPrint.piernaHabil || 'Derecha'}
+                          </div>
+                        </div>
+                      </div>
+
+                      <div style={{
+                        background: '#F8FAFC',
+                        border: '1.5px solid #E2E8F0',
+                        borderRadius: '10px',
+                        padding: '12px 14px',
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '12px'
+                      }}>
+                        <div style={{
+                          width: '38px',
+                          height: '38px',
+                          borderRadius: '8px',
+                          background: '#FEF3C7',
+                          border: '1px solid #FCD34D',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          fontSize: '1.2rem',
+                          flexShrink: 0
+                        }}>
+                          🛡️
+                        </div>
+                        <div>
+                          <div style={{ fontSize: '0.68rem', color: '#64748B', textTransform: 'uppercase', fontWeight: 800 }}>
+                            Club donde entrena
+                          </div>
+                          <div style={{ fontSize: '1.05rem', fontWeight: 800, color: '#0F172A', marginTop: '1px' }}>
+                            {playerToPrint.club || playerToPrint.equipo || 'Parla Sport'}
+                          </div>
+                        </div>
+                      </div>
+
+                      <div style={{
+                        background: '#F8FAFC',
+                        border: '1.5px solid #E2E8F0',
+                        borderRadius: '10px',
+                        padding: '12px 14px',
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '12px'
+                      }}>
+                        <div style={{
+                          width: '38px',
+                          height: '38px',
+                          borderRadius: '8px',
+                          background: '#D1FAE5',
+                          border: '1px solid #6EE7B7',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          fontSize: '1.2rem',
+                          flexShrink: 0
+                        }}>
+                          📞
+                        </div>
+                        <div>
+                          <div style={{ fontSize: '0.68rem', color: '#64748B', textTransform: 'uppercase', fontWeight: 800 }}>
+                            Contacto Tutor / Representante
+                          </div>
+                          <div style={{ fontSize: '0.95rem', fontWeight: 800, color: '#0F172A', marginTop: '1px' }}>
+                            {playerToPrint.contactoTutor || 'No registrado'}
+                          </div>
                         </div>
                       </div>
                     </div>
                   </div>
-                </div>
 
-                {/* Observación General */}
-                <div style={{
-                  background: '#F8FAFC',
-                  border: '1.5px solid #E2E8F0',
-                  borderRadius: '10px',
-                  padding: '12px 16px',
-                  marginBottom: '14px'
-                }}>
-                  <div style={{ fontSize: '0.78rem', fontWeight: 800, color: '#B45309', textTransform: 'uppercase', marginBottom: '4px' }}>
-                    📝 Observación General del Jugador
-                  </div>
-                  <div style={{ fontSize: '0.88rem', color: '#1E293B', lineHeight: 1.5, fontStyle: playerToPrint.observacionesTecnicas ? 'normal' : 'italic' }}>
-                    {playerToPrint.observacionesTecnicas || 'Sin observaciones técnicas generales registradas en el expediente del jugador.'}
-                  </div>
-                </div>
-
-                {/* Observaciones de Profesores en Sesiones */}
-                {sessionNotes.length > 0 && (
+                  {/* Observación General */}
                   <div style={{
                     background: '#F8FAFC',
                     border: '1.5px solid #E2E8F0',
                     borderRadius: '10px',
-                    padding: '12px 16px',
-                    marginBottom: '14px'
+                    padding: '12px 16px'
                   }}>
-                    <div style={{ fontSize: '0.78rem', fontWeight: 800, color: '#0284C7', textTransform: 'uppercase', marginBottom: '8px' }}>
-                      💬 Observaciones Registradas por los Profesores en Sesiones:
+                    <div style={{ fontSize: '0.78rem', fontWeight: 800, color: '#B45309', textTransform: 'uppercase', marginBottom: '4px' }}>
+                      📝 Observación General del Jugador
                     </div>
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                      {sessionNotes.slice(0, 3).map((obs) => (
-                        <div
-                          key={obs.id}
-                          style={{
-                            background: '#FFFFFF',
-                            border: '1px solid #E2E8F0',
-                            borderLeft: '4px solid #10B981',
-                            padding: '8px 12px',
-                            borderRadius: '0 8px 8px 0',
-                            fontSize: '0.8rem'
-                          }}
-                        >
-                          <div style={{ display: 'flex', justifyContent: 'space-between', color: '#047857', fontWeight: 800, marginBottom: '2px', fontSize: '0.75rem' }}>
-                            <span>Prof. {obs.autorNombre || 'Entrenador'}</span>
-                            <span style={{ color: '#64748B' }}>{obs.fecha}</span>
-                          </div>
-                          <div style={{ color: '#0F172A', fontStyle: 'italic', lineHeight: 1.4 }}>
-                            "{obs.texto}"
-                          </div>
-                        </div>
-                      ))}
+                    <div style={{ fontSize: '0.88rem', color: '#1E293B', lineHeight: 1.5, fontStyle: playerToPrint.observacionesTecnicas ? 'normal' : 'italic' }}>
+                      {playerToPrint.observacionesTecnicas || 'Sin observaciones técnicas generales registradas en el expediente del jugador.'}
                     </div>
                   </div>
-                )}
 
-                {/* Pie de Página Oficial */}
+                  {/* Observaciones de Profesores en Sesiones */}
+                  {sessionNotes.length > 0 && (
+                    <div style={{
+                      background: '#F8FAFC',
+                      border: '1.5px solid #E2E8F0',
+                      borderRadius: '10px',
+                      padding: '12px 16px'
+                    }}>
+                      <div style={{ fontSize: '0.78rem', fontWeight: 800, color: '#0284C7', textTransform: 'uppercase', marginBottom: '8px' }}>
+                        💬 Observaciones Registradas por los Profesores en Sesiones:
+                      </div>
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                        {sessionNotes.slice(0, 3).map((obs) => (
+                          <div
+                            key={obs.id}
+                            style={{
+                              background: '#FFFFFF',
+                              border: '1px solid #E2E8F0',
+                              borderLeft: '4px solid #10B981',
+                              padding: '8px 12px',
+                              borderRadius: '0 8px 8px 0',
+                              fontSize: '0.8rem'
+                            }}
+                          >
+                            <div style={{ display: 'flex', justifyContent: 'space-between', color: '#047857', fontWeight: 800, marginBottom: '2px', fontSize: '0.75rem' }}>
+                              <span>Prof. {obs.autorNombre || 'Entrenador'}</span>
+                              <span style={{ color: '#64748B' }}>{obs.fecha}</span>
+                            </div>
+                            <div style={{ color: '#0F172A', fontStyle: 'italic', lineHeight: 1.4 }}>
+                              "{obs.texto}"
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                </div>
+
+                {/* ─── PIE DE PÁGINA MEMBRETADO CREATIVO AZUL MARINO ─── */}
                 <div style={{
+                  background: 'linear-gradient(135deg, #050B17 0%, #0A1633 100%)',
+                  color: '#94A3B8',
+                  padding: '12px 24px',
+                  borderTop: '2.5px solid #D4AF37',
                   display: 'flex',
                   justifyContent: 'space-between',
                   alignItems: 'center',
-                  borderTop: '1.5px solid #E2E8F0',
-                  paddingTop: '12px',
-                  fontSize: '0.72rem',
-                  color: '#64748B'
+                  fontSize: '0.72rem'
                 }}>
-                  <span><strong>Parla Sport Training Academy</strong> • Documento Oficial del Jugador</span>
-                  <span>Validado por la Dirección Técnica</span>
+                  <span style={{ color: '#E2E8F0', fontWeight: 600 }}>
+                    🏆 <strong>Parla Sport Training Academy</strong> • Sistema de Evaluación y Rendimiento Deportivo
+                  </span>
+                  <span style={{ color: '#FBBF24', fontWeight: 800, letterSpacing: '0.04em' }}>
+                    DOCUMENTO OFICIAL CERTIFICADO
+                  </span>
                 </div>
               </div>
             );

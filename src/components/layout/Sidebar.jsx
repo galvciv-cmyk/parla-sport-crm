@@ -15,6 +15,7 @@ const Sidebar = ({ activeTab, setActiveTab }) => {
 
   const coachMenu = [
     { id: 'coach-calendar', label: 'Mi Calendario', icon: Calendar },
+    { id: 'players', label: 'Fichas de Jugadores', icon: Users },
     { id: 'general-calendar', label: 'Vista Academia (Solo lectura)', icon: Eye },
   ];
 

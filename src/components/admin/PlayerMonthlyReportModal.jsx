@@ -309,46 +309,64 @@ const PlayerMonthlyReportModal = ({
           gap: '20px'
         }}>
           
-          {/* Membrete Oficial */}
-          <div style={{
+          {/* ─── Membrete Oficial Creativo Azul Marino ─── */}
+          <div className="navy-report-header" style={{
+            background: 'linear-gradient(135deg, #050B17 0%, #0A1633 50%, #0D1E42 100%)',
+            color: '#FFFFFF',
+            padding: '16px 20px',
+            borderRadius: '12px',
+            borderBottom: '3.5px solid #D4AF37',
             display: 'flex',
             justifyContent: 'space-between',
             alignItems: 'center',
-            borderBottom: '2px solid rgba(212, 175, 55, 0.3)',
-            paddingBottom: '16px',
             flexWrap: 'wrap',
-            gap: '14px'
+            gap: '14px',
+            position: 'relative',
+            overflow: 'hidden'
           }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '14px' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '14px', position: 'relative', zIndex: 1 }}>
               <div style={{
-                width: '46px',
-                height: '46px',
+                width: '56px',
+                height: '56px',
                 borderRadius: '12px',
-                background: 'linear-gradient(135deg, #10B981 0%, #047857 100%)',
+                background: 'linear-gradient(135deg, rgba(255, 255, 255, 0.12) 0%, rgba(255, 255, 255, 0.03) 100%)',
+                border: '2px solid rgba(212, 175, 55, 0.8)',
+                boxShadow: '0 4px 12px rgba(0, 0, 0, 0.4)',
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'center',
-                boxShadow: '0 4px 12px rgba(16, 185, 129, 0.3)'
+                padding: '4px',
+                flexShrink: 0
               }}>
-                <Award size={26} color="#FFFFFF" />
+                <img src="/logo.png" alt="Parla Sport" style={{ width: '46px', height: '46px', objectFit: 'contain' }} />
               </div>
               <div>
-                <h2 style={{ fontSize: '1.3rem', fontWeight: 800, color: '#F8FAFC', margin: 0, letterSpacing: '-0.02em' }}>
+                <h2 style={{ fontSize: '1.45rem', fontWeight: 900, color: '#FFFFFF', margin: 0, letterSpacing: '0.03em', lineHeight: 1.1 }}>
                   PARLA SPORT
                 </h2>
-                <span style={{ fontSize: '0.8rem', color: '#FBBF24', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                <div style={{ fontSize: '0.76rem', color: '#FBBF24', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.1em', marginTop: '3px' }}>
                   Informe Mensual de Rendimiento Deportivo
-                </span>
+                </div>
               </div>
             </div>
 
-            <div style={{ textAlign: 'right' }}>
-              <div style={{ fontSize: '1.05rem', fontWeight: 800, color: '#38BDF8' }}>
+            <div style={{ textAlign: 'right', position: 'relative', zIndex: 1 }}>
+              <div style={{
+                background: 'rgba(212, 175, 55, 0.18)',
+                border: '1px solid #D4AF37',
+                color: '#FDE68A',
+                padding: '3px 12px',
+                borderRadius: '16px',
+                fontSize: '0.75rem',
+                fontWeight: 800,
+                display: 'inline-block',
+                marginBottom: '4px'
+              }}>
                 {selectedMonthLabel}
               </div>
-              <span style={{ fontSize: '0.75rem', color: '#94A3B8' }}>
-                Fecha de Emisión: {new Date().toLocaleDateString('es-ES')}
-              </span>
+              <div style={{ fontSize: '0.72rem', color: '#CBD5E1' }}>
+                Emisión: <strong style={{ color: '#FFFFFF' }}>{new Date().toLocaleDateString('es-ES', { day: '2-digit', month: 'long', year: 'numeric' })}</strong>
+              </div>
             </div>
           </div>
 
@@ -665,6 +683,12 @@ const PlayerMonthlyReportModal = ({
       {/* Estilos para Vista de Impresión / PDF */}
       <style>{`
         @media print {
+          html, body {
+            overflow: visible !important;
+            height: auto !important;
+            min-height: 100% !important;
+            background: #FFFFFF !important;
+          }
           body * {
             visibility: hidden;
           }
@@ -687,15 +711,32 @@ const PlayerMonthlyReportModal = ({
             box-shadow: none !important;
           }
           #printable-report h2, #printable-report h3, #printable-report div, #printable-report span {
-            color: #0F172A !important;
+            color: #0F172A;
+          }
+          #printable-report .navy-report-header, #printable-report .navy-report-header * {
+            -webkit-print-color-adjust: exact !important;
+            print-color-adjust: exact !important;
+          }
+          #printable-report .navy-report-header h2 {
+            color: #FFFFFF !important;
+          }
+          #printable-report .navy-report-header div, #printable-report .navy-report-header span {
+            color: #FBBF24 !important;
+          }
+          #printable-report .navy-report-header strong {
+            color: #FFFFFF !important;
           }
           #printable-report strong {
-            color: #000000 !important;
+            color: #000000;
           }
           .badge {
             border: 1px solid #94A3B8 !important;
             color: #0F172A !important;
             background: #E2E8F0 !important;
+          }
+          @page {
+            size: A4 portrait;
+            margin: 8mm;
           }
         }
       `}</style>

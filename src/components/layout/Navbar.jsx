@@ -30,6 +30,7 @@ const Navbar = ({ activeTab, setActiveTab }) => {
 
   const coachMenuItems = [
     { id: 'coach-calendar', label: 'Mi Calendario', shortLabel: 'Mi Agenda', icon: Calendar },
+    { id: 'players', label: 'Jugadores', shortLabel: 'Jugadores', icon: Users },
     { id: 'general-calendar', label: 'Vista Academia', shortLabel: 'Academia', icon: Eye },
   ];
 
