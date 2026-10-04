@@ -166,8 +166,75 @@ const NotificationSetupBanner = () => {
   );
 };
 
+const PublicPlayerDossierView = ({ onGoToLogin }) => {
+  return (
+    <div style={{ minHeight: '100vh', backgroundColor: '#060D1E', display: 'flex', flexDirection: 'column' }}>
+      {/* Barra Superior Oficial */}
+      <header style={{
+        background: 'linear-gradient(135deg, #030712 0%, #08132B 45%, #0C1E47 100%)',
+        borderBottom: '3px solid #D4AF37',
+        padding: '12px 24px',
+        display: 'flex',
+        justifyContent: 'space-between',
+        alignItems: 'center',
+        boxShadow: '0 4px 18px rgba(0,0,0,0.5)',
+        position: 'sticky',
+        top: 0,
+        zIndex: 50
+      }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+          <img src="/logo.png" alt="Parla Sport" style={{ width: '42px', height: '42px', objectFit: 'contain' }} />
+          <div>
+            <div style={{ color: '#FFFFFF', fontWeight: 900, fontSize: '1.15rem', letterSpacing: '0.04em' }}>
+              PARLA SPORT TRAINING ACADEMY
+            </div>
+            <div style={{ color: '#FBBF24', fontWeight: 800, fontSize: '0.68rem', letterSpacing: '0.12em', textTransform: 'uppercase' }}>
+              EXPEDIENTE OFICIAL DE SEGUIMIENTO FORMATIVO
+            </div>
+          </div>
+        </div>
+
+        <button
+          type="button"
+          onClick={onGoToLogin}
+          style={{
+            background: 'rgba(255, 255, 255, 0.08)',
+            border: '1px solid rgba(212, 175, 55, 0.4)',
+            color: '#F8FAFC',
+            padding: '7px 14px',
+            borderRadius: '8px',
+            fontSize: '0.78rem',
+            fontWeight: 700,
+            cursor: 'pointer',
+            display: 'flex',
+            alignItems: 'center',
+            gap: '6px',
+            transition: 'all 0.2s ease'
+          }}
+        >
+          🔐 Acceso de Personal
+        </button>
+      </header>
+
+      {/* Contenido: PlayerManager con modal abierto automáticamente */}
+      <main style={{ flex: 1, padding: '24px', maxWidth: '1400px', width: '100%', margin: '0 auto' }}>
+        <Suspense fallback={<ModuleLoadingFallback />}>
+          <PlayerManager />
+        </Suspense>
+      </main>
+    </div>
+  );
+};
+
 const MainContent = () => {
   const { currentUser, role, authLoading } = useAuth();
+  const [currentHash, setCurrentHash] = useState(() => (typeof window !== 'undefined' ? (window.location.hash || '') : ''));
+
+  useEffect(() => {
+    const handleHash = () => setCurrentHash(window.location.hash || '');
+    window.addEventListener('hashchange', handleHash);
+    return () => window.removeEventListener('hashchange', handleHash);
+  }, []);
 
   if (authLoading) {
     return (
@@ -196,7 +263,19 @@ const MainContent = () => {
     );
   }
 
+  const isPublicShareLink = currentHash.startsWith('#player-') || currentHash.startsWith('#report-');
+
   if (!currentUser) {
+    if (isPublicShareLink) {
+      return (
+        <PublicPlayerDossierView
+          onGoToLogin={() => {
+            window.location.hash = '';
+            setCurrentHash('');
+          }}
+        />
+      );
+    }
     return <LoginScreen />;
   }
 

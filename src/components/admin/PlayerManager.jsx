@@ -4,7 +4,7 @@ import {
   UserPlus, Search, Edit3, Trash2, Eye, MessageSquare, BarChart3, 
   Calendar, RotateCcw, Share2, Printer, Award, ShieldCheck, 
   Activity, Compass, CheckCircle2, User, FileText, Clock, MapPin, 
-  Shield
+  Shield, Copy, Link, Check, ExternalLink
 } from 'lucide-react';
 import { useData } from '../../context/DataContext';
 import { useAuth } from '../../context/AuthContext';
@@ -31,6 +31,7 @@ const PlayerManager = () => {
   const [shareModalPlayer, setShareModalPlayer] = useState(null);
   const [printingProfilePlayer, setPrintingProfilePlayer] = useState(null);
   const [isEditing, setIsEditing] = useState(false);
+  const [copiedLink, setCopiedLink] = useState(null);
 
   // Obtener posiciones iniciales para compatibilidad con jugadores existentes
   const getInitialPositions = (player) => {
@@ -297,26 +298,77 @@ const PlayerManager = () => {
     }, 300);
   };
 
-  // Compartir Ficha de Perfil por WhatsApp
+  // Obtener enlace web personalizado directo al perfil de un jugador
+  const getPlayerProfileUrl = (player) => {
+    if (!player || typeof window === 'undefined') return '';
+    return `${window.location.origin}${window.location.pathname}#player-${player.id}`;
+  };
+
+  // Obtener enlace web personalizado directo al informe de asistencias
+  const getPlayerReportUrl = (player) => {
+    if (!player || typeof window === 'undefined') return '';
+    return `${window.location.origin}${window.location.pathname}#report-${player.id}`;
+  };
+
+  // Copiar enlace al portapapeles con feedback instantáneo
+  const handleCopyLink = (url, label = 'Enlace del perfil') => {
+    if (!url) return;
+    const copySuccess = () => {
+      setCopiedLink(url);
+      showToast('Enlace Copiado', `El ${label} se ha copiado al portapapeles.`, 'success');
+      setTimeout(() => setCopiedLink(null), 3000);
+    };
+
+    if (navigator?.clipboard?.writeText) {
+      navigator.clipboard.writeText(url).then(copySuccess).catch(() => {
+        fallbackCopy(url, copySuccess);
+      });
+    } else {
+      fallbackCopy(url, copySuccess);
+    }
+  };
+
+  const fallbackCopy = (text, callback) => {
+    try {
+      const el = document.createElement('textarea');
+      el.value = text;
+      el.style.position = 'fixed';
+      el.style.opacity = '0';
+      document.body.appendChild(el);
+      el.select();
+      document.execCommand('copy');
+      document.body.removeChild(el);
+      if (callback) callback();
+    } catch {
+      showToast('Error', 'No se pudo copiar automáticamente. Por favor selecciónalo manualmente.', 'warning');
+    }
+  };
+
+  // Compartir Ficha de Perfil por WhatsApp con Enlace Personalizado
   const handleShareProfileWhatsApp = (player) => {
     if (!player) return;
     const rawPhone = (player.contactoTutor || '').replace(/[^0-9+]/g, '');
     const birthYear = getPlayerBirthYear(player);
+    const subCat = getPlayerSubCategory(birthYear);
+    const profileUrl = getPlayerProfileUrl(player);
 
-    let text = `⚽ *PARLA SPORT - FICHA OFICIAL DEL JUGADOR*\n\n`;
-    text += `👤 *Nombre:* ${player.nombre}\n`;
-    text += `🎂 *Nacimiento:* ${player.fechaNacimiento || 'N/D'} ${birthYear ? `(Año ${birthYear})` : ''}${player.edad ? ` - ${player.edad} años` : ''}\n`;
-    text += `📍 *Posición Principal:* ${player.posicion}\n`;
+    let text = `⚽ *PARLA SPORT - DOSSIER TÉCNICO OFICIAL*\n\n`;
+    text += `👤 *Deportista:* ${player.nombre}\n`;
+    text += `🎂 *Categoría:* ${subCat} • Gen ${birthYear || 'N/D'}${player.edad ? ` (${player.edad} años)` : ''}\n`;
+    text += `📍 *Demarcación Nominal:* ${player.posicion}\n`;
     if (Array.isArray(player.posicionesCampo) && player.posicionesCampo.length > 0) {
-      text += `🗺️ *Posiciones en Cancha:* ${player.posicionesCampo.join(', ')}\n`;
+      text += `🗺️ *Roles en Cancha:* ${player.posicionesCampo.join(', ')}\n`;
     }
-    text += `🦶 *Pierna Hábil:* ${player.piernaHabil || 'Derecha'}\n`;
-    text += `🛡️ *Club donde entrena:* ${player.club || player.equipo || 'Parla Sport'}\n`;
+    text += `🦶 *Lateralidad:* ${player.piernaHabil || 'Derecha'} (${getLateralidadLabel(player.piernaHabil)})\n`;
+    text += `🛡️ *Club de Adscripción:* ${player.club || player.equipo || 'Parla Sport Academy'}\n`;
     text += `📞 *Tutor / Contacto:* ${player.contactoTutor || 'No registrado'}\n\n`;
     if (player.observacionesTecnicas) {
-      text += `📝 *Observaciones Técnicas:*\n"${player.observacionesTecnicas}"\n\n`;
+      text += `📋 *Diagnóstico Técnico-Táctico:*\n"${player.observacionesTecnicas}"\n\n`;
     }
-    text += `¡Seguimos potenciando el talento! 🏆\n_Academia Parla Sport_`;
+    if (profileUrl) {
+      text += `🔗 *Ver Expediente Interactivo en Línea:*\n${profileUrl}\n\n`;
+    }
+    text += `🏆 *Parla Sport Training Academy*\n_Departamento de Metodología y Alto Rendimiento_`;
 
     const encodedText = encodeURIComponent(text);
     const waUrl = rawPhone
@@ -324,7 +376,31 @@ const PlayerManager = () => {
       : `https://api.whatsapp.com/send?text=${encodedText}`;
 
     window.open(waUrl, '_blank');
-    showToast('Enlace de WhatsApp generado', 'Abriendo WhatsApp con la ficha oficial del jugador.', 'success');
+    showToast('Enlace de WhatsApp generado', 'Abriendo WhatsApp con la ficha oficial y enlace del jugador.', 'success');
+  };
+
+  // Compartir Informe de Asistencias y Rendimiento por WhatsApp
+  const handleShareReportWhatsApp = (player) => {
+    if (!player) return;
+    const rawPhone = (player.contactoTutor || '').replace(/[^0-9+]/g, '');
+    const reportUrl = getPlayerReportUrl(player);
+
+    let text = `📊 *PARLA SPORT - INFORME DE RENDIMIENTO Y ASISTENCIAS*\n\n`;
+    text += `👤 *Deportista:* ${player.nombre}\n`;
+    text += `📍 *Demarcación:* ${player.posicion}\n`;
+    text += `🛡️ *Club:* ${player.club || player.equipo || 'Parla Sport Academy'}\n\n`;
+    if (reportUrl) {
+      text += `🔗 *Consultar Registro de Asistencias en Línea:*\n${reportUrl}\n\n`;
+    }
+    text += `🏆 *Parla Sport Training Academy*\n_Auditoría y Control de Carga Deportiva_`;
+
+    const encodedText = encodeURIComponent(text);
+    const waUrl = rawPhone
+      ? `https://wa.me/${rawPhone.replace('+', '')}?text=${encodedText}`
+      : `https://api.whatsapp.com/send?text=${encodedText}`;
+
+    window.open(waUrl, '_blank');
+    showToast('Enlace de WhatsApp generado', 'Abriendo WhatsApp con el informe de rendimiento.', 'success');
   };
 
   const [playerToDelete, setPlayerToDelete] = useState(null);
@@ -1477,128 +1553,126 @@ const PlayerManager = () => {
       />
     )}
 
-    {/* Modal con las 2 Opciones para Compartir / Exportar */}
+    {/* Modal para Compartir Dossier Técnico y Reporte de Rendimiento */}
     {shareModalPlayer && (
       <Modal
         isOpen={Boolean(shareModalPlayer)}
         onClose={() => setShareModalPlayer(null)}
-        title={`📤 Compartir / Exportar: ${shareModalPlayer.nombre}`}
-        widthPx="680px"
+        title={`📤 Compartir Expediente: ${shareModalPlayer.nombre}`}
+        widthPx="720px"
       >
         <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
-          <p style={{ margin: 0, fontSize: '0.88rem', color: '#94A3B8' }}>
-            Selecciona qué información deseas exportar en PDF o compartir por WhatsApp para <strong>{shareModalPlayer.nombre}</strong>:
-          </p>
 
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '14px' }}>
-            {/* OPCIÓN 1: REGISTRO QUE YA ESTÁ */}
-            <div style={{
-              background: 'linear-gradient(135deg, rgba(15, 23, 42, 0.9) 0%, rgba(30, 41, 59, 0.8) 100%)',
-              border: '1px solid rgba(245, 158, 11, 0.35)',
-              borderRadius: '14px',
-              padding: '16px',
-              display: 'flex',
-              flexDirection: 'column',
-              justifyContent: 'space-between',
-              gap: '12px',
-              boxShadow: '0 4px 14px rgba(0, 0, 0, 0.3)'
-            }}>
-              <div>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
-                  <span className="badge badge-gold" style={{ fontSize: '0.7rem' }}>
-                    Opción 1 • El que ya está
-                  </span>
-                  <BarChart3 size={20} color="#FBBF24" />
-                </div>
-                <h4 style={{ margin: '0 0 6px 0', fontSize: '1rem', fontWeight: 800, color: '#F8FAFC' }}>
-                  📊 Registro de Rendimiento
-                </h4>
-                <p style={{ margin: 0, fontSize: '0.8rem', color: '#94A3B8', lineHeight: 1.5 }}>
-                  Informe de asistencias por mes, horas totales de cancha, porcentaje de asistencia y observaciones técnicas por sesión.
-                </p>
+          {/* Bloque Destacado: Enlace Web Directo y Personalizado */}
+          <div style={{
+            background: 'linear-gradient(135deg, rgba(8, 19, 43, 0.95) 0%, rgba(15, 23, 42, 0.9) 100%)',
+            border: '1.5px solid rgba(212, 175, 55, 0.4)',
+            borderRadius: '14px',
+            padding: '16px 18px',
+            display: 'flex',
+            flexDirection: 'column',
+            gap: '10px',
+            boxShadow: '0 4px 16px rgba(0, 0, 0, 0.35)'
+          }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '8px' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', color: '#FBBF24', fontWeight: 800, fontSize: '0.86rem', letterSpacing: '0.04em' }}>
+                <Link size={16} />
+                <span>ENLACE PERSONALIZADO DEL DEPORTISTA</span>
               </div>
-
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', paddingTop: '10px', borderTop: '1px solid rgba(255, 255, 255, 0.08)' }}>
-                <button
-                  type="button"
-                  className="btn-secondary"
-                  style={{ width: '100%', padding: '7px 12px', fontSize: '0.8rem', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px' }}
-                  onClick={() => {
-                    const p = shareModalPlayer;
-                    setShareModalPlayer(null);
-                    setReportPlayer(p);
-                  }}
-                >
-                  <Printer size={14} color="#60A5FA" /> Ver e Imprimir / PDF
-                </button>
-                <button
-                  type="button"
-                  style={{
-                    width: '100%',
-                    background: 'rgba(16, 185, 129, 0.15)',
-                    border: '1px solid rgba(16, 185, 129, 0.35)',
-                    color: '#34D399',
-                    padding: '7px 12px',
-                    borderRadius: '8px',
-                    fontSize: '0.8rem',
-                    fontWeight: 700,
-                    cursor: 'pointer',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    gap: '6px'
-                  }}
-                  onClick={() => {
-                    const p = shareModalPlayer;
-                    setShareModalPlayer(null);
-                    setReportPlayer(p);
-                  }}
-                >
-                  <Share2 size={14} /> Compartir Asistencias
-                </button>
-              </div>
+              <span style={{ fontSize: '0.72rem', color: '#34D399', fontWeight: 700, background: 'rgba(16, 185, 129, 0.15)', padding: '2px 8px', borderRadius: '4px', border: '1px solid rgba(16, 185, 129, 0.3)' }}>
+                ✓ Enlace Web Único
+              </span>
             </div>
 
-            {/* OPCIÓN 2: COMPARTIR PERFIL (DISEÑO APP) */}
+            <p style={{ margin: 0, fontSize: '0.8rem', color: '#94A3B8', lineHeight: 1.5 }}>
+              Cada deportista cuenta con un enlace web directo y exclusivo. Al enviarlo a padres, representantes o visores deportivos, podrán consultar su expediente en tiempo real:
+            </p>
+
+            <div style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: '8px',
+              background: 'rgba(0, 0, 0, 0.35)',
+              border: '1px solid rgba(255, 255, 255, 0.1)',
+              borderRadius: '8px',
+              padding: '8px 12px'
+            }}>
+              <span style={{
+                flex: 1,
+                fontSize: '0.8rem',
+                color: '#38BDF8',
+                fontFamily: 'monospace',
+                overflow: 'hidden',
+                textOverflow: 'ellipsis',
+                whiteSpace: 'nowrap'
+              }}>
+                {getPlayerProfileUrl(shareModalPlayer)}
+              </span>
+
+              <button
+                type="button"
+                className="btn-primary"
+                style={{
+                  padding: '6px 14px',
+                  fontSize: '0.78rem',
+                  fontWeight: 800,
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '6px',
+                  flexShrink: 0
+                }}
+                onClick={() => handleCopyLink(getPlayerProfileUrl(shareModalPlayer), 'enlace del perfil')}
+              >
+                {copiedLink === getPlayerProfileUrl(shareModalPlayer) ? <Check size={14} /> : <Copy size={14} />}
+                {copiedLink === getPlayerProfileUrl(shareModalPlayer) ? '¡Copiado!' : 'Copiar Enlace'}
+              </button>
+            </div>
+          </div>
+
+          {/* Grid de Formatos Oficiales */}
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(290px, 1fr))', gap: '14px' }}>
+            
+            {/* DOSSIER TÉCNICO Y EXPEDIENTE METODOLÓGICO */}
             <div style={{
               background: 'linear-gradient(135deg, rgba(15, 23, 42, 0.9) 0%, rgba(30, 41, 59, 0.8) 100%)',
-              border: '1px solid rgba(56, 189, 248, 0.4)',
+              border: '1px solid rgba(56, 189, 248, 0.35)',
               borderRadius: '14px',
               padding: '16px',
               display: 'flex',
               flexDirection: 'column',
               justifyContent: 'space-between',
-              gap: '12px',
+              gap: '14px',
               boxShadow: '0 4px 14px rgba(0, 0, 0, 0.3)'
             }}>
               <div>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
-                  <span className="badge badge-blue" style={{ fontSize: '0.7rem' }}>
-                    Opción 2 • Diseño Fiel a la App
+                  <span className="badge badge-blue" style={{ fontSize: '0.7rem', fontWeight: 800 }}>
+                    EXPEDIENTE METODOLÓGICO
                   </span>
-                  <Award size={20} color="#38BDF8" />
+                  <Award size={18} color="#38BDF8" />
                 </div>
-                <h4 style={{ margin: '0 0 6px 0', fontSize: '1rem', fontWeight: 800, color: '#F8FAFC' }}>
-                  📋 Ficha / Perfil Oficial
+                <h4 style={{ margin: '0 0 6px 0', fontSize: '1.05rem', fontWeight: 900, color: '#F8FAFC' }}>
+                  📋 Dossier Técnico Oficial
                 </h4>
                 <p style={{ margin: 0, fontSize: '0.8rem', color: '#94A3B8', lineHeight: 1.5 }}>
-                  PDF idéntico al diseño de la app: Foto, año de nacimiento, <strong>cancha táctica con posición marcada</strong>, pierna hábil, club y observaciones.
+                  Ficha completa con <strong>mapa posicional en cancha táctica</strong>, lateralidad, filiación deportiva, biometría y dictamen técnico integral.
                 </p>
               </div>
 
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', paddingTop: '10px', borderTop: '1px solid rgba(255, 255, 255, 0.08)' }}>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', paddingTop: '10px', borderTop: '1px solid rgba(255, 255, 255, 0.08)' }}>
                 <button
                   type="button"
                   className="btn-primary"
-                  style={{ width: '100%', padding: '7px 12px', fontSize: '0.8rem', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px' }}
+                  style={{ width: '100%', padding: '8px 12px', fontSize: '0.8rem', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px', fontWeight: 700 }}
                   onClick={() => {
                     const p = shareModalPlayer;
                     setShareModalPlayer(null);
                     handlePrintProfile(p);
                   }}
                 >
-                  <Printer size={14} /> Descargar / Imprimir PDF Perfil
+                  <Printer size={15} /> Descargar / Imprimir Dossier PDF
                 </button>
+
                 <button
                   type="button"
                   style={{
@@ -1606,7 +1680,7 @@ const PlayerManager = () => {
                     background: 'rgba(16, 185, 129, 0.15)',
                     border: '1px solid rgba(16, 185, 129, 0.35)',
                     color: '#34D399',
-                    padding: '7px 12px',
+                    padding: '8px 12px',
                     borderRadius: '8px',
                     fontSize: '0.8rem',
                     fontWeight: 700,
@@ -1620,10 +1694,78 @@ const PlayerManager = () => {
                     handleShareProfileWhatsApp(shareModalPlayer);
                   }}
                 >
-                  <Share2 size={14} /> WhatsApp Perfil
+                  <Share2 size={15} /> Compartir por WhatsApp (con enlace)
                 </button>
               </div>
             </div>
+
+            {/* INFORME MENSUAL DE RENDIMIENTO & ASISTENCIAS */}
+            <div style={{
+              background: 'linear-gradient(135deg, rgba(15, 23, 42, 0.9) 0%, rgba(30, 41, 59, 0.8) 100%)',
+              border: '1px solid rgba(245, 158, 11, 0.35)',
+              borderRadius: '14px',
+              padding: '16px',
+              display: 'flex',
+              flexDirection: 'column',
+              justifyContent: 'space-between',
+              gap: '14px',
+              boxShadow: '0 4px 14px rgba(0, 0, 0, 0.3)'
+            }}>
+              <div>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
+                  <span className="badge badge-gold" style={{ fontSize: '0.7rem', fontWeight: 800 }}>
+                    AUDITORÍA DE DESEMPEÑO
+                  </span>
+                  <BarChart3 size={18} color="#FBBF24" />
+                </div>
+                <h4 style={{ margin: '0 0 6px 0', fontSize: '1.05rem', fontWeight: 900, color: '#F8FAFC' }}>
+                  📊 Informe de Rendimiento
+                </h4>
+                <p style={{ margin: 0, fontSize: '0.8rem', color: '#94A3B8', lineHeight: 1.5 }}>
+                  Desglose mensual de microciclos, horas efectivas de cancha, porcentaje de asistencia y bitácora de observaciones del cuerpo técnico.
+                </p>
+              </div>
+
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', paddingTop: '10px', borderTop: '1px solid rgba(255, 255, 255, 0.08)' }}>
+                <button
+                  type="button"
+                  className="btn-secondary"
+                  style={{ width: '100%', padding: '8px 12px', fontSize: '0.8rem', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px', fontWeight: 700 }}
+                  onClick={() => {
+                    const p = shareModalPlayer;
+                    setShareModalPlayer(null);
+                    setReportPlayer(p);
+                  }}
+                >
+                  <Printer size={15} color="#60A5FA" /> Ver e Imprimir Reporte PDF
+                </button>
+
+                <button
+                  type="button"
+                  style={{
+                    width: '100%',
+                    background: 'rgba(16, 185, 129, 0.15)',
+                    border: '1px solid rgba(16, 185, 129, 0.35)',
+                    color: '#34D399',
+                    padding: '8px 12px',
+                    borderRadius: '8px',
+                    fontSize: '0.8rem',
+                    fontWeight: 700,
+                    cursor: 'pointer',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    gap: '6px'
+                  }}
+                  onClick={() => {
+                    handleShareReportWhatsApp(shareModalPlayer);
+                  }}
+                >
+                  <Share2 size={15} /> Compartir Asistencias por WhatsApp
+                </button>
+              </div>
+            </div>
+
           </div>
         </div>
       </Modal>
