@@ -311,11 +311,12 @@ const PlayerMonthlyReportModal = ({
           
           {/* ─── Membrete Oficial Creativo Azul Marino ─── */}
           <div className="navy-report-header" style={{
-            background: 'linear-gradient(135deg, #050B17 0%, #0A1633 50%, #0D1E42 100%)',
+            background: 'linear-gradient(135deg, #030712 0%, #08132B 45%, #0C1E47 100%)',
             color: '#FFFFFF',
-            padding: '16px 20px',
-            borderRadius: '12px',
-            borderBottom: '3.5px solid #D4AF37',
+            padding: '18px 22px',
+            borderRadius: '14px',
+            borderBottom: '4px solid #D4AF37',
+            boxShadow: '0 4px 14px rgba(212, 175, 55, 0.25)',
             display: 'flex',
             justifyContent: 'space-between',
             alignItems: 'center',
@@ -324,28 +325,42 @@ const PlayerMonthlyReportModal = ({
             position: 'relative',
             overflow: 'hidden'
           }}>
+            {/* Destello deportivo de fondo */}
+            <div style={{
+              position: 'absolute',
+              top: 0,
+              right: 0,
+              bottom: 0,
+              width: '340px',
+              backgroundImage: 'radial-gradient(ellipse at 85% 50%, rgba(212, 175, 55, 0.22) 0%, rgba(56, 189, 248, 0.12) 45%, transparent 75%)',
+              pointerEvents: 'none'
+            }} />
+
             <div style={{ display: 'flex', alignItems: 'center', gap: '14px', position: 'relative', zIndex: 1 }}>
               <div style={{
-                width: '56px',
-                height: '56px',
-                borderRadius: '12px',
+                width: '60px',
+                height: '60px',
+                borderRadius: '14px',
                 background: 'linear-gradient(135deg, rgba(255, 255, 255, 0.12) 0%, rgba(255, 255, 255, 0.03) 100%)',
-                border: '2px solid rgba(212, 175, 55, 0.8)',
-                boxShadow: '0 4px 12px rgba(0, 0, 0, 0.4)',
+                border: '2px solid rgba(212, 175, 55, 0.9)',
+                boxShadow: '0 4px 14px rgba(0, 0, 0, 0.5), inset 0 0 10px rgba(212, 175, 55, 0.25)',
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'center',
                 padding: '4px',
                 flexShrink: 0
               }}>
-                <img src="/logo.png" alt="Parla Sport" style={{ width: '46px', height: '46px', objectFit: 'contain' }} />
+                <img src="/logo.png" alt="Parla Sport" style={{ width: '50px', height: '50px', objectFit: 'contain' }} />
               </div>
               <div>
-                <h2 style={{ fontSize: '1.45rem', fontWeight: 900, color: '#FFFFFF', margin: 0, letterSpacing: '0.03em', lineHeight: 1.1 }}>
+                <div style={{ fontSize: '1.5rem', fontWeight: 900, color: '#FFFFFF', margin: 0, letterSpacing: '0.04em', lineHeight: 1.1 }}>
                   PARLA SPORT
-                </h2>
-                <div style={{ fontSize: '0.76rem', color: '#FBBF24', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.1em', marginTop: '3px' }}>
-                  Informe Mensual de Rendimiento Deportivo
+                </div>
+                <div style={{ fontSize: '0.74rem', color: '#FBBF24', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.12em', marginTop: '3px' }}>
+                  TRAINING ACADEMY
+                </div>
+                <div style={{ fontSize: '0.70rem', color: '#38BDF8', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em', marginTop: '2px' }}>
+                  DEPARTAMENTO DE METODOLOGÍA & DESARROLLO DEPORTIVO
                 </div>
               </div>
             </div>
@@ -353,29 +368,35 @@ const PlayerMonthlyReportModal = ({
             <div style={{ textAlign: 'right', position: 'relative', zIndex: 1 }}>
               <div style={{
                 background: 'rgba(212, 175, 55, 0.18)',
-                border: '1px solid #D4AF37',
+                border: '1.5px solid #D4AF37',
                 color: '#FDE68A',
-                padding: '3px 12px',
-                borderRadius: '16px',
-                fontSize: '0.75rem',
+                padding: '4px 14px',
+                borderRadius: '20px',
+                fontSize: '0.72rem',
                 fontWeight: 800,
+                letterSpacing: '0.06em',
+                textTransform: 'uppercase',
                 display: 'inline-block',
-                marginBottom: '4px'
+                marginBottom: '5px',
+                boxShadow: '0 2px 8px rgba(0,0,0,0.3)'
               }}>
-                {selectedMonthLabel}
+                ⭐ AUDITORÍA MENSUAL: {selectedMonthLabel}
               </div>
-              <div style={{ fontSize: '0.72rem', color: '#CBD5E1' }}>
-                Emisión: <strong style={{ color: '#FFFFFF' }}>{new Date().toLocaleDateString('es-ES', { day: '2-digit', month: 'long', year: 'numeric' })}</strong>
+              <div style={{ fontSize: '0.72rem', color: '#CBD5E1', fontWeight: 600 }}>
+                FOLIO: <strong style={{ color: '#F8FAFC', letterSpacing: '0.04em' }}>AUD-{new Date().getFullYear()}-{String(player.id || '001').slice(-4).toUpperCase()}</strong>
+              </div>
+              <div style={{ fontSize: '0.70rem', color: '#94A3B8', marginTop: '2px' }}>
+                Emisión Oficial: <strong style={{ color: '#FFFFFF' }}>{new Date().toLocaleDateString('es-ES', { day: '2-digit', month: 'long', year: 'numeric' })}</strong>
               </div>
             </div>
           </div>
 
-          {/* Tarjeta del Jugador */}
+          {/* Tarjeta de Filiación Deportiva del Jugador */}
           <div style={{
-            background: 'rgba(15, 23, 42, 0.6)',
-            padding: '16px',
+            background: 'rgba(15, 23, 42, 0.75)',
+            padding: '16px 18px',
             borderRadius: '12px',
-            border: '1px solid rgba(255, 255, 255, 0.08)',
+            border: '1.5px solid rgba(255, 255, 255, 0.08)',
             display: 'flex',
             alignItems: 'center',
             gap: '18px',
@@ -385,105 +406,135 @@ const PlayerMonthlyReportModal = ({
               <img
                 src={player.foto}
                 alt={player.nombre}
-                style={{ width: '70px', height: '70px', borderRadius: '14px', objectFit: 'cover', border: '2px solid #10B981' }}
+                style={{ width: '74px', height: '74px', borderRadius: '14px', objectFit: 'cover', border: '2.5px solid #D4AF37', boxShadow: '0 4px 10px rgba(0,0,0,0.3)' }}
               />
             ) : (
               <div style={{
-                width: '70px', height: '70px', borderRadius: '14px',
-                background: 'rgba(16, 185, 129, 0.15)',
-                border: '2px solid rgba(16, 185, 129, 0.4)',
+                width: '74px', height: '74px', borderRadius: '14px',
+                background: 'linear-gradient(135deg, #070F1E 0%, #0F172A 100%)',
+                border: '2.5px solid rgba(212, 175, 55, 0.6)',
                 display: 'flex', alignItems: 'center', justifyContent: 'center',
                 flexShrink: 0
               }}>
-                <User size={34} color="#34D399" />
+                <img src="/logo.png" alt="Parla Sport" style={{ width: '56px', height: '56px', objectFit: 'contain' }} />
               </div>
             )}
 
             <div style={{ flex: 1, minWidth: '220px' }}>
-              <h3 style={{ fontSize: '1.2rem', fontWeight: 800, color: '#F8FAFC', margin: 0 }}>
+              <div style={{ fontSize: '0.68rem', color: '#94A3B8', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.06em' }}>
+                DEPORTISTA AUDITADO
+              </div>
+              <h3 style={{ fontSize: '1.45rem', fontWeight: 900, color: '#F8FAFC', margin: '2px 0 6px 0', letterSpacing: '-0.02em' }}>
                 {player.nombre}
               </h3>
-              <div style={{ display: 'flex', gap: '8px', marginTop: '6px', flexWrap: 'wrap', alignItems: 'center' }}>
-                <span className="badge badge-emerald">{player.posicion}</span>
+              <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap', alignItems: 'center' }}>
+                <span className="badge badge-emerald" style={{ fontWeight: 800, fontSize: '0.74rem' }}>
+                  DEMARCACIÓN: {player.posicion?.toUpperCase() || 'JUGADOR'}
+                </span>
                 {Array.isArray(player.posicionesCampo) && player.posicionesCampo.length > 0 && (
                   <span className="badge" style={{ background: 'rgba(139, 92, 246, 0.2)', border: '1px solid #8B5CF6', color: '#C4B5FD', fontSize: '0.72rem', fontWeight: 800 }}>
-                    {player.posicionesCampo.map(p => p === 'DFCI' ? 'DFC (I)' : p === 'DFCD' ? 'DFC (D)' : p).join(' • ')}
+                    ROLES: {player.posicionesCampo.map(p => p === 'DFCI' ? 'DFC (I)' : p === 'DFCD' ? 'DFC (D)' : p).join(' • ')}
                   </span>
                 )}
-                <span className="badge badge-gold">{player.edad} Años</span>
-                <span className="badge badge-blue">Pierna: {player.piernaHabil}</span>
+                <span className="badge badge-gold" style={{ fontWeight: 800, fontSize: '0.74rem' }}>
+                  {player.edad} AÑOS
+                </span>
+                <span className="badge badge-blue" style={{ fontWeight: 800, fontSize: '0.74rem' }}>
+                  LATERALIDAD: {player.piernaHabil || 'Derecha'}
+                </span>
                 <span className="badge" style={{ background: 'rgba(245, 158, 11, 0.15)', border: '1px solid rgba(245, 158, 11, 0.4)', color: '#FBBF24', fontSize: '0.72rem', fontWeight: 700 }}>
-                  🛡️ {player.club || player.equipo || 'Parla Sport'}
+                  🛡️ {player.club || player.equipo || 'Parla Sport Academy'}
                 </span>
               </div>
             </div>
 
-            <div style={{ fontSize: '0.8rem', color: '#94A3B8', textAlign: 'right' }}>
+            <div style={{ fontSize: '0.76rem', color: '#94A3B8', textAlign: 'right' }}>
               <div><strong>F. Nacimiento:</strong> {player.fechaNacimiento || 'N/A'}</div>
-              <div><strong>Tutor:</strong> {player.contactoTutor || 'No registrado'}</div>
+              <div><strong>Tutor Legal:</strong> {player.contactoTutor || 'No registrado'}</div>
+              <div style={{ color: '#34D399', fontWeight: 700, marginTop: '2px' }}>● Estado: En Seguimiento Activo</div>
             </div>
           </div>
 
-          {/* Tarjetas KPI del Mes */}
+          {/* Tarjetas KPI de Rendimiento y Carga del Mes */}
           <div style={{
             display: 'grid',
-            gridTemplateColumns: 'repeat(auto-fit, minmax(130px, 1fr))',
+            gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))',
             gap: '12px'
           }}>
             <div style={{
               background: 'rgba(16, 185, 129, 0.1)',
-              border: '1px solid rgba(16, 185, 129, 0.25)',
-              padding: '12px',
+              border: '1.5px solid rgba(16, 185, 129, 0.3)',
+              padding: '12px 14px',
               borderRadius: '10px',
               textAlign: 'center'
             }}>
-              <span style={{ fontSize: '0.72rem', color: '#94A3B8', fontWeight: 600 }}>SESIONES REALIZADAS</span>
-              <div style={{ fontSize: '1.4rem', fontWeight: 800, color: '#34D399', marginTop: '2px' }}>
-                {stats.completed} <span style={{ fontSize: '0.85rem', color: '#64748B', fontWeight: 500 }}>/ {stats.total}</span>
+              <span style={{ fontSize: '0.68rem', color: '#94A3B8', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.04em' }}>
+                VOLUMEN DE SESIONES
+              </span>
+              <div style={{ fontSize: '1.45rem', fontWeight: 900, color: '#34D399', marginTop: '2px' }}>
+                {stats.completed} <span style={{ fontSize: '0.85rem', color: '#64748B', fontWeight: 600 }}>/ {stats.total}</span>
+              </div>
+              <div style={{ fontSize: '0.66rem', color: '#10B981', fontWeight: 600, marginTop: '2px' }}>
+                Convocatorias Realizadas
               </div>
             </div>
 
             <div style={{
               background: 'rgba(59, 130, 246, 0.1)',
-              border: '1px solid rgba(59, 130, 246, 0.25)',
-              padding: '12px',
+              border: '1.5px solid rgba(59, 130, 246, 0.3)',
+              padding: '12px 14px',
               borderRadius: '10px',
               textAlign: 'center'
             }}>
-              <span style={{ fontSize: '0.72rem', color: '#94A3B8', fontWeight: 600 }}>% ASISTENCIA</span>
-              <div style={{ fontSize: '1.4rem', fontWeight: 800, color: '#60A5FA', marginTop: '2px' }}>
+              <span style={{ fontSize: '0.68rem', color: '#94A3B8', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.04em' }}>
+                ÍNDICE DE ASISTENCIA
+              </span>
+              <div style={{ fontSize: '1.45rem', fontWeight: 900, color: '#60A5FA', marginTop: '2px' }}>
                 {stats.attendanceRate}%
+              </div>
+              <div style={{ fontSize: '0.66rem', color: '#3B82F6', fontWeight: 600, marginTop: '2px' }}>
+                Tasa de Adherencia al Plan
               </div>
             </div>
 
             <div style={{
               background: 'rgba(245, 158, 11, 0.1)',
-              border: '1px solid rgba(245, 158, 11, 0.25)',
-              padding: '12px',
+              border: '1.5px solid rgba(245, 158, 11, 0.3)',
+              padding: '12px 14px',
               borderRadius: '10px',
               textAlign: 'center'
             }}>
-              <span style={{ fontSize: '0.72rem', color: '#94A3B8', fontWeight: 600 }}>HORAS DE CANCHA</span>
-              <div style={{ fontSize: '1.4rem', fontWeight: 800, color: '#FBBF24', marginTop: '2px' }}>
+              <span style={{ fontSize: '0.68rem', color: '#94A3B8', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.04em' }}>
+                TIEMPO EFECTIVO (TET)
+              </span>
+              <div style={{ fontSize: '1.45rem', fontWeight: 900, color: '#FBBF24', marginTop: '2px' }}>
                 {stats.hoursTrained} hrs
+              </div>
+              <div style={{ fontSize: '0.66rem', color: '#D97706', fontWeight: 600, marginTop: '2px' }}>
+                Carga Técnica en Cancha
               </div>
             </div>
 
             <div style={{
               background: 'rgba(168, 85, 247, 0.1)',
-              border: '1px solid rgba(168, 85, 247, 0.25)',
-              padding: '12px',
+              border: '1.5px solid rgba(168, 85, 247, 0.3)',
+              padding: '12px 14px',
               borderRadius: '10px',
               textAlign: 'center'
             }}>
-              <span style={{ fontSize: '0.72rem', color: '#94A3B8', fontWeight: 600 }}>OBSERVACIONES TOTALES</span>
-              <div style={{ fontSize: '1.4rem', fontWeight: 800, color: '#C084FC', marginTop: '2px' }}>
-                {allObservations.length}
+              <span style={{ fontSize: '0.68rem', color: '#94A3B8', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.04em' }}>
+                DEVOLUCIONES TÉCNICAS
+              </span>
+              <div style={{ fontSize: '1.45rem', fontWeight: 900, color: '#C084FC', marginTop: '2px' }}>
+                {displayedObservations.length}
+              </div>
+              <div style={{ fontSize: '0.66rem', color: '#A855F7', fontWeight: 600, marginTop: '2px' }}>
+                Evaluaciones Registradas
               </div>
             </div>
           </div>
 
-          {/* Historial de Observaciones Técnicas de los Profesores */}
+          {/* Bitácora de Evaluaciones Técnicas del Cuerpo Técnico */}
           <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
             <div style={{
               display: 'flex',
@@ -503,10 +554,10 @@ const PlayerMonthlyReportModal = ({
                 gap: '8px'
               }}>
                 <MessageSquare size={18} color="#10B981" />
-                Observaciones y Evaluaciones de los Profesores:
+                BITÁCORA DE CAMPO: DEVOLUCIONES DEL CUERPO TÉCNICO EN SESIÓN
               </div>
 
-              {/* Selector de filtro de observaciones (Mes vs Todo el Historial) */}
+              {/* Selector de filtro de observaciones */}
               <div className="no-print" style={{ display: 'flex', gap: '6px', background: 'rgba(15, 23, 42, 0.8)', padding: '3px', borderRadius: '8px', border: '1px solid rgba(255, 255, 255, 0.08)' }}>
                 <button
                   type="button"
@@ -523,7 +574,7 @@ const PlayerMonthlyReportModal = ({
                   }}
                   onClick={() => setFilterMode('all')}
                 >
-                  📚 Todas ({allObservations.length})
+                  📚 Historial Completo ({allObservations.length})
                 </button>
 
                 <button
@@ -541,7 +592,7 @@ const PlayerMonthlyReportModal = ({
                   }}
                   onClick={() => setFilterMode('month')}
                 >
-                  📅 Este Mes ({monthObservations.length})
+                  📅 Mes Actual ({monthObservations.length})
                 </button>
               </div>
             </div>
@@ -557,7 +608,7 @@ const PlayerMonthlyReportModal = ({
                 fontStyle: 'italic'
               }}>
                 {filterMode === 'month'
-                  ? `No hay observaciones registradas en ${selectedMonthLabel}. Puedes pulsar en "Todas" para ver el historial acumulado.`
+                  ? `No hay observaciones registradas en ${selectedMonthLabel}. Puedes pulsar en "Historial Completo" para ver el registro acumulado.`
                   : 'Aún no se han registrado observaciones técnicas de los profesores para este alumno.'}
               </div>
             ) : (
@@ -585,8 +636,8 @@ const PlayerMonthlyReportModal = ({
                       gap: '6px'
                     }}>
                       <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                        <span style={{ color: '#34D399', fontWeight: 700, display: 'flex', alignItems: 'center', gap: '4px' }}>
-                          <ShieldCheck size={14} /> {obs.autorNombre || 'Entrenador'}
+                        <span style={{ color: '#34D399', fontWeight: 800, display: 'flex', alignItems: 'center', gap: '4px' }}>
+                          <ShieldCheck size={14} /> PROF. {String(obs.autorNombre || 'Entrenador').toUpperCase()}
                         </span>
                         {obs.origen && (
                           <span style={{
@@ -612,17 +663,18 @@ const PlayerMonthlyReportModal = ({
             )}
           </div>
 
-          {/* Resumen de Sesiones del Mes */}
+          {/* Desglose de Microciclos y Sesiones Programadas en el Mes */}
           {monthSessions.length > 0 && (
             <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
               <div style={{
                 fontSize: '0.85rem',
-                fontWeight: 700,
+                fontWeight: 800,
                 color: '#CBD5E1',
                 borderBottom: '1px solid rgba(255, 255, 255, 0.08)',
-                paddingBottom: '4px'
+                paddingBottom: '4px',
+                letterSpacing: '0.04em'
               }}>
-                Detalle de Sesiones Programadas en el Mes:
+                DESGLOSE DETALLADO DE MICROCICLOS Y ASISTENCIA DEL MES:
               </div>
 
               <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
@@ -642,13 +694,13 @@ const PlayerMonthlyReportModal = ({
                     <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
                       <span style={{ color: '#F8FAFC', fontWeight: 600 }}>{s.fecha}</span>
                       <span style={{ color: '#94A3B8' }}>{formatTo12Hour(s.horaInicio)} - {formatTo12Hour(s.horaFin)}</span>
-                      <span className="badge badge-gold" style={{ fontSize: '0.65rem' }}>{s.tipo}</span>
+                      <span className="badge badge-gold" style={{ fontSize: '0.65rem', fontWeight: 700 }}>MODALIDAD {s.tipo}</span>
                     </div>
 
                     <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                       <span style={{ color: '#94A3B8' }}>Prof: {s.entrenadorNombre}</span>
-                      <span className={`badge ${s.estado === 'realizada' ? 'badge-emerald' : s.estado === 'cancelada' ? 'badge-danger' : 'badge-blue'}`} style={{ fontSize: '0.65rem' }}>
-                        {s.estado === 'realizada' ? 'Completada' : s.estado === 'cancelada' ? 'Cancelada' : 'Programada'}
+                      <span className={`badge ${s.estado === 'realizada' ? 'badge-emerald' : s.estado === 'cancelada' ? 'badge-danger' : 'badge-blue'}`} style={{ fontSize: '0.65rem', fontWeight: 800 }}>
+                        {s.estado === 'realizada' ? '✓ PRESENTE / COMPLETADA' : s.estado === 'cancelada' ? '✕ CANCELADA' : 'PROGRAMADA'}
                       </span>
                     </div>
                   </div>
@@ -657,22 +709,52 @@ const PlayerMonthlyReportModal = ({
             </div>
           )}
 
-          {/* Pie de Reporte / Firma */}
+          {/* Cuadro de Rúbricas Oficiales y Certificación Institucional */}
           <div style={{
-            marginTop: '10px',
-            paddingTop: '16px',
-            borderTop: '1px solid rgba(255, 255, 255, 0.08)',
+            marginTop: '8px',
+            padding: '12px 16px',
+            background: 'rgba(15, 23, 42, 0.5)',
+            border: '1px dashed rgba(212, 175, 55, 0.35)',
+            borderRadius: '10px',
+            display: 'grid',
+            gridTemplateColumns: '1fr 1fr',
+            gap: '20px'
+          }}>
+            <div style={{ borderTop: '1.5px solid rgba(255, 255, 255, 0.2)', paddingTop: '6px', textAlign: 'center' }}>
+              <div style={{ fontSize: '0.74rem', fontWeight: 800, color: '#F8FAFC', letterSpacing: '0.04em' }}>
+                DIRECCIÓN METODOLÓGICA Y RENDIMIENTO
+              </div>
+              <div style={{ fontSize: '0.66rem', color: '#94A3B8', marginTop: '2px' }}>
+                Parla Sport Training Academy • Auditoría y Control de Carga
+              </div>
+            </div>
+
+            <div style={{ borderTop: '1.5px solid rgba(255, 255, 255, 0.2)', paddingTop: '6px', textAlign: 'center' }}>
+              <div style={{ fontSize: '0.74rem', fontWeight: 800, color: '#F8FAFC', letterSpacing: '0.04em' }}>
+                COORDINACIÓN TÉCNICA DE CAMPO
+              </div>
+              <div style={{ fontSize: '0.66rem', color: '#94A3B8', marginTop: '2px' }}>
+                Validación Oficial de Asistencias y Desempeño
+              </div>
+            </div>
+          </div>
+
+          {/* Pie de Reporte Oficial */}
+          <div style={{
+            marginTop: '8px',
+            paddingTop: '12px',
+            borderTop: '2px solid #D4AF37',
             display: 'flex',
             justifyContent: 'space-between',
-            alignItems: 'flex-end',
-            color: '#64748B',
+            alignItems: 'center',
+            color: '#94A3B8',
             fontSize: '0.72rem'
           }}>
             <div>
-              <strong>Parla Sport Training System</strong> • Sistema de Fichas y Rendimiento Deportivo
+              🏆 <strong>Parla Sport Training Academy</strong> • Sistema de Evaluación y Rendimiento Deportivo
             </div>
-            <div style={{ textAlign: 'right', fontStyle: 'italic' }}>
-              Validado por la Dirección Técnica
+            <div style={{ textAlign: 'right', color: '#FBBF24', fontWeight: 800, letterSpacing: '0.04em' }}>
+              DOCUMENTO OFICIAL AUDITADO
             </div>
           </div>
 

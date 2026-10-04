@@ -1,6 +1,11 @@
 import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react';
 import { createPortal } from 'react-dom';
-import { UserPlus, Search, Edit3, Trash2, Eye, MessageSquare, BarChart3, Calendar, RotateCcw, Share2, Printer, Award } from 'lucide-react';
+import { 
+  UserPlus, Search, Edit3, Trash2, Eye, MessageSquare, BarChart3, 
+  Calendar, RotateCcw, Share2, Printer, Award, ShieldCheck, 
+  Activity, Compass, CheckCircle2, User, FileText, Clock, MapPin, 
+  Shield
+} from 'lucide-react';
 import { useData } from '../../context/DataContext';
 import { useAuth } from '../../context/AuthContext';
 import { showToast } from '../common/ToastNotification';
@@ -66,6 +71,30 @@ const PlayerManager = () => {
       return new Date().getFullYear() - Number(player.edad);
     }
     return null;
+  };
+
+  // Obtener subcategoría formativa técnica (Sub-7 a Sub-20)
+  const getPlayerSubCategory = (birthYear) => {
+    if (!birthYear) return 'FORMATIVA';
+    const currentYear = new Date().getFullYear();
+    const age = currentYear - birthYear;
+    if (age <= 7) return 'SUB-7';
+    if (age <= 9) return 'SUB-9';
+    if (age <= 11) return 'SUB-11';
+    if (age <= 13) return 'SUB-13';
+    if (age <= 15) return 'SUB-15';
+    if (age <= 17) return 'SUB-17';
+    if (age <= 20) return 'SUB-20';
+    return 'SENIOR / LIBRE';
+  };
+
+  // Obtener descripción técnica de lateralidad / perfil hábil
+  const getLateralidadLabel = (foot) => {
+    if (!foot) return 'Perfil Diestro Natural';
+    const f = String(foot).toLowerCase();
+    if (f.includes('izq') || f.includes('zurdo')) return 'Perfil Zurdo (Pie Izquierdo)';
+    if (f.includes('ambi') || f.includes('ambas')) return 'Ambidextro (Dominio Bilateral)';
+    return 'Perfil Diestro (Pie Derecho)';
   };
 
   // Lista única de años de nacimiento disponibles, ordenados de menor a mayor o más recientes
@@ -675,11 +704,31 @@ const PlayerManager = () => {
     >
       {(!isAddModalOpen && !isEditing && selectedPlayer) ? (
         /* ═══════════════════════════════════════════════════════════════
-           VISTA OFICIAL DE FICHA TÉCNICA DEL JUGADOR
+           VISTA OFICIAL DE FICHA TÉCNICA / DOSSIER DEL JUGADOR
            ═══════════════════════════════════════════════════════════════ */
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '18px' }}>
           
-          {/* 1. Foto (o logo Parla) + Nombre en grande + Año de nacimiento */}
+          {/* Barra Superior de Identificación Oficial */}
+          <div style={{
+            display: 'flex',
+            justifyContent: 'space-between',
+            alignItems: 'center',
+            background: 'linear-gradient(135deg, rgba(15, 23, 42, 0.8) 0%, rgba(30, 41, 59, 0.6) 100%)',
+            border: '1px solid rgba(212, 175, 55, 0.25)',
+            borderRadius: '12px',
+            padding: '8px 16px',
+            fontSize: '0.75rem'
+          }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', color: '#FBBF24', fontWeight: 800, letterSpacing: '0.06em' }}>
+              <Award size={15} />
+              <span>DOSSIER TÉCNICO Y EXPEDIENTE METODOLÓGICO</span>
+            </div>
+            <div style={{ color: '#94A3B8', fontWeight: 600 }}>
+              FOLIO: <strong style={{ color: '#F8FAFC', letterSpacing: '0.04em' }}>EXP-{getPlayerBirthYear(selectedPlayer) || '2026'}-{String(selectedPlayer.id || '001').slice(-4).toUpperCase()}</strong>
+            </div>
+          </div>
+
+          {/* 1. Tarjeta de Identidad y Biometría del Deportista */}
           <div style={{
             display: 'flex',
             alignItems: 'center',
@@ -688,8 +737,20 @@ const PlayerManager = () => {
             border: '1px solid rgba(212, 175, 55, 0.35)',
             borderRadius: '16px',
             padding: '18px',
-            boxShadow: '0 8px 24px rgba(0,0,0,0.35)'
+            boxShadow: '0 8px 24px rgba(0,0,0,0.35)',
+            position: 'relative',
+            overflow: 'hidden'
           }}>
+            <div style={{
+              position: 'absolute',
+              top: 0,
+              right: 0,
+              bottom: 0,
+              width: '260px',
+              backgroundImage: 'radial-gradient(ellipse at 85% 50%, rgba(212, 175, 55, 0.15) 0%, rgba(56, 189, 248, 0.08) 40%, transparent 70%)',
+              pointerEvents: 'none'
+            }} />
+
             {selectedPlayer.foto ? (
               <img
                 src={selectedPlayer.foto}
@@ -699,7 +760,7 @@ const PlayerManager = () => {
                   height: '96px',
                   borderRadius: '16px',
                   objectFit: 'cover',
-                  border: '2px solid #FBBF24',
+                  border: '2.5px solid #D4AF37',
                   boxShadow: '0 6px 18px rgba(0,0,0,0.4)',
                   flexShrink: 0
                 }}
@@ -710,7 +771,7 @@ const PlayerManager = () => {
                 height: '96px',
                 borderRadius: '16px',
                 background: 'linear-gradient(135deg, #070F1E 0%, #0F172A 100%)',
-                border: '2px solid rgba(212, 175, 55, 0.45)',
+                border: '2.5px solid rgba(212, 175, 55, 0.7)',
                 boxShadow: '0 6px 18px rgba(0,0,0,0.4)',
                 display: 'flex',
                 alignItems: 'center',
@@ -726,10 +787,13 @@ const PlayerManager = () => {
               </div>
             )}
 
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', flex: 1, minWidth: 0 }}>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', flex: 1, minWidth: 0, position: 'relative', zIndex: 1 }}>
+              <div style={{ fontSize: '0.7rem', color: '#94A3B8', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.08em' }}>
+                DEPORTISTA REGISTRADO
+              </div>
               <h3 style={{
                 fontSize: '1.65rem',
-                fontWeight: 800,
+                fontWeight: 900,
                 color: '#F8FAFC',
                 margin: 0,
                 lineHeight: 1.2,
@@ -740,39 +804,53 @@ const PlayerManager = () => {
                 {selectedPlayer.nombre}
               </h3>
 
-              <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap', marginTop: '4px' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap', marginTop: '2px' }}>
                 <span style={{
                   background: 'rgba(245, 158, 11, 0.15)',
                   border: '1px solid rgba(245, 158, 11, 0.4)',
                   color: '#FBBF24',
-                  padding: '4px 10px',
-                  borderRadius: '8px',
-                  fontSize: '0.85rem',
-                  fontWeight: 700,
+                  padding: '3px 10px',
+                  borderRadius: '6px',
+                  fontSize: '0.8rem',
+                  fontWeight: 800,
                   display: 'flex',
                   alignItems: 'center',
-                  gap: '6px'
+                  gap: '5px'
                 }}>
-                  <Calendar size={14} />
-                  Año {selectedPlayer.fechaNacimiento ? selectedPlayer.fechaNacimiento.split('-')[0] : (selectedPlayer.edad ? (new Date().getFullYear() - selectedPlayer.edad) : 'N/D')}
-                  {selectedPlayer.edad ? ` (${selectedPlayer.edad} años)` : ''}
+                  <Calendar size={13} />
+                  CAT. {getPlayerSubCategory(getPlayerBirthYear(selectedPlayer))} • GEN {getPlayerBirthYear(selectedPlayer) || 'N/D'} {selectedPlayer.edad ? `(${selectedPlayer.edad} años)` : ''}
                 </span>
 
-                <span className={getPositionBadgeClass(selectedPlayer.posicion)} style={{ fontSize: '0.78rem', padding: '4px 10px' }}>
-                  {selectedPlayer.posicion || 'Jugador'}
+                <span className={getPositionBadgeClass(selectedPlayer.posicion)} style={{ fontSize: '0.78rem', padding: '3px 10px', fontWeight: 800 }}>
+                  DEMARCACIÓN: {selectedPlayer.posicion?.toUpperCase() || 'JUGADOR'}
+                </span>
+
+                <span style={{
+                  background: 'rgba(16, 185, 129, 0.15)',
+                  border: '1px solid rgba(16, 185, 129, 0.4)',
+                  color: '#34D399',
+                  padding: '3px 10px',
+                  borderRadius: '6px',
+                  fontSize: '0.75rem',
+                  fontWeight: 800,
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '4px'
+                }}>
+                  <CheckCircle2 size={13} /> ACTIVO EN SEGUIMIENTO
                 </span>
               </div>
             </div>
           </div>
 
-          {/* 2. Posición en diagrama de cancha (abajo) + al lado Pierna Hábil y Club */}
+          {/* 2. Grid de Ocupación Táctica y Parámetros Deportivos */}
           <div style={{
             display: 'grid',
             gridTemplateColumns: 'repeat(auto-fit, minmax(min(290px, 100%), 1fr))',
             gap: '16px',
             alignItems: 'stretch'
           }}>
-            {/* Columna Izquierda: Diagrama de Cancha */}
+            {/* Columna Izquierda: Diagrama de Cancha Táctica */}
             <div style={{
               background: 'rgba(15, 23, 42, 0.7)',
               border: '1px solid rgba(255, 255, 255, 0.08)',
@@ -780,19 +858,41 @@ const PlayerManager = () => {
               padding: '16px',
               display: 'flex',
               flexDirection: 'column',
-              gap: '12px'
+              gap: '10px'
             }}>
-              <div style={{
-                fontSize: '0.82rem',
-                fontWeight: 700,
-                color: '#38BDF8',
-                display: 'flex',
-                alignItems: 'center',
-                gap: '6px',
-                textTransform: 'uppercase',
-                letterSpacing: '0.5px'
-              }}>
-                ⚽ Posición en el Diagrama de Cancha:
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <div style={{
+                  fontSize: '0.8rem',
+                  fontWeight: 800,
+                  color: '#38BDF8',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '6px',
+                  textTransform: 'uppercase',
+                  letterSpacing: '0.05em'
+                }}>
+                  <Compass size={16} /> MAPA POSICIONAL Y ZONA DE ACCIÓN:
+                </div>
+                {Array.isArray(selectedPlayer.posicionesCampo) && selectedPlayer.posicionesCampo.length > 0 && (
+                  <div style={{ display: 'flex', gap: '4px' }}>
+                    {selectedPlayer.posicionesCampo.map(pCode => (
+                      <span
+                        key={pCode}
+                        style={{
+                          background: 'rgba(56, 189, 248, 0.15)',
+                          border: '1px solid rgba(56, 189, 248, 0.35)',
+                          color: '#38BDF8',
+                          fontSize: '0.7rem',
+                          fontWeight: 800,
+                          padding: '1px 6px',
+                          borderRadius: '4px'
+                        }}
+                      >
+                        {pCode}
+                      </span>
+                    ))}
+                  </div>
+                )}
               </div>
 
               <FieldPositionSelector
@@ -801,21 +901,21 @@ const PlayerManager = () => {
               />
             </div>
 
-            {/* Columna Derecha: Tarjetas de Pierna Hábil, Club y Tutor */}
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', justifyContent: 'center' }}>
-              {/* Pierna Hábil */}
+            {/* Columna Derecha: Tarjetas de Parámetros Técnicos */}
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', justifyContent: 'center' }}>
+              {/* Lateralidad y Pierna Hábil */}
               <div style={{
                 background: 'rgba(15, 23, 42, 0.7)',
                 border: '1px solid rgba(255, 255, 255, 0.08)',
-                borderRadius: '14px',
-                padding: '14px 16px',
+                borderRadius: '12px',
+                padding: '12px 16px',
                 display: 'flex',
                 alignItems: 'center',
                 gap: '14px'
               }}>
                 <div style={{
-                  width: '44px',
-                  height: '44px',
+                  width: '42px',
+                  height: '42px',
                   borderRadius: '10px',
                   background: 'rgba(59, 130, 246, 0.15)',
                   border: '1px solid rgba(59, 130, 246, 0.35)',
@@ -828,28 +928,31 @@ const PlayerManager = () => {
                   🦶
                 </div>
                 <div>
-                  <div style={{ fontSize: '0.72rem', color: '#94A3B8', textTransform: 'uppercase', fontWeight: 700, letterSpacing: '0.5px' }}>
-                    Pierna Hábil
+                  <div style={{ fontSize: '0.68rem', color: '#94A3B8', textTransform: 'uppercase', fontWeight: 800, letterSpacing: '0.04em' }}>
+                    LATERALIDAD Y PIE DOMINANTE
                   </div>
-                  <div style={{ fontSize: '1.05rem', fontWeight: 800, color: '#F8FAFC', marginTop: '2px' }}>
+                  <div style={{ fontSize: '1.05rem', fontWeight: 800, color: '#F8FAFC', marginTop: '1px' }}>
                     {selectedPlayer.piernaHabil || 'Derecha'}
+                  </div>
+                  <div style={{ fontSize: '0.72rem', color: '#60A5FA', fontWeight: 600 }}>
+                    {getLateralidadLabel(selectedPlayer.piernaHabil)}
                   </div>
                 </div>
               </div>
 
-              {/* Club / Academia */}
+              {/* Club de Formación */}
               <div style={{
                 background: 'rgba(15, 23, 42, 0.7)',
                 border: '1px solid rgba(255, 255, 255, 0.08)',
-                borderRadius: '14px',
-                padding: '14px 16px',
+                borderRadius: '12px',
+                padding: '12px 16px',
                 display: 'flex',
                 alignItems: 'center',
                 gap: '14px'
               }}>
                 <div style={{
-                  width: '44px',
-                  height: '44px',
+                  width: '42px',
+                  height: '42px',
                   borderRadius: '10px',
                   background: 'rgba(245, 158, 11, 0.15)',
                   border: '1px solid rgba(245, 158, 11, 0.35)',
@@ -863,28 +966,31 @@ const PlayerManager = () => {
                   🛡️
                 </div>
                 <div>
-                  <div style={{ fontSize: '0.72rem', color: '#94A3B8', textTransform: 'uppercase', fontWeight: 700, letterSpacing: '0.5px' }}>
-                    Club donde entrena
+                  <div style={{ fontSize: '0.68rem', color: '#94A3B8', textTransform: 'uppercase', fontWeight: 800, letterSpacing: '0.04em' }}>
+                    CLUB DE ADSCRIPCIÓN FORMATIVA
                   </div>
-                  <div style={{ fontSize: '1.05rem', fontWeight: 800, color: '#F8FAFC', marginTop: '2px' }}>
-                    {selectedPlayer.club || selectedPlayer.equipo || 'Parla Sport'}
+                  <div style={{ fontSize: '1.05rem', fontWeight: 800, color: '#F8FAFC', marginTop: '1px' }}>
+                    {selectedPlayer.club || selectedPlayer.equipo || 'Parla Sport Academy'}
+                  </div>
+                  <div style={{ fontSize: '0.72rem', color: '#FBBF24', fontWeight: 600 }}>
+                    Entidad deportiva activa de procedencia
                   </div>
                 </div>
               </div>
 
-              {/* Contacto Tutor */}
+              {/* Tutor Legal / Representante */}
               <div style={{
                 background: 'rgba(15, 23, 42, 0.7)',
                 border: '1px solid rgba(255, 255, 255, 0.08)',
-                borderRadius: '14px',
-                padding: '14px 16px',
+                borderRadius: '12px',
+                padding: '12px 16px',
                 display: 'flex',
                 alignItems: 'center',
                 gap: '14px'
               }}>
                 <div style={{
-                  width: '44px',
-                  height: '44px',
+                  width: '42px',
+                  height: '42px',
                   borderRadius: '10px',
                   background: 'rgba(16, 185, 129, 0.15)',
                   border: '1px solid rgba(16, 185, 129, 0.35)',
@@ -898,38 +1004,85 @@ const PlayerManager = () => {
                   📞
                 </div>
                 <div>
-                  <div style={{ fontSize: '0.72rem', color: '#94A3B8', textTransform: 'uppercase', fontWeight: 700, letterSpacing: '0.5px' }}>
-                    Contacto Tutor / Representante
+                  <div style={{ fontSize: '0.68rem', color: '#94A3B8', textTransform: 'uppercase', fontWeight: 800, letterSpacing: '0.04em' }}>
+                    REPRESENTACIÓN / TUTOR LEGAL
                   </div>
-                  <div style={{ fontSize: '0.95rem', fontWeight: 700, color: '#F8FAFC', marginTop: '2px' }}>
+                  <div style={{ fontSize: '0.98rem', fontWeight: 800, color: '#F8FAFC', marginTop: '1px' }}>
                     {selectedPlayer.contactoTutor || 'No registrado'}
+                  </div>
+                  <div style={{ fontSize: '0.72rem', color: '#34D399', fontWeight: 600 }}>
+                    Canal oficial directo de enlace institucional
+                  </div>
+                </div>
+              </div>
+
+              {/* Programa Metodológico */}
+              <div style={{
+                background: 'rgba(15, 23, 42, 0.7)',
+                border: '1px solid rgba(255, 255, 255, 0.08)',
+                borderRadius: '12px',
+                padding: '12px 16px',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '14px'
+              }}>
+                <div style={{
+                  width: '42px',
+                  height: '42px',
+                  borderRadius: '10px',
+                  background: 'rgba(168, 85, 247, 0.15)',
+                  border: '1px solid rgba(168, 85, 247, 0.35)',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  color: '#C084FC',
+                  fontSize: '1.2rem',
+                  flexShrink: 0
+                }}>
+                  ⭐
+                </div>
+                <div>
+                  <div style={{ fontSize: '0.68rem', color: '#94A3B8', textTransform: 'uppercase', fontWeight: 800, letterSpacing: '0.04em' }}>
+                    PROGRAMA METODOLÓGICO ASIGNADO
+                  </div>
+                  <div style={{ fontSize: '0.95rem', fontWeight: 800, color: '#F8FAFC', marginTop: '1px' }}>
+                    Tecnificación & Alto Rendimiento
+                  </div>
+                  <div style={{ fontSize: '0.72rem', color: '#C084FC', fontWeight: 600 }}>
+                    Seguimiento continuo de progresión motriz
                   </div>
                 </div>
               </div>
             </div>
           </div>
 
-          {/* 3. Observación General */}
+          {/* 3. Diagnóstico Técnico-Táctico General */}
           <div style={{
             background: 'rgba(15, 23, 42, 0.75)',
             border: '1px solid rgba(255, 255, 255, 0.08)',
+            borderLeft: '4px solid #D4AF37',
             borderRadius: '14px',
             padding: '16px 18px',
             display: 'flex',
             flexDirection: 'column',
-            gap: '8px'
+            gap: '6px'
           }}>
-            <div style={{
-              fontSize: '0.85rem',
-              fontWeight: 700,
-              color: '#FBBF24',
-              display: 'flex',
-              alignItems: 'center',
-              gap: '6px',
-              textTransform: 'uppercase',
-              letterSpacing: '0.5px'
-            }}>
-              📝 Observación General
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <div style={{
+                fontSize: '0.85rem',
+                fontWeight: 800,
+                color: '#FBBF24',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '6px',
+                textTransform: 'uppercase',
+                letterSpacing: '0.05em'
+              }}>
+                <FileText size={16} /> DIAGNÓSTICO TÉCNICO-TÁCTICO INTEGRAL
+              </div>
+              <span style={{ fontSize: '0.72rem', color: '#94A3B8', fontWeight: 600 }}>
+                Dictamen Metodológico General
+              </span>
             </div>
             <p style={{
               margin: 0,
@@ -942,7 +1095,7 @@ const PlayerManager = () => {
             </p>
           </div>
 
-          {/* 4. Observaciones hechas por los profesores según las sesiones */}
+          {/* 4. Bitácora de Campo: Evaluaciones Continuas del Cuerpo Técnico */}
           <div style={{
             background: 'rgba(15, 23, 42, 0.75)',
             border: '1px solid rgba(255, 255, 255, 0.08)',
@@ -952,17 +1105,22 @@ const PlayerManager = () => {
             flexDirection: 'column',
             gap: '12px'
           }}>
-            <div style={{
-              fontSize: '0.85rem',
-              fontWeight: 700,
-              color: '#38BDF8',
-              display: 'flex',
-              alignItems: 'center',
-              gap: '6px',
-              textTransform: 'uppercase',
-              letterSpacing: '0.5px'
-            }}>
-              <MessageSquare size={16} /> Observaciones hechas por los Profesores según las Sesiones:
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <div style={{
+                fontSize: '0.85rem',
+                fontWeight: 800,
+                color: '#38BDF8',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '6px',
+                textTransform: 'uppercase',
+                letterSpacing: '0.05em'
+              }}>
+                <MessageSquare size={16} /> BITÁCORA DE CAMPO: DEVOLUCIONES DEL CUERPO TÉCNICO EN SESIÓN
+              </div>
+              <span style={{ fontSize: '0.72rem', color: '#94A3B8', fontWeight: 600 }}>
+                {getPlayerSessionObservations(selectedPlayer).length} Registro(s) de Campo
+              </span>
             </div>
 
             {getPlayerSessionObservations(selectedPlayer).length > 0 ? (
@@ -982,11 +1140,12 @@ const PlayerManager = () => {
                     }}
                   >
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '6px', fontSize: '0.78rem' }}>
-                      <span style={{ color: '#34D399', fontWeight: 700 }}>
-                        👤 Prof. {obs.autorNombre || 'Entrenador'}
+                      <span style={{ color: '#34D399', fontWeight: 800, display: 'flex', alignItems: 'center', gap: '5px' }}>
+                        <ShieldCheck size={14} /> PROF. {String(obs.autorNombre || 'Entrenador').toUpperCase()}
+                        {obs.modalidad ? <span style={{ color: '#60A5FA', fontWeight: 600, fontSize: '0.72rem' }}>• MODALIDAD {obs.modalidad}</span> : ''}
                       </span>
                       <span style={{ color: '#94A3B8', fontSize: '0.74rem' }}>
-                        📅 {obs.fecha} {obs.modalidad ? `• Modalidad ${obs.modalidad}` : ''}
+                        📅 {obs.fecha}
                       </span>
                     </div>
                     <div style={{ color: '#F8FAFC', fontSize: '0.88rem', fontStyle: 'italic', lineHeight: 1.5 }}>
@@ -1009,7 +1168,7 @@ const PlayerManager = () => {
             )}
           </div>
 
-          {/* Acciones al pie de la Ficha Técnica */}
+          {/* Acciones al pie del Dossier Técnico */}
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '10px', marginTop: '6px' }}>
             <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
               <button
@@ -1024,9 +1183,9 @@ const PlayerManager = () => {
                   fontWeight: 700
                 }}
                 onClick={() => handlePrintProfile(selectedPlayer)}
-                title="Descargar o imprimir perfil en PDF idéntico a la app"
+                title="Descargar o imprimir dossier en PDF oficial de alta calidad"
               >
-                <Printer size={15} /> Imprimir / PDF Perfil
+                <Printer size={15} /> Descargar / Imprimir Dossier PDF
               </button>
 
               <button
@@ -1068,9 +1227,9 @@ const PlayerManager = () => {
                   setIsDetailModalOpen(false);
                   setReportPlayer(selectedPlayer);
                 }}
-                title="Ver Registro de Rendimiento y Asistencias Mensuales (El que ya está)"
+                title="Ver Registro de Rendimiento y Asistencias Mensuales"
               >
-                <BarChart3 size={15} /> Ver Registro Deportivo
+                <BarChart3 size={15} /> Informe de Rendimiento
               </button>
             </div>
 
@@ -1482,11 +1641,13 @@ const PlayerManager = () => {
             const birthYear = getPlayerBirthYear(playerToPrint);
             const playerPositions = playerToPrint.posicionesCampo || getInitialPositions(playerToPrint);
             const sessionNotes = getPlayerSessionObservations(playerToPrint);
+            const subCategory = getPlayerSubCategory(birthYear);
+            const folioNumber = `EXP-${birthYear || '2026'}-${String(playerToPrint.id || '001').slice(-4).toUpperCase()}`;
 
             return (
               <div style={{
                 width: '100%',
-                maxWidth: '780px',
+                maxWidth: '790px',
                 margin: '0 auto',
                 background: '#FFFFFF',
                 color: '#0F172A',
@@ -1495,39 +1656,40 @@ const PlayerManager = () => {
                 border: '2.5px solid #0B1736',
                 borderRadius: '16px',
                 overflow: 'hidden',
-                boxShadow: '0 6px 24px rgba(0,0,0,0.1)'
+                boxShadow: '0 8px 30px rgba(0,0,0,0.12)'
               }}>
-                {/* ─── ENCABEZADO MEMBRETADO CREATIVO AZUL MARINO ─── */}
+                {/* ─── ENCABEZADO INSTITUCIONAL MEMBRETADO AZUL MARINO ─── */}
                 <div style={{
-                  background: 'linear-gradient(135deg, #050B17 0%, #0A1633 50%, #0D1E42 100%)',
+                  background: 'linear-gradient(135deg, #030712 0%, #08132B 42%, #0C1E47 100%)',
                   color: '#FFFFFF',
                   padding: '20px 24px',
                   borderBottom: '4px solid #D4AF37',
+                  boxShadow: '0 3px 12px rgba(212, 175, 55, 0.25)',
                   display: 'flex',
                   justifyContent: 'space-between',
                   alignItems: 'center',
                   position: 'relative',
                   overflow: 'hidden'
                 }}>
-                  {/* Destello y líneas deportivas de fondo */}
+                  {/* Destellos y líneas deportivas de fondo */}
                   <div style={{
                     position: 'absolute',
                     top: 0,
                     right: 0,
                     bottom: 0,
-                    width: '320px',
-                    backgroundImage: 'radial-gradient(ellipse at 80% 50%, rgba(212, 175, 55, 0.22) 0%, rgba(56, 189, 248, 0.12) 45%, transparent 75%)',
+                    width: '360px',
+                    backgroundImage: 'radial-gradient(ellipse at 85% 50%, rgba(212, 175, 55, 0.22) 0%, rgba(56, 189, 248, 0.14) 45%, transparent 75%)',
                     pointerEvents: 'none'
                   }} />
 
                   <div style={{ display: 'flex', alignItems: 'center', gap: '16px', position: 'relative', zIndex: 1 }}>
-                    {/* Caja estilizada para enmarcar el logo y que sus letras blancas resalten 100% */}
+                    {/* Caja estilizada con marco de oro para el logo de letras blancas */}
                     <div style={{
-                      width: '64px',
-                      height: '64px',
+                      width: '66px',
+                      height: '66px',
                       borderRadius: '14px',
                       background: 'linear-gradient(135deg, rgba(255, 255, 255, 0.12) 0%, rgba(255, 255, 255, 0.03) 100%)',
-                      border: '2px solid rgba(212, 175, 55, 0.8)',
+                      border: '2px solid rgba(212, 175, 55, 0.9)',
                       boxShadow: '0 4px 14px rgba(0, 0, 0, 0.5), inset 0 0 12px rgba(212, 175, 55, 0.25)',
                       display: 'flex',
                       alignItems: 'center',
@@ -1538,18 +1700,18 @@ const PlayerManager = () => {
                       <img
                         src="/logo.png"
                         alt="Parla Sport"
-                        style={{ width: '54px', height: '54px', objectFit: 'contain' }}
+                        style={{ width: '56px', height: '56px', objectFit: 'contain' }}
                       />
                     </div>
 
                     <div>
                       <div style={{
-                        fontSize: '1.55rem',
+                        fontSize: '1.6rem',
                         fontWeight: 900,
                         color: '#FFFFFF',
                         letterSpacing: '0.04em',
                         lineHeight: 1.1,
-                        textShadow: '0 2px 8px rgba(0, 0, 0, 0.7)'
+                        textShadow: '0 2px 8px rgba(0, 0, 0, 0.8)'
                       }}>
                         PARLA SPORT
                       </div>
@@ -1557,16 +1719,24 @@ const PlayerManager = () => {
                         fontSize: '0.78rem',
                         color: '#FBBF24',
                         fontWeight: 800,
-                        letterSpacing: '0.12em',
+                        letterSpacing: '0.14em',
                         textTransform: 'uppercase',
-                        marginTop: '4px',
+                        marginTop: '3px'
+                      }}>
+                        TRAINING ACADEMY
+                      </div>
+                      <div style={{
+                        fontSize: '0.72rem',
+                        color: '#38BDF8',
+                        fontWeight: 700,
+                        letterSpacing: '0.06em',
+                        textTransform: 'uppercase',
+                        marginTop: '2px',
                         display: 'flex',
                         alignItems: 'center',
                         gap: '6px'
                       }}>
-                        <span>TRAINING ACADEMY</span>
-                        <span style={{ color: 'rgba(255,255,255,0.4)' }}>•</span>
-                        <span style={{ color: '#38BDF8' }}>FICHA TÉCNICA OFICIAL</span>
+                        <span>DEPARTAMENTO DE METODOLOGÍA & DESARROLLO DEPORTIVO</span>
                       </div>
                     </div>
                   </div>
@@ -1576,28 +1746,31 @@ const PlayerManager = () => {
                       background: 'rgba(212, 175, 55, 0.18)',
                       border: '1.5px solid #D4AF37',
                       color: '#FDE68A',
-                      padding: '5px 14px',
+                      padding: '4px 14px',
                       borderRadius: '20px',
                       fontSize: '0.72rem',
                       fontWeight: 800,
                       letterSpacing: '0.08em',
                       textTransform: 'uppercase',
                       display: 'inline-block',
-                      marginBottom: '5px',
+                      marginBottom: '6px',
                       boxShadow: '0 2px 8px rgba(0,0,0,0.3)'
                     }}>
-                      ⭐ EXPEDIENTE DEPORTIVO
+                      ⭐ EXPEDIENTE TÉCNICO OFICIAL
                     </div>
-                    <div style={{ fontSize: '0.74rem', color: '#CBD5E1', fontWeight: 600 }}>
-                      Fecha de Emisión: <strong style={{ color: '#FFFFFF' }}>{new Date().toLocaleDateString('es-ES', { day: '2-digit', month: 'long', year: 'numeric' })}</strong>
+                    <div style={{ fontSize: '0.72rem', color: '#CBD5E1', fontWeight: 600 }}>
+                      FOLIO: <strong style={{ color: '#F8FAFC', letterSpacing: '0.05em' }}>{folioNumber}</strong>
+                    </div>
+                    <div style={{ fontSize: '0.70rem', color: '#94A3B8', marginTop: '2px' }}>
+                      Emisión: <strong style={{ color: '#FFFFFF' }}>{new Date().toLocaleDateString('es-ES', { day: '2-digit', month: 'long', year: 'numeric' })}</strong>
                     </div>
                   </div>
                 </div>
 
-                {/* ─── CUERPO DE LA FICHA DEL JUGADOR ─── */}
-                <div style={{ padding: '20px', display: 'flex', flexDirection: 'column', gap: '14px' }}>
+                {/* ─── CUERPO DEL DOSSIER TÉCNICO ─── */}
+                <div style={{ padding: '18px 22px', display: 'flex', flexDirection: 'column', gap: '14px' }}>
 
-                  {/* Cabecera del Jugador: Foto + Nombre + Datos Principales */}
+                  {/* 1. FICHA BIOMÉTRICA Y DE IDENTIDAD DEL ATLETA */}
                   <div style={{
                     display: 'flex',
                     alignItems: 'center',
@@ -1605,7 +1778,8 @@ const PlayerManager = () => {
                     background: '#F8FAFC',
                     border: '1.5px solid #E2E8F0',
                     borderRadius: '12px',
-                    padding: '16px'
+                    padding: '14px 18px',
+                    boxShadow: '0 2px 6px rgba(0,0,0,0.03)'
                   }}>
                     {playerToPrint.foto ? (
                       <img
@@ -1617,7 +1791,7 @@ const PlayerManager = () => {
                           borderRadius: '14px',
                           objectFit: 'cover',
                           border: '2.5px solid #D4AF37',
-                          boxShadow: '0 4px 10px rgba(0,0,0,0.1)',
+                          boxShadow: '0 4px 12px rgba(0,0,0,0.12)',
                           flexShrink: 0
                         }}
                       />
@@ -1639,7 +1813,17 @@ const PlayerManager = () => {
                     )}
 
                     <div style={{ flex: 1, minWidth: 0 }}>
-                      <h2 style={{ fontSize: '1.65rem', fontWeight: 800, color: '#0F172A', margin: '0 0 6px 0', letterSpacing: '-0.02em' }}>
+                      <div style={{
+                        fontSize: '0.68rem',
+                        fontWeight: 800,
+                        color: '#64748B',
+                        textTransform: 'uppercase',
+                        letterSpacing: '0.08em',
+                        marginBottom: '2px'
+                      }}>
+                        DEPORTISTA EVALUADO
+                      </div>
+                      <h2 style={{ fontSize: '1.65rem', fontWeight: 900, color: '#0F172A', margin: '0 0 6px 0', letterSpacing: '-0.02em', lineHeight: 1.15 }}>
                         {playerToPrint.nombre}
                       </h2>
 
@@ -1650,10 +1834,11 @@ const PlayerManager = () => {
                           color: '#92400E',
                           padding: '3px 10px',
                           borderRadius: '6px',
-                          fontSize: '0.8rem',
-                          fontWeight: 800
+                          fontSize: '0.78rem',
+                          fontWeight: 800,
+                          letterSpacing: '0.02em'
                         }}>
-                          Año {birthYear || 'N/D'} {playerToPrint.edad ? `(${playerToPrint.edad} años)` : ''}
+                          CATEGORÍA {subCategory} • AÑO {birthYear || 'N/D'} {playerToPrint.edad ? `(${playerToPrint.edad} años)` : ''}
                         </span>
 
                         <span style={{
@@ -1662,35 +1847,29 @@ const PlayerManager = () => {
                           color: '#0369A1',
                           padding: '3px 10px',
                           borderRadius: '6px',
-                          fontSize: '0.8rem',
-                          fontWeight: 800
+                          fontSize: '0.78rem',
+                          fontWeight: 800,
+                          letterSpacing: '0.02em'
                         }}>
-                          {playerToPrint.posicion || 'Jugador'}
+                          DEMARCACIÓN: {playerToPrint.posicion?.toUpperCase() || 'JUGADOR'}
                         </span>
 
-                        {Array.isArray(playerPositions) && playerPositions.length > 0 && (
-                          playerPositions.map(pCode => (
-                            <span
-                              key={pCode}
-                              style={{
-                                background: '#F1F5F9',
-                                border: '1px solid #94A3B8',
-                                color: '#1E293B',
-                                fontSize: '0.72rem',
-                                fontWeight: 800,
-                                padding: '2px 8px',
-                                borderRadius: '6px'
-                              }}
-                            >
-                              {pCode}
-                            </span>
-                          ))
-                        )}
+                        <span style={{
+                          background: '#DCFCE7',
+                          border: '1.5px solid #16A34A',
+                          color: '#15803D',
+                          padding: '3px 10px',
+                          borderRadius: '6px',
+                          fontSize: '0.75rem',
+                          fontWeight: 800
+                        }}>
+                          ESTADO: EN SEGUIMIENTO FORMATIVO
+                        </span>
                       </div>
                     </div>
                   </div>
 
-                  {/* Grid 2 Columnas: Cancha Táctica (Izq) vs Ficha de Atributos (Der) */}
+                  {/* 2. MATRIZ TÁCTICA Y PARÁMETROS TÉCNICOS (2 Columnas) */}
                   <div style={{
                     display: 'grid',
                     gridTemplateColumns: '1.15fr 1fr',
@@ -1700,24 +1879,45 @@ const PlayerManager = () => {
                     {/* Columna Izquierda: Diagrama de Cancha Táctica */}
                     <div style={{
                       background: '#F8FAFC',
-                      border: '1.5px solid #E2E8F0',
+                      border: '1.5px solid #CBD5E1',
                       borderRadius: '12px',
-                      padding: '14px',
+                      padding: '12px 14px',
                       display: 'flex',
                       flexDirection: 'column',
                       gap: '8px'
                     }}>
-                      <div style={{
-                        fontSize: '0.78rem',
-                        fontWeight: 800,
-                        color: '#0284C7',
-                        textTransform: 'uppercase',
-                        letterSpacing: '0.5px',
-                        display: 'flex',
-                        alignItems: 'center',
-                        gap: '6px'
-                      }}>
-                        ⚽ Ubicación en Cancha Táctica:
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                        <div style={{
+                          fontSize: '0.76rem',
+                          fontWeight: 800,
+                          color: '#0284C7',
+                          textTransform: 'uppercase',
+                          letterSpacing: '0.06em',
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: '6px'
+                        }}>
+                          ⚽ MAPA POSICIONAL Y ZONA DE INFLUENCIA:
+                        </div>
+                        {Array.isArray(playerPositions) && playerPositions.length > 0 && (
+                          <div style={{ display: 'flex', gap: '4px' }}>
+                            {playerPositions.map(pCode => (
+                              <span
+                                key={pCode}
+                                style={{
+                                  background: '#0F172A',
+                                  color: '#F8FAFC',
+                                  fontSize: '0.68rem',
+                                  fontWeight: 800,
+                                  padding: '1px 6px',
+                                  borderRadius: '4px'
+                                }}
+                              >
+                                {pCode}
+                              </span>
+                            ))}
+                          </div>
+                        )}
                       </div>
 
                       <div style={{ transform: 'scale(0.95)', transformOrigin: 'top center' }}>
@@ -1729,13 +1929,14 @@ const PlayerManager = () => {
                       </div>
                     </div>
 
-                    {/* Columna Derecha: Tarjetas de Pierna Hábil, Club y Tutor */}
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', justifyContent: 'center' }}>
+                    {/* Columna Derecha: Tarjetas de Parámetros Deportivos */}
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', justifyContent: 'center' }}>
+                      {/* Lateralidad */}
                       <div style={{
                         background: '#F8FAFC',
                         border: '1.5px solid #E2E8F0',
                         borderRadius: '10px',
-                        padding: '12px 14px',
+                        padding: '10px 14px',
                         display: 'flex',
                         alignItems: 'center',
                         gap: '12px'
@@ -1749,26 +1950,30 @@ const PlayerManager = () => {
                           display: 'flex',
                           alignItems: 'center',
                           justifyContent: 'center',
-                          fontSize: '1.2rem',
+                          fontSize: '1.15rem',
                           flexShrink: 0
                         }}>
                           🦶
                         </div>
                         <div>
-                          <div style={{ fontSize: '0.68rem', color: '#64748B', textTransform: 'uppercase', fontWeight: 800 }}>
-                            Pierna Hábil
+                          <div style={{ fontSize: '0.66rem', color: '#64748B', textTransform: 'uppercase', fontWeight: 800, letterSpacing: '0.04em' }}>
+                            LATERALIDAD Y PIE DOMINANTE
                           </div>
-                          <div style={{ fontSize: '1.05rem', fontWeight: 800, color: '#0F172A', marginTop: '1px' }}>
+                          <div style={{ fontSize: '0.98rem', fontWeight: 800, color: '#0F172A', marginTop: '1px' }}>
                             {playerToPrint.piernaHabil || 'Derecha'}
+                          </div>
+                          <div style={{ fontSize: '0.68rem', color: '#0284C7', fontWeight: 600 }}>
+                            {getLateralidadLabel(playerToPrint.piernaHabil)}
                           </div>
                         </div>
                       </div>
 
+                      {/* Club / Afiliación */}
                       <div style={{
                         background: '#F8FAFC',
                         border: '1.5px solid #E2E8F0',
                         borderRadius: '10px',
-                        padding: '12px 14px',
+                        padding: '10px 14px',
                         display: 'flex',
                         alignItems: 'center',
                         gap: '12px'
@@ -1782,26 +1987,30 @@ const PlayerManager = () => {
                           display: 'flex',
                           alignItems: 'center',
                           justifyContent: 'center',
-                          fontSize: '1.2rem',
+                          fontSize: '1.15rem',
                           flexShrink: 0
                         }}>
                           🛡️
                         </div>
                         <div>
-                          <div style={{ fontSize: '0.68rem', color: '#64748B', textTransform: 'uppercase', fontWeight: 800 }}>
-                            Club donde entrena
+                          <div style={{ fontSize: '0.66rem', color: '#64748B', textTransform: 'uppercase', fontWeight: 800, letterSpacing: '0.04em' }}>
+                            CLUB DE ADSCRIPCIÓN FORMATIVA
                           </div>
-                          <div style={{ fontSize: '1.05rem', fontWeight: 800, color: '#0F172A', marginTop: '1px' }}>
-                            {playerToPrint.club || playerToPrint.equipo || 'Parla Sport'}
+                          <div style={{ fontSize: '0.98rem', fontWeight: 800, color: '#0F172A', marginTop: '1px' }}>
+                            {playerToPrint.club || playerToPrint.equipo || 'Parla Sport Academy'}
+                          </div>
+                          <div style={{ fontSize: '0.68rem', color: '#B45309', fontWeight: 600 }}>
+                            Entidad Deportiva de Pertenencia Activa
                           </div>
                         </div>
                       </div>
 
+                      {/* Tutor / Representante */}
                       <div style={{
                         background: '#F8FAFC',
                         border: '1.5px solid #E2E8F0',
                         borderRadius: '10px',
-                        padding: '12px 14px',
+                        padding: '10px 14px',
                         display: 'flex',
                         alignItems: 'center',
                         gap: '12px'
@@ -1815,48 +2024,99 @@ const PlayerManager = () => {
                           display: 'flex',
                           alignItems: 'center',
                           justifyContent: 'center',
-                          fontSize: '1.2rem',
+                          fontSize: '1.15rem',
                           flexShrink: 0
                         }}>
                           📞
                         </div>
                         <div>
-                          <div style={{ fontSize: '0.68rem', color: '#64748B', textTransform: 'uppercase', fontWeight: 800 }}>
-                            Contacto Tutor / Representante
+                          <div style={{ fontSize: '0.66rem', color: '#64748B', textTransform: 'uppercase', fontWeight: 800, letterSpacing: '0.04em' }}>
+                            REPRESENTACIÓN / TUTOR LEGAL
                           </div>
                           <div style={{ fontSize: '0.95rem', fontWeight: 800, color: '#0F172A', marginTop: '1px' }}>
                             {playerToPrint.contactoTutor || 'No registrado'}
+                          </div>
+                          <div style={{ fontSize: '0.68rem', color: '#059669', fontWeight: 600 }}>
+                            Canal Oficial de Enlace Deportivo
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Programa Metodológico */}
+                      <div style={{
+                        background: '#F8FAFC',
+                        border: '1.5px solid #E2E8F0',
+                        borderRadius: '10px',
+                        padding: '10px 14px',
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '12px'
+                      }}>
+                        <div style={{
+                          width: '38px',
+                          height: '38px',
+                          borderRadius: '8px',
+                          background: '#F3E8FF',
+                          border: '1px solid #D8B4FE',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          fontSize: '1.15rem',
+                          flexShrink: 0
+                        }}>
+                          ⭐
+                        </div>
+                        <div>
+                          <div style={{ fontSize: '0.66rem', color: '#64748B', textTransform: 'uppercase', fontWeight: 800, letterSpacing: '0.04em' }}>
+                            PROGRAMA METODOLÓGICO
+                          </div>
+                          <div style={{ fontSize: '0.92rem', fontWeight: 800, color: '#0F172A', marginTop: '1px' }}>
+                            Tecnificación & Alto Rendimiento
+                          </div>
+                          <div style={{ fontSize: '0.68rem', color: '#7E22CE', fontWeight: 600 }}>
+                            Seguimiento Cualitativo Continuo
                           </div>
                         </div>
                       </div>
                     </div>
                   </div>
 
-                  {/* Observación General */}
+                  {/* 3. DIAGNÓSTICO TÉCNICO-TÁCTICO GENERAL */}
                   <div style={{
                     background: '#F8FAFC',
                     border: '1.5px solid #E2E8F0',
+                    borderLeft: '4px solid #D4AF37',
                     borderRadius: '10px',
-                    padding: '12px 16px'
+                    padding: '14px 18px'
                   }}>
-                    <div style={{ fontSize: '0.78rem', fontWeight: 800, color: '#B45309', textTransform: 'uppercase', marginBottom: '4px' }}>
-                      📝 Observación General del Jugador
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px' }}>
+                      <div style={{ fontSize: '0.78rem', fontWeight: 800, color: '#B45309', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                        📋 DIAGNÓSTICO TÉCNICO-TÁCTICO INTEGRAL
+                      </div>
+                      <span style={{ fontSize: '0.68rem', color: '#64748B', fontWeight: 600 }}>
+                        Dictamen General Metodológico
+                      </span>
                     </div>
-                    <div style={{ fontSize: '0.88rem', color: '#1E293B', lineHeight: 1.5, fontStyle: playerToPrint.observacionesTecnicas ? 'normal' : 'italic' }}>
+                    <div style={{ fontSize: '0.88rem', color: '#1E293B', lineHeight: 1.55, fontStyle: playerToPrint.observacionesTecnicas ? 'normal' : 'italic' }}>
                       {playerToPrint.observacionesTecnicas || 'Sin observaciones técnicas generales registradas en el expediente del jugador.'}
                     </div>
                   </div>
 
-                  {/* Observaciones de Profesores en Sesiones */}
+                  {/* 4. BITÁCORA DE CAMPO: EVALUACIONES EN SESIÓN */}
                   {sessionNotes.length > 0 && (
                     <div style={{
                       background: '#F8FAFC',
                       border: '1.5px solid #E2E8F0',
                       borderRadius: '10px',
-                      padding: '12px 16px'
+                      padding: '14px 18px'
                     }}>
-                      <div style={{ fontSize: '0.78rem', fontWeight: 800, color: '#0284C7', textTransform: 'uppercase', marginBottom: '8px' }}>
-                        💬 Observaciones Registradas por los Profesores en Sesiones:
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
+                        <div style={{ fontSize: '0.78rem', fontWeight: 800, color: '#0284C7', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                          💬 BITÁCORA DE CAMPO: DEVOLUCIONES DEL CUERPO TÉCNICO EN SESIÓN
+                        </div>
+                        <span style={{ fontSize: '0.68rem', color: '#64748B', fontWeight: 600 }}>
+                          {sessionNotes.length} Registro(s) de Seguimiento
+                        </span>
                       </div>
                       <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
                         {sessionNotes.slice(0, 3).map((obs) => (
@@ -1866,16 +2126,16 @@ const PlayerManager = () => {
                               background: '#FFFFFF',
                               border: '1px solid #E2E8F0',
                               borderLeft: '4px solid #10B981',
-                              padding: '8px 12px',
+                              padding: '10px 14px',
                               borderRadius: '0 8px 8px 0',
-                              fontSize: '0.8rem'
+                              fontSize: '0.82rem'
                             }}
                           >
-                            <div style={{ display: 'flex', justifyContent: 'space-between', color: '#047857', fontWeight: 800, marginBottom: '2px', fontSize: '0.75rem' }}>
-                              <span>Prof. {obs.autorNombre || 'Entrenador'}</span>
-                              <span style={{ color: '#64748B' }}>{obs.fecha}</span>
+                            <div style={{ display: 'flex', justifyContent: 'space-between', color: '#047857', fontWeight: 800, marginBottom: '3px', fontSize: '0.75rem' }}>
+                              <span>👤 PROF. {String(obs.autorNombre || 'Entrenador').toUpperCase()} {obs.modalidad ? `• SESIÓN ${obs.modalidad}` : ''}</span>
+                              <span style={{ color: '#64748B' }}>📅 {obs.fecha}</span>
                             </div>
-                            <div style={{ color: '#0F172A', fontStyle: 'italic', lineHeight: 1.4 }}>
+                            <div style={{ color: '#0F172A', fontStyle: 'italic', lineHeight: 1.45 }}>
                               "{obs.texto}"
                             </div>
                           </div>
@@ -1884,24 +2144,54 @@ const PlayerManager = () => {
                     </div>
                   )}
 
+                  {/* 5. VALIDACIÓN OFICIAL Y RÚBRICAS METODOLÓGICAS */}
+                  <div style={{
+                    marginTop: '4px',
+                    padding: '12px 16px',
+                    background: '#FFFFFF',
+                    border: '1px dashed #CBD5E1',
+                    borderRadius: '10px',
+                    display: 'grid',
+                    gridTemplateColumns: '1fr 1fr',
+                    gap: '20px'
+                  }}>
+                    <div style={{ borderTop: '1.5px solid #94A3B8', paddingTop: '6px', textAlign: 'center' }}>
+                      <div style={{ fontSize: '0.74rem', fontWeight: 800, color: '#0F172A', letterSpacing: '0.04em' }}>
+                        DIRECCIÓN METODOLÓGICA Y RENDIMIENTO
+                      </div>
+                      <div style={{ fontSize: '0.66rem', color: '#64748B', marginTop: '2px' }}>
+                        Parla Sport Training Academy • Certificación Oficial
+                      </div>
+                    </div>
+
+                    <div style={{ borderTop: '1.5px solid #94A3B8', paddingTop: '6px', textAlign: 'center' }}>
+                      <div style={{ fontSize: '0.74rem', fontWeight: 800, color: '#0F172A', letterSpacing: '0.04em' }}>
+                        COORDINACIÓN TÉCNICA DE CAMPO
+                      </div>
+                      <div style={{ fontSize: '0.66rem', color: '#64748B', marginTop: '2px' }}>
+                        Firma y Aval del Cuerpo de Entrenadores
+                      </div>
+                    </div>
+                  </div>
+
                 </div>
 
-                {/* ─── PIE DE PÁGINA MEMBRETADO CREATIVO AZUL MARINO ─── */}
+                {/* ─── PIE DE PÁGINA MEMBRETADO OFICIAL AZUL MARINO ─── */}
                 <div style={{
-                  background: 'linear-gradient(135deg, #050B17 0%, #0A1633 100%)',
+                  background: 'linear-gradient(135deg, #030712 0%, #08132B 50%, #0C1E47 100%)',
                   color: '#94A3B8',
                   padding: '12px 24px',
-                  borderTop: '2.5px solid #D4AF37',
+                  borderTop: '3px solid #D4AF37',
                   display: 'flex',
                   justifyContent: 'space-between',
                   alignItems: 'center',
                   fontSize: '0.72rem'
                 }}>
                   <span style={{ color: '#E2E8F0', fontWeight: 600 }}>
-                    🏆 <strong>Parla Sport Training Academy</strong> • Sistema de Evaluación y Rendimiento Deportivo
+                    🏆 <strong>Parla Sport Training Academy</strong> • Sistema de Evaluación y Desarrollo Deportivo
                   </span>
-                  <span style={{ color: '#FBBF24', fontWeight: 800, letterSpacing: '0.04em' }}>
-                    DOCUMENTO OFICIAL CERTIFICADO
+                  <span style={{ color: '#FBBF24', fontWeight: 800, letterSpacing: '0.06em' }}>
+                    DOCUMENTO OFICIAL AUDITADO
                   </span>
                 </div>
               </div>
