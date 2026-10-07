@@ -673,21 +673,14 @@ const PlayerManager = () => {
                     <span className="badge badge-emerald" style={{ fontSize: '0.65rem' }}>
                       {player.edad} Años
                     </span>
-                    {playerBirthYear && (
-                      <span className="badge badge-gold" style={{ fontSize: '0.65rem', background: 'rgba(245, 158, 11, 0.2)', border: '1px solid rgba(245, 158, 11, 0.4)', color: '#FBBF24' }}>
-                        Año {playerBirthYear}
-                      </span>
-                    )}
                   </div>
                 </div>
               </div>
 
               <div style={{ fontSize: '0.82rem', color: '#CBD5E1', background: 'rgba(15, 23, 42, 0.6)', padding: '10px', borderRadius: '8px' }}>
-                {player.fechaNacimiento ? (
-                  <div style={{ marginBottom: '2px' }}><strong>F. Nacimiento:</strong> {player.fechaNacimiento} {playerBirthYear ? `(${playerBirthYear})` : ''}</div>
-                ) : (playerBirthYear ? (
-                  <div style={{ marginBottom: '2px' }}><strong>Año Nacimiento:</strong> {playerBirthYear}</div>
-                ) : null)}
+                {player.fechaNacimiento && (
+                  <div style={{ marginBottom: '2px' }}><strong>F. Nacimiento:</strong> {player.fechaNacimiento}</div>
+                )}
                 <div><strong>Pierna Hábil:</strong> {player.piernaHabil}</div>
                 <div><strong>Club donde entrena:</strong> {player.club || player.equipo || 'Parla Sport'}</div>
                 <div style={{ color: '#94A3B8', marginTop: '2px' }}><strong>Tutor:</strong> {player.contactoTutor || 'No registrado'}</div>
@@ -913,22 +906,6 @@ const PlayerManager = () => {
               </h3>
 
               <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap', marginTop: '2px' }}>
-                <span style={{
-                  background: 'rgba(245, 158, 11, 0.15)',
-                  border: '1px solid rgba(245, 158, 11, 0.4)',
-                  color: '#FBBF24',
-                  padding: '3px 10px',
-                  borderRadius: '6px',
-                  fontSize: '0.8rem',
-                  fontWeight: 800,
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '5px'
-                }}>
-                  <Calendar size={13} />
-                  CAT. {getPlayerSubCategory(getPlayerBirthYear(selectedPlayer))} • GEN {getPlayerBirthYear(selectedPlayer) || 'N/D'} {selectedPlayer.edad ? `(${selectedPlayer.edad} años)` : ''}
-                </span>
-
                 <span className={getPositionBadgeClass(selectedPlayer.posicion)} style={{ fontSize: '0.78rem', padding: '3px 10px', fontWeight: 800 }}>
                   DEMARCACIÓN: {selectedPlayer.posicion?.toUpperCase() || 'JUGADOR'}
                 </span>
@@ -2026,19 +2003,6 @@ const PlayerManager = () => {
                       </h2>
 
                       <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
-                        <span style={{
-                          background: '#FEF3C7',
-                          border: '1.5px solid #F59E0B',
-                          color: '#92400E',
-                          padding: '3px 10px',
-                          borderRadius: '6px',
-                          fontSize: '0.78rem',
-                          fontWeight: 800,
-                          letterSpacing: '0.02em'
-                        }}>
-                          CATEGORÍA {subCategory} • AÑO {birthYear || 'N/D'} {playerToPrint.edad ? `(${playerToPrint.edad} años)` : ''}
-                        </span>
-
                         <span style={{
                           background: '#E0F2FE',
                           border: '1.5px solid #0284C7',
