@@ -500,7 +500,16 @@ const SessionDetailModal = ({ isOpen, onClose, session, players = [], coach }) =
                         </div>
                       )}
                       <div>
-                        <div style={{ fontWeight: 800, fontSize: '1rem', color: '#F8FAFC' }}>{player.nombre}</div>
+                        {(() => {
+                          const pBirthYear = player.fechaNacimiento
+                            ? player.fechaNacimiento.match(/\b(19\d{2}|20\d{2})\b/)?.[1]
+                            : (player.edad ? (new Date().getFullYear() - Number(player.edad)) : null);
+                          return (
+                            <div style={{ fontWeight: 800, fontSize: '1rem', color: '#F8FAFC' }}>
+                              {player.nombre}{pBirthYear ? ` - ${pBirthYear}` : ''}
+                            </div>
+                          );
+                        })()}
                         <div style={{ display: 'flex', gap: '6px', marginTop: '2px', alignItems: 'center' }}>
                           <span className="badge badge-emerald" style={{ fontSize: '0.7rem' }}>{player.posicion}</span>
                           <span style={{ fontSize: '0.78rem', color: '#94A3B8' }}>• {player.edad} Años</span>

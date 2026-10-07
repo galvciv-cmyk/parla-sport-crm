@@ -66,12 +66,7 @@ export const DataProvider = ({ children }) => {
     });
   };
 
-  // Limpieza inicial de caché local para garantizar sincronización 100% pura con Firestore
-  useEffect(() => {
-    localStorage.removeItem('parla_players');
-    localStorage.removeItem('parla_coaches');
-    localStorage.removeItem('parla_sessions');
-  }, []);
+  // Sincronización instantánea con caché persistente para acelerar la carga en 0ms
 
   // Escuchar entrenadores en tiempo real desde Firestore (Fuente Única de Verdad con Auto-Deduplicación Inteligente)
   useEffect(() => {
@@ -118,6 +113,7 @@ export const DataProvider = ({ children }) => {
 
       const uniqueCoaches = Array.from(emailMap.values());
       setCoaches(uniqueCoaches);
+      try { localStorage.setItem('parla_coaches', JSON.stringify(uniqueCoaches)); } catch {}
 
       // Purgar de Firestore cualquier registro duplicado viejo en segundo plano
       if (duplicateIdsToDelete.length > 0) {
@@ -137,6 +133,7 @@ export const DataProvider = ({ children }) => {
     const unsub = onSnapshot(collection(db, 'players'), (snapshot) => {
       const firestorePlayers = snapshot.docs.map(d => ({ id: d.id, ...d.data() }));
       setPlayers(firestorePlayers);
+      try { localStorage.setItem('parla_players', JSON.stringify(firestorePlayers)); } catch {}
     }, () => {});
 
     return () => unsub();
@@ -147,6 +144,7 @@ export const DataProvider = ({ children }) => {
     const unsub = onSnapshot(collection(db, 'sessions'), (snapshot) => {
       const firestoreSessions = snapshot.docs.map(d => ({ id: d.id, ...d.data() }));
       setSessions(firestoreSessions);
+      try { localStorage.setItem('parla_sessions', JSON.stringify(firestoreSessions)); } catch {}
     }, () => {});
 
     return () => unsub();

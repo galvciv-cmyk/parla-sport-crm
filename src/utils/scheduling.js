@@ -64,18 +64,24 @@ export const isTimeInPast = (dateStr, timeStr) => {
 };
 
 /**
- * Obtiene la siguiente hora en punto válida para una fecha dada
+ * Obtiene el siguiente bloque de 15 minutos válido para una fecha dada (ej. 14:00, 14:15, 14:30, 14:45)
  */
-export const getNextUpcomingFullHour = (dateStr = null) => {
+export const getNextUpcomingQuarterHour = (dateStr = null) => {
   const now = new Date();
   const pad = (n) => String(n).padStart(2, '0');
   const todayStr = `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}`;
 
   if (!dateStr || dateStr === todayStr) {
     const currentHour = now.getHours();
-    const nextHour = currentHour + 1;
+    const currentMin = now.getMinutes();
+    let nextMin = Math.ceil((currentMin + 1) / 15) * 15;
+    let nextHour = currentHour;
+    if (nextMin >= 60) {
+      nextHour += 1;
+      nextMin = 0;
+    }
     if (nextHour >= 6 && nextHour <= 22) {
-      return `${pad(nextHour)}:00`;
+      return `${pad(nextHour)}:${pad(nextMin)}`;
     } else if (nextHour < 6) {
       return '06:00';
     } else {
@@ -86,9 +92,16 @@ export const getNextUpcomingFullHour = (dateStr = null) => {
 };
 
 /**
- * Genera lista de opciones de hora con su equivalente en 12h AM/PM (Solo horas en punto por defecto)
+ * Obtiene la siguiente hora en punto válida para una fecha dada (retrocompatible)
  */
-export const generateTimeOptions = (intervalMinutes = 60) => {
+export const getNextUpcomingFullHour = (dateStr = null) => {
+  return getNextUpcomingQuarterHour(dateStr);
+};
+
+/**
+ * Genera lista de opciones de hora con su equivalente en 12h AM/PM (Rangos de 15 minutos por defecto)
+ */
+export const generateTimeOptions = (intervalMinutes = 15) => {
   const options = [];
   for (let h = 6; h <= 22; h++) {
     for (let m = 0; m < 60; m += intervalMinutes) {

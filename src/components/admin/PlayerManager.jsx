@@ -175,6 +175,36 @@ const PlayerManager = () => {
     setIsDetailModalOpen(true);
   }, [isAdmin]);
 
+  // Separar mención de Club dentro de la descripción técnica
+  const handleSeparateClubFromDescription = () => {
+    const text = formData.observacionesTecnicas || '';
+    if (!text.trim()) {
+      showToast('Sin Texto', 'No hay descripción escrita para analizar.', 'info');
+      return;
+    }
+
+    const clubRegex = /(?:juega en|entrena en|club|pertenece a|adscrito a|escuela|academia)\s*:?\s*([A-Za-zÁÉÍÓÚáéíóúñÑ0-9\s]+?)(?=[,.\n]|$)/i;
+    const match = text.match(clubRegex);
+
+    if (match && match[1]) {
+      const detectedClub = match[1].trim();
+      const cleanedDesc = text
+        .replace(match[0], '')
+        .replace(/^\s*[,.-]\s*/, '')
+        .replace(/\s{2,}/g, ' ')
+        .trim();
+
+      setFormData(prev => ({
+        ...prev,
+        club: prev.club && prev.club !== 'Parla Sport' ? prev.club : detectedClub,
+        observacionesTecnicas: cleanedDesc
+      }));
+      showToast('Club Separado', `Se extrajo "${detectedClub}" al campo Club y se limpió la descripción.`, 'success');
+    } else {
+      showToast('Revisión', 'No se detectó un prefijo explícito (ej: "Club...", "Juega en..."). Puedes ingresar el Club manualmente.', 'info');
+    }
+  };
+
   // Obtener observaciones de sesiones para la ficha técnica
   const getPlayerSessionObservations = (player) => {
     if (!player) return [];
@@ -614,7 +644,9 @@ const PlayerManager = () => {
                   </div>
                 )}
                 <div style={{ flex: 1 }}>
-                  <h3 style={{ fontSize: '1rem', fontWeight: 700, color: '#F8FAFC' }}>{player.nombre}</h3>
+                  <h3 style={{ fontSize: '1rem', fontWeight: 700, color: '#F8FAFC' }}>
+                    {player.nombre}{playerBirthYear ? ` - ${playerBirthYear}` : ''}
+                  </h3>
                   <div style={{ display: 'flex', gap: '6px', marginTop: '4px', flexWrap: 'wrap', alignItems: 'center' }}>
                     <span className={`badge ${getPositionBadgeClass(player.posicion)}`}>
                       {player.posicion}
@@ -877,7 +909,7 @@ const PlayerManager = () => {
                 textShadow: '0 2px 6px rgba(0,0,0,0.5)',
                 wordBreak: 'break-word'
               }}>
-                {selectedPlayer.nombre}
+                {selectedPlayer.nombre}{getPlayerBirthYear(selectedPlayer) ? ` - ${getPlayerBirthYear(selectedPlayer)}` : ''}
               </h3>
 
               <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap', marginTop: '2px' }}>
@@ -1460,11 +1492,35 @@ const PlayerManager = () => {
           </div>
 
           <div>
-            <label className="input-label">Observaciones Técnicas Generales</label>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px', flexWrap: 'wrap', gap: '6px' }}>
+              <label className="input-label" style={{ margin: 0 }}>
+                Descripción Técnica / Perfil del Jugador
+              </label>
+              <button
+                type="button"
+                onClick={handleSeparateClubFromDescription}
+                style={{
+                  background: 'rgba(245, 158, 11, 0.15)',
+                  border: '1px solid rgba(245, 158, 11, 0.4)',
+                  color: '#FBBF24',
+                  fontSize: '0.72rem',
+                  fontWeight: 700,
+                  padding: '3px 8px',
+                  borderRadius: '6px',
+                  cursor: 'pointer',
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: '4px'
+                }}
+                title="Detecta si el texto menciona un club y lo pasa automáticamente al campo Club donde Entrena"
+              >
+                🧹 Separar Club del Texto
+              </button>
+            </div>
             <textarea
               rows={3}
               className="input-field"
-              placeholder="Comentarios sobre fortalezas, técnica, visión de juego o aspectos a entrenar..."
+              placeholder="Breve descripción del perfil deportivo, fortalezas, visión de juego o aspectos a entrenar..."
               value={formData.observacionesTecnicas}
               onChange={(e) => setFormData({ ...formData, observacionesTecnicas: e.target.value })}
             />
@@ -1966,7 +2022,7 @@ const PlayerManager = () => {
                         DEPORTISTA EVALUADO
                       </div>
                       <h2 style={{ fontSize: '1.65rem', fontWeight: 900, color: '#0F172A', margin: '0 0 6px 0', letterSpacing: '-0.02em', lineHeight: 1.15 }}>
-                        {playerToPrint.nombre}
+                        {playerToPrint.nombre}{birthYear ? ` - ${birthYear}` : ''}
                       </h2>
 
                       <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>

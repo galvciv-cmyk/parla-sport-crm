@@ -1,7 +1,13 @@
 // Firebase Configuration Service for Spark Plan & Production Fallback
 import { initializeApp, getApps } from 'firebase/app';
 import { getAuth, connectAuthEmulator } from 'firebase/auth';
-import { getFirestore, connectFirestoreEmulator } from 'firebase/firestore';
+import {
+  initializeFirestore,
+  persistentLocalCache,
+  persistentMultipleTabManager,
+  getFirestore,
+  connectFirestoreEmulator
+} from 'firebase/firestore';
 
 const firebaseConfig = {
   apiKey: import.meta.env.VITE_FIREBASE_API_KEY || "AIzaSyAQFMfI2YWwQ-Z_MYMp3I-VmXzy4xzU26Y",
@@ -22,7 +28,20 @@ if (!getApps().length) {
 }
 
 export const auth = getAuth(app);
-export const db = getFirestore(app);
+
+// Inicializar Firestore con Caché Local Persistente (IndexedDB) para acelerar drásticamente los requests y la carga
+let firestoreDb;
+try {
+  firestoreDb = initializeFirestore(app, {
+    localCache: persistentLocalCache({
+      tabManager: persistentMultipleTabManager()
+    })
+  });
+} catch (e) {
+  firestoreDb = getFirestore(app);
+}
+
+export const db = firestoreDb;
 
 // Conexión opcional al emulador local de Firebase si VITE_USE_EMULATOR está explícitamente en 'true'
 const useEmulator = import.meta.env.VITE_USE_EMULATOR === 'true';

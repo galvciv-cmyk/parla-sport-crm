@@ -1,5 +1,5 @@
 import React, { useState, useMemo } from 'react';
-import { CalendarPlus, RefreshCw, CheckCircle, Trash2, Edit3, UserCheck, AlertCircle } from 'lucide-react';
+import { CalendarPlus, RefreshCw, CheckCircle, Trash2, Edit3, UserCheck, AlertCircle, Search } from 'lucide-react';
 import { useData } from '../../context/DataContext';
 import {
   getAvailableCoaches,
@@ -46,17 +46,60 @@ const SessionScheduler = () => {
   const [errorMessage, setErrorMessage] = useState('');
   const [successMessage, setSuccessMessage] = useState('');
 
-  // Generar opciones de solo horas en punto, filtrando horas pasadas si la fecha seleccionada es hoy
+  // Estados de Búsqueda de Jugadores en Asignación de Sesiones
+  const [playerSearchTerm, setPlayerSearchTerm] = useState('');
+  const [editPlayerSearchTerm, setEditPlayerSearchTerm] = useState('');
+
+  const getPlayerBirthYear = (p) => {
+    if (!p) return null;
+    if (p.fechaNacimiento) {
+      const match = String(p.fechaNacimiento).match(/\b(19\d{2}|20\d{2})\b/);
+      if (match) return match[1];
+    }
+    if (p.edad && Number(p.edad) > 0) {
+      return String(new Date().getFullYear() - Number(p.edad));
+    }
+    return null;
+  };
+
+  const filteredPlayersForForm = useMemo(() => {
+    if (!playerSearchTerm.trim()) return players;
+    const term = playerSearchTerm.toLowerCase().trim();
+    return players.filter(p => {
+      const yr = getPlayerBirthYear(p) || '';
+      return (
+        (p.nombre && p.nombre.toLowerCase().includes(term)) ||
+        (p.posicion && p.posicion.toLowerCase().includes(term)) ||
+        (p.club && p.club.toLowerCase().includes(term)) ||
+        yr.includes(term)
+      );
+    });
+  }, [players, playerSearchTerm]);
+
+  const filteredPlayersForEdit = useMemo(() => {
+    if (!editPlayerSearchTerm.trim()) return players;
+    const term = editPlayerSearchTerm.toLowerCase().trim();
+    return players.filter(p => {
+      const yr = getPlayerBirthYear(p) || '';
+      return (
+        (p.nombre && p.nombre.toLowerCase().includes(term)) ||
+        (p.posicion && p.posicion.toLowerCase().includes(term)) ||
+        (p.club && p.club.toLowerCase().includes(term)) ||
+        yr.includes(term)
+      );
+    });
+  }, [players, editPlayerSearchTerm]);
+
+  // Generar opciones en bloques de 15 minutos (06:00, 06:15, 06:30, 06:45...)
   const availableTimeOptions = useMemo(() => {
-    const allOptions = generateTimeOptions(60); // Horas en punto: 06:00, 07:00, ..., 22:00
+    const allOptions = generateTimeOptions(15);
     const now = new Date();
     const currentToday = getTodayDateStr();
 
     if (sessionData.fecha === currentToday) {
       return allOptions.filter(opt => {
-        const [h] = opt.value.split(':').map(Number);
-        // Si hoy ya pasó esa hora, no se puede seleccionar
-        const optDate = new Date(now.getFullYear(), now.getMonth(), now.getDate(), h, 0, 0);
+        const [h, m] = opt.value.split(':').map(Number);
+        const optDate = new Date(now.getFullYear(), now.getMonth(), now.getDate(), h, m || 0, 0);
         return optDate > now;
       });
     }
@@ -76,14 +119,14 @@ const SessionScheduler = () => {
         pId => !hasPlayerDailySession(sessions, pId, newDate).hasSession
       );
 
-      // Calcular opciones para la nueva fecha
-      const allOptions = generateTimeOptions(60);
+      // Calcular opciones de 15 minutos para la nueva fecha
+      const allOptions = generateTimeOptions(15);
       const now = new Date();
       let validOptions = allOptions;
       if (newDate === currentToday) {
         validOptions = allOptions.filter(opt => {
-          const [h] = opt.value.split(':').map(Number);
-          const optDate = new Date(now.getFullYear(), now.getMonth(), now.getDate(), h, 0, 0);
+          const [h, m] = opt.value.split(':').map(Number);
+          const optDate = new Date(now.getFullYear(), now.getMonth(), now.getDate(), h, m || 0, 0);
           return optDate > now;
         });
       }
@@ -402,8 +445,7 @@ const SessionScheduler = () => {
                     height: '44px',
                     boxSizing: 'border-box',
                     width: '100%',
-                    padding: '0 12px',
-                    fontSize: '0.88rem'
+                    padding: '0 12px'
                   }}
                   value={sessionData.horaInicio}
                   onChange={(e) => handleHoraInicioChange(e.target.value)}
@@ -436,7 +478,6 @@ const SessionScheduler = () => {
                     boxSizing: 'border-box',
                     width: '100%',
                     padding: '0 12px',
-                    fontSize: '0.88rem',
                     color: '#FBBF24',
                     fontWeight: 700,
                     background: 'rgba(15,23,42,0.6)',
@@ -489,66 +530,117 @@ const SessionScheduler = () => {
               </div>
             </div>
 
-            {/* SELECCIÓN DE JUGADORES */}
+            {/* SELECCIÓN DE JUGADORES CON BUSCADOR INTELIGENTE */}
             <div>
-              <label className="input-label">
-                Seleccionar Jugador(es) - Requeridos: {sessionData.tipo === '1-1' ? 1 : sessionData.tipo === '1-2' ? 2 : 3}
-              </label>
-              <div style={{ maxHeight: '180px', overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: '6px', background: 'rgba(15,23,42,0.6)', padding: '10px', borderRadius: '10px' }}>
-                {players.map(p => {
-                  const isSelected = sessionData.jugadoresIds.includes(p.id);
-                  const dailyCheck = hasPlayerDailySession(sessions, p.id, sessionData.fecha);
-                  const hasDailySession = dailyCheck.hasSession;
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px' }}>
+                <label className="input-label" style={{ margin: 0 }}>
+                  Seleccionar Jugador(es) - Requeridos: {sessionData.tipo === '1-1' ? 1 : sessionData.tipo === '1-2' ? 2 : 3}
+                </label>
+                <span style={{ fontSize: '0.74rem', color: sessionData.jugadoresIds.length === (sessionData.tipo === '1-1' ? 1 : sessionData.tipo === '1-2' ? 2 : 3) ? '#10B981' : '#F59E0B', fontWeight: 700 }}>
+                  {sessionData.jugadoresIds.length} / {sessionData.tipo === '1-1' ? 1 : sessionData.tipo === '1-2' ? 2 : 3} seleccionados
+                </span>
+              </div>
 
-                  return (
-                    <div
-                      key={p.id}
-                      onClick={() => {
-                        if (hasDailySession && !isSelected) {
-                          const hora = dailyCheck.existingSession ? formatTo12Hour(dailyCheck.existingSession.horaInicio) : '';
-                          showToast(
-                            'Conflicto de Sesión Diaria',
-                            `El jugador ${p.nombre} ya tiene una sesión agendada el ${sessionData.fecha}${hora ? ` a las ${hora}` : ''}. Regla: Los jugadores solo realizan máximo 1 sesión diaria.`,
-                            'warning',
-                            5000
-                          );
-                          return;
-                        }
-                        handlePlayerToggle(p.id);
-                      }}
-                      style={{
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'space-between',
-                        padding: '9px 12px',
-                        borderRadius: '8px',
-                        background: isSelected
-                          ? 'rgba(16, 185, 129, 0.15)'
-                          : (hasDailySession ? 'rgba(239, 68, 68, 0.08)' : 'transparent'),
-                        border: isSelected
-                          ? '1px solid rgba(16, 185, 129, 0.45)'
-                          : (hasDailySession ? '1px solid rgba(239, 68, 68, 0.25)' : '1px solid transparent'),
-                        cursor: hasDailySession && !isSelected ? 'not-allowed' : 'pointer',
-                        opacity: hasDailySession && !isSelected ? 0.55 : 1
-                      }}
-                    >
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                        <span style={{ fontSize: '0.85rem', color: isSelected ? '#F8FAFC' : (hasDailySession ? '#94A3B8' : '#CBD5E1'), fontWeight: isSelected ? 700 : 500 }}>
-                          ⚽ {p.nombre} ({p.posicion})
-                        </span>
-                      </div>
+              {/* Barra de búsqueda interactiva */}
+              <div style={{ position: 'relative', marginBottom: '8px' }}>
+                <Search size={15} style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)', color: '#94A3B8', pointerEvents: 'none' }} />
+                <input
+                  type="text"
+                  placeholder="🔍 Buscar por nombre, posición o año (ej. 2012)..."
+                  value={playerSearchTerm}
+                  onChange={(e) => setPlayerSearchTerm(e.target.value)}
+                  style={{
+                    paddingLeft: '36px',
+                    paddingRight: playerSearchTerm ? '32px' : '12px',
+                    height: '42px',
+                    borderRadius: '8px',
+                    background: 'rgba(15, 23, 42, 0.75)',
+                    border: '1px solid rgba(212, 175, 55, 0.3)'
+                  }}
+                />
+                {playerSearchTerm && (
+                  <button
+                    type="button"
+                    onClick={() => setPlayerSearchTerm('')}
+                    style={{
+                      position: 'absolute',
+                      right: '10px',
+                      top: '50%',
+                      transform: 'translateY(-50%)',
+                      background: 'none',
+                      border: 'none',
+                      color: '#94A3B8',
+                      cursor: 'pointer',
+                      fontSize: '0.85rem'
+                    }}
+                  >
+                    ✕
+                  </button>
+                )}
+              </div>
 
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                        {isSelected && <CheckCircle size={16} color="#10B981" />}
-                        {hasDailySession && !isSelected && (
-                          <span className="badge badge-danger" style={{ fontSize: '0.65rem' }}>
-                            ⚠️ Ya tiene sesión hoy {dailyCheck.existingSession ? `(${formatTo12Hour(dailyCheck.existingSession.horaInicio)})` : ''}
+              <div style={{ maxHeight: '190px', overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: '6px', background: 'rgba(15,23,42,0.6)', padding: '10px', borderRadius: '10px' }}>
+                {filteredPlayersForForm.length === 0 ? (
+                  <div style={{ textAlign: 'center', padding: '14px', color: '#94A3B8', fontSize: '0.82rem' }}>
+                    No se encontraron jugadores que coincidan con "{playerSearchTerm}"
+                  </div>
+                ) : (
+                  filteredPlayersForForm.map(p => {
+                    const isSelected = sessionData.jugadoresIds.includes(p.id);
+                    const dailyCheck = hasPlayerDailySession(sessions, p.id, sessionData.fecha);
+                    const hasDailySession = dailyCheck.hasSession;
+                    const pBirthYear = getPlayerBirthYear(p);
+
+                    return (
+                      <div
+                        key={p.id}
+                        onClick={() => {
+                          if (hasDailySession && !isSelected) {
+                            const hora = dailyCheck.existingSession ? formatTo12Hour(dailyCheck.existingSession.horaInicio) : '';
+                            showToast(
+                              'Conflicto de Sesión Diaria',
+                              `El jugador ${p.nombre} ya tiene una sesión agendada el ${sessionData.fecha}${hora ? ` a las ${hora}` : ''}. Regla: Los jugadores solo realizan máximo 1 sesión diaria.`,
+                              'warning',
+                              5000
+                            );
+                            return;
+                          }
+                          handlePlayerToggle(p.id);
+                        }}
+                        style={{
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'space-between',
+                          padding: '9px 12px',
+                          borderRadius: '8px',
+                          background: isSelected
+                            ? 'rgba(16, 185, 129, 0.15)'
+                            : (hasDailySession ? 'rgba(239, 68, 68, 0.08)' : 'transparent'),
+                          border: isSelected
+                            ? '1px solid rgba(16, 185, 129, 0.45)'
+                            : (hasDailySession ? '1px solid rgba(239, 68, 68, 0.25)' : '1px solid transparent'),
+                          cursor: hasDailySession && !isSelected ? 'not-allowed' : 'pointer',
+                          opacity: hasDailySession && !isSelected ? 0.55 : 1
+                        }}
+                      >
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                          <span style={{ fontSize: '0.88rem', color: isSelected ? '#F8FAFC' : (hasDailySession ? '#94A3B8' : '#CBD5E1'), fontWeight: isSelected ? 700 : 500 }}>
+                            ⚽ {p.nombre}{pBirthYear ? ` - ${pBirthYear}` : ''} ({p.posicion})
                           </span>
-                        )}
+                        </div>
+
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                          {isSelected && <CheckCircle size={16} color="#10B981" />}
+                          {hasDailySession && !isSelected && (
+                            <span className="badge badge-danger" style={{ fontSize: '0.65rem' }}>
+                              ⚠️ Ya tiene sesión hoy {dailyCheck.existingSession ? `(${formatTo12Hour(dailyCheck.existingSession.horaInicio)})` : ''}
+                            </span>
+                          )}
+                        </div>
                       </div>
-                    </div>
-                  );
-                })}
+                    );
+                  })
+                )}
               </div>
             </div>
 
@@ -793,41 +885,86 @@ const SessionScheduler = () => {
               </div>
             </div>
 
-            {/* Selector de Jugadores para la Edición */}
+            {/* Selector de Jugadores para la Edición con Buscador */}
             <div>
-              <label className="input-label" style={{ display: 'flex', justifyContent: 'space-between' }}>
-                <span>Seleccionar Jugadores</span>
-                <span style={{ color: editSessionData.jugadoresIds.length === (editSessionData.tipo === '1-1' ? 1 : editSessionData.tipo === '1-2' ? 2 : 3) ? '#10B981' : '#F59E0B', fontWeight: 700 }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px' }}>
+                <label className="input-label" style={{ margin: 0 }}>Seleccionar Jugadores</label>
+                <span style={{ color: editSessionData.jugadoresIds.length === (editSessionData.tipo === '1-1' ? 1 : editSessionData.tipo === '1-2' ? 2 : 3) ? '#10B981' : '#F59E0B', fontWeight: 700, fontSize: '0.74rem' }}>
                   {editSessionData.jugadoresIds.length} / {editSessionData.tipo === '1-1' ? 1 : editSessionData.tipo === '1-2' ? 2 : 3} seleccionados
                 </span>
-              </label>
+              </div>
+
+              {/* Buscador Rápido en Edición */}
+              <div style={{ position: 'relative', marginBottom: '8px' }}>
+                <Search size={15} style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)', color: '#94A3B8', pointerEvents: 'none' }} />
+                <input
+                  type="text"
+                  placeholder="🔍 Buscar por nombre, posición o año..."
+                  value={editPlayerSearchTerm}
+                  onChange={(e) => setEditPlayerSearchTerm(e.target.value)}
+                  style={{
+                    paddingLeft: '36px',
+                    paddingRight: editPlayerSearchTerm ? '32px' : '12px',
+                    height: '40px',
+                    borderRadius: '8px',
+                    background: 'rgba(15, 23, 42, 0.75)',
+                    border: '1px solid rgba(212, 175, 55, 0.3)'
+                  }}
+                />
+                {editPlayerSearchTerm && (
+                  <button
+                    type="button"
+                    onClick={() => setEditPlayerSearchTerm('')}
+                    style={{
+                      position: 'absolute',
+                      right: '10px',
+                      top: '50%',
+                      transform: 'translateY(-50%)',
+                      background: 'none',
+                      border: 'none',
+                      color: '#94A3B8',
+                      cursor: 'pointer',
+                      fontSize: '0.85rem'
+                    }}
+                  >
+                    ✕
+                  </button>
+                )}
+              </div>
 
               <div style={{ maxHeight: '170px', overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: '6px', background: 'rgba(15,23,42,0.6)', padding: '10px', borderRadius: '10px' }}>
-                {players.map(p => {
-                  const isSelected = editSessionData.jugadoresIds.includes(p.id);
+                {filteredPlayersForEdit.length === 0 ? (
+                  <div style={{ textAlign: 'center', padding: '12px', color: '#94A3B8', fontSize: '0.82rem' }}>
+                    No se encontraron jugadores que coincidan con "{editPlayerSearchTerm}"
+                  </div>
+                ) : (
+                  filteredPlayersForEdit.map(p => {
+                    const isSelected = editSessionData.jugadoresIds.includes(p.id);
+                    const pBirthYear = getPlayerBirthYear(p);
 
-                  return (
-                    <div
-                      key={p.id}
-                      onClick={() => handleEditPlayerToggle(p.id)}
-                      style={{
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'space-between',
-                        padding: '8px 12px',
-                        borderRadius: '8px',
-                        background: isSelected ? 'rgba(16, 185, 129, 0.15)' : 'transparent',
-                        border: isSelected ? '1px solid rgba(16, 185, 129, 0.45)' : '1px solid transparent',
-                        cursor: 'pointer'
-                      }}
-                    >
-                      <span style={{ fontSize: '0.85rem', color: isSelected ? '#F8FAFC' : '#CBD5E1', fontWeight: isSelected ? 700 : 500 }}>
-                        ⚽ {p.nombre} ({p.posicion})
-                      </span>
-                      {isSelected && <CheckCircle size={16} color="#10B981" />}
-                    </div>
-                  );
-                })}
+                    return (
+                      <div
+                        key={p.id}
+                        onClick={() => handleEditPlayerToggle(p.id)}
+                        style={{
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'space-between',
+                          padding: '8px 12px',
+                          borderRadius: '8px',
+                          background: isSelected ? 'rgba(16, 185, 129, 0.15)' : 'transparent',
+                          border: isSelected ? '1px solid rgba(16, 185, 129, 0.45)' : '1px solid transparent',
+                          cursor: 'pointer'
+                        }}
+                      >
+                        <span style={{ fontSize: '0.88rem', color: isSelected ? '#F8FAFC' : '#CBD5E1', fontWeight: isSelected ? 700 : 500 }}>
+                          ⚽ {p.nombre}{pBirthYear ? ` - ${pBirthYear}` : ''} ({p.posicion})
+                        </span>
+                        {isSelected && <CheckCircle size={16} color="#10B981" />}
+                      </div>
+                    );
+                  })
+                )}
               </div>
             </div>
 

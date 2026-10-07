@@ -57,6 +57,18 @@ const PlayerMonthlyReportModal = ({
   }, [sessions, player?.id, selectedMonthKey]);
 
   // Métricas del mes
+  const playerBirthYear = useMemo(() => {
+    if (!player) return null;
+    if (player.fechaNacimiento) {
+      const match = String(player.fechaNacimiento).match(/\b(19\d{2}|20\d{2})\b/);
+      if (match) return match[1];
+    }
+    if (player.edad && Number(player.edad) > 0) {
+      return String(new Date().getFullYear() - Number(player.edad));
+    }
+    return null;
+  }, [player]);
+
   const stats = useMemo(() => {
     const total = monthSessions.length;
     const completed = monthSessions.filter(s => s.estado === 'realizada').length;
@@ -425,7 +437,7 @@ const PlayerMonthlyReportModal = ({
                 DEPORTISTA AUDITADO
               </div>
               <h3 style={{ fontSize: '1.45rem', fontWeight: 900, color: '#F8FAFC', margin: '2px 0 6px 0', letterSpacing: '-0.02em' }}>
-                {player.nombre}
+                {player.nombre}{playerBirthYear ? ` - ${playerBirthYear}` : ''}
               </h3>
               <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap', alignItems: 'center' }}>
                 <span className="badge badge-emerald" style={{ fontWeight: 800, fontSize: '0.74rem' }}>

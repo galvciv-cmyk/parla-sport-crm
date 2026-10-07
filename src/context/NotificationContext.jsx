@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
-import { doc, setDoc, deleteDoc, onSnapshot, collection } from 'firebase/firestore';
+import { doc, setDoc, deleteDoc, onSnapshot, collection, query, orderBy, limit } from 'firebase/firestore';
 import { db } from '../services/firebase';
 import { sendOneSignalPush, sendOneSignalEmail, sendSessionAssignmentNotification, sendNetlifyEmail } from '../services/oneSignalService';
 import { triggerLocalPushNotification } from '../services/pwaService';
@@ -32,9 +32,9 @@ export const NotificationProvider = ({ children }) => {
   useEffect(() => {
     let isInitialLoad = true;
 
-    const unsub = onSnapshot(collection(db, 'notifications'), (snapshot) => {
+    const notifsQuery = query(collection(db, 'notifications'), orderBy('timestamp', 'desc'), limit(60));
+    const unsub = onSnapshot(notifsQuery, (snapshot) => {
       const firestoreNotifs = snapshot.docs.map(d => ({ id: d.id, ...d.data() }));
-      firestoreNotifs.sort((a, b) => new Date(b.timestamp || 0) - new Date(a.timestamp || 0));
       setNotifications(firestoreNotifs);
 
       try {
